@@ -7,15 +7,16 @@ public class LevelLoader : MonoBehaviour
     public LevelDataSO levelToPlay;
 
     [Header("Prefabs")]
-    public GameObject headPrefab;   // Vẫn cần để tạo Đầu
-    public GameObject bodyPrefab;   // Vẫn cần để tạo các nốt Chính (Gốc)
+    public GameObject headPrefab;
+    public GameObject bodyPrefab;
 
     [Header("Container")]
     public Transform gameContainer;
 
     [Header("Resolution Settings")]
     [Range(0, 20)]
-    public int subNodesCount = 3; // Số lượng nốt rỗng chèn vào giữa
+    // Lời khuyên: Để số này khoảng 5-9 để rắn trông mịn hơn
+    public int subNodesCount = 8;
 
     private void Start()
     {
@@ -27,7 +28,6 @@ public class LevelLoader : MonoBehaviour
     {
         if (levelToPlay == null) return;
 
-        // 1. Dọn dẹp map cũ (Xóa sạch sẽ)
         if (gameContainer != null)
         {
             int childCount = gameContainer.childCount;
@@ -37,26 +37,21 @@ public class LevelLoader : MonoBehaviour
             }
         }
 
-        // 2. Duyệt từng con rắn
         foreach (var snakeData in levelToPlay.snakes)
         {
             if (snakeData.segmentPositions.Count == 0) continue;
 
-            // Tạo vỏ bọc cha
             GameObject snakeObj = new GameObject("Snake");
             if (gameContainer != null) snakeObj.transform.parent = gameContainer;
 
             SnakeBlock snakeScript = snakeObj.AddComponent<SnakeBlock>();
             snakeScript.obstacleLayer = LayerMask.GetMask("Block");
 
-            List<Transform> allSegments = new List<Transform>();
-            int dataCount = snakeData.segmentPositions.Count;
+            List<Transform> mainSegments = new List<Transform>();
 
-            // --- VÒNG LẶP TỐI ƯU ---
-            for (int i = 0; i < dataCount; i++)
+            // CHỈ TẠO MAIN NODES (NỐT GỐC)
+            for (int i = 0; i < snakeData.segmentPositions.Count; i++)
             {
-                // A. SINH NỐT CHÍNH (Dùng Prefab thật)
-                // Để đảm bảo logic va chạm hoặc hình ảnh mốc (nếu cần) vẫn còn
                 Vector2Int pos = snakeData.segmentPositions[i];
                 Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
 
@@ -64,9 +59,8 @@ public class LevelLoader : MonoBehaviour
                 GameObject mainSeg = Instantiate(prefab, currentPos, Quaternion.identity, snakeObj.transform);
 
                 mainSeg.name = (i == 0) ? "Head" : $"Main_{i}";
-                allSegments.Add(mainSeg.transform);
+                mainSegments.Add(mainSeg.transform);
 
-                // Xử lý xoay mũi tên cho ĐẦU
                 if (i == 0)
                 {
                     Transform arrowVis = mainSeg.transform.Find("Arrow");
@@ -83,34 +77,13 @@ public class LevelLoader : MonoBehaviour
                         arrowVis.localRotation = Quaternion.Euler(0, 0, angle);
                     }
                 }
-
-                // B. SINH NỐT PHỤ (Dùng Empty Object - Siêu nhẹ)
-                if (i < dataCount - 1)
-                {
-                    Vector2Int nextPosData = snakeData.segmentPositions[i + 1];
-                    Vector3 nextPos = new Vector3(nextPosData.x, nextPosData.y, 0);
-
-                    for (int j = 1; j <= subNodesCount; j++)
-                    {
-                        float t = (float)j / (subNodesCount + 1);
-                        Vector3 subPos = Vector3.Lerp(currentPos, nextPos, t);
-
-                        // --- TỐI ƯU TẠI ĐÂY ---
-                        // Thay vì Instantiate prefab, ta chỉ tạo một GameObject rỗng
-                        GameObject subNode = new GameObject($"Sub_{i}_{j}");
-
-                        subNode.transform.position = subPos;
-                        subNode.transform.parent = snakeObj.transform;
-
-                        allSegments.Add(subNode.transform);
-                    }
-                }
             }
 
-            // 3. Nạp vào script
-            snakeScript.Initialize(snakeData.direction, allSegments);
+            // QUAN TRỌNG: TRUYỀN ĐỘ PHÂN GIẢI VÀO
+            int resolution = subNodesCount + 1;
+            snakeScript.Initialize(snakeData.direction, mainSegments, resolution);
         }
 
-        Debug.Log($"Load xong! Đã tạo các nốt rỗng (Empty Nodes) để tối ưu hiệu năng.");
+        Debug.Log("Load Game Success.");
     }
 }
