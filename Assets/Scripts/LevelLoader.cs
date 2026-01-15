@@ -4,66 +4,74 @@ using UnityEngine;
 public class LevelLoader : MonoBehaviour
 {
     [Header("Data")]
-    public LevelDataSO levelToPlay; // Kéo file Level_1 đã save vào đây
+    public LevelDataSO levelToPlay;
 
     [Header("Prefabs")]
-    public GameObject headPrefab;   // Kéo Prefab Head vào
-    public GameObject bodyPrefab;   // Kéo Prefab Body vào
-    
+    public GameObject headPrefab;   // Vẫn cần để tạo Đầu
+    public GameObject bodyPrefab;   // Vẫn cần để tạo các nốt Chính (Gốc)
+
     [Header("Container")]
-    public Transform gameContainer; // Kéo 1 empty object làm cha vào
+    public Transform gameContainer;
+
+    [Header("Resolution Settings")]
+    [Range(0, 20)]
+    public int subNodesCount = 3; // Số lượng nốt rỗng chèn vào giữa
 
     private void Start()
     {
         LoadGame();
     }
 
-    void LoadGame()
+    [ContextMenu("Reload Level")]
+    public void LoadGame()
     {
         if (levelToPlay == null) return;
 
-        // Xóa sạch map cũ (nếu có)
-        foreach (Transform child in gameContainer) Destroy(child.gameObject);
+        // 1. Dọn dẹp map cũ (Xóa sạch sẽ)
+        if (gameContainer != null)
+        {
+            int childCount = gameContainer.childCount;
+            for (int i = childCount - 1; i >= 0; i--)
+            {
+                DestroyImmediate(gameContainer.GetChild(i).gameObject);
+            }
+        }
 
-        // Duyệt từng con rắn trong Data
+        // 2. Duyệt từng con rắn
         foreach (var snakeData in levelToPlay.snakes)
         {
             if (snakeData.segmentPositions.Count == 0) continue;
 
-            // 1. Tạo Object cha chứa con rắn
+            // Tạo vỏ bọc cha
             GameObject snakeObj = new GameObject("Snake");
-            snakeObj.transform.parent = gameContainer;
-            
-            // Gắn script điều khiển
+            if (gameContainer != null) snakeObj.transform.parent = gameContainer;
+
             SnakeBlock snakeScript = snakeObj.AddComponent<SnakeBlock>();
-            
-            // Setup layer để check va chạm
             snakeScript.obstacleLayer = LayerMask.GetMask("Block");
 
-            List<Transform> spawnedSegments = new List<Transform>();
+            List<Transform> allSegments = new List<Transform>();
+            int dataCount = snakeData.segmentPositions.Count;
 
-            // 2. Sinh ra từng đốt (Đầu + Thân)
-            for (int i = 0; i < snakeData.segmentPositions.Count; i++)
+            // --- VÒNG LẶP TỐI ƯU ---
+            for (int i = 0; i < dataCount; i++)
             {
+                // A. SINH NỐT CHÍNH (Dùng Prefab thật)
+                // Để đảm bảo logic va chạm hoặc hình ảnh mốc (nếu cần) vẫn còn
                 Vector2Int pos = snakeData.segmentPositions[i];
-                Vector3 worldPos = new Vector3(pos.x, pos.y, 0);
+                Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
 
                 GameObject prefab = (i == 0) ? headPrefab : bodyPrefab;
-                GameObject segment = Instantiate(prefab, worldPos, Quaternion.identity, snakeObj.transform);
-                
-                spawnedSegments.Add(segment.transform);
+                GameObject mainSeg = Instantiate(prefab, currentPos, Quaternion.identity, snakeObj.transform);
 
-                // Setup hướng hình ảnh cho cái ĐẦU
+                mainSeg.name = (i == 0) ? "Head" : $"Main_{i}";
+                allSegments.Add(mainSeg.transform);
+
+                // Xử lý xoay mũi tên cho ĐẦU
                 if (i == 0)
                 {
-                    // Tìm object con tên "Arrow" để xoay visual
-                    Transform arrowVis = segment.transform.Find("Arrow");
+                    Transform arrowVis = mainSeg.transform.Find("Arrow");
                     if (arrowVis)
                     {
-                        // Gán tạm vào script để hàm Initialize bên dưới nó tự xoay
-                        // (Hoặc bạn có thể set xoay thủ công ngay tại đây)
-                        // Lưu ý: Code SnakeBlock mình gửi bạn cần biến arrowVisual là public hoặc SerializeField
-                        // Để đơn giản, ta xoay luôn ở đây:
                         float angle = 0;
                         switch (snakeData.direction)
                         {
@@ -75,10 +83,34 @@ public class LevelLoader : MonoBehaviour
                         arrowVis.localRotation = Quaternion.Euler(0, 0, angle);
                     }
                 }
+
+                // B. SINH NỐT PHỤ (Dùng Empty Object - Siêu nhẹ)
+                if (i < dataCount - 1)
+                {
+                    Vector2Int nextPosData = snakeData.segmentPositions[i + 1];
+                    Vector3 nextPos = new Vector3(nextPosData.x, nextPosData.y, 0);
+
+                    for (int j = 1; j <= subNodesCount; j++)
+                    {
+                        float t = (float)j / (subNodesCount + 1);
+                        Vector3 subPos = Vector3.Lerp(currentPos, nextPos, t);
+
+                        // --- TỐI ƯU TẠI ĐÂY ---
+                        // Thay vì Instantiate prefab, ta chỉ tạo một GameObject rỗng
+                        GameObject subNode = new GameObject($"Sub_{i}_{j}");
+
+                        subNode.transform.position = subPos;
+                        subNode.transform.parent = snakeObj.transform;
+
+                        allSegments.Add(subNode.transform);
+                    }
+                }
             }
 
-            // 3. Nạp dữ liệu vào script để Rắn sống dậy
-            snakeScript.Initialize(snakeData.direction, spawnedSegments);
+            // 3. Nạp vào script
+            snakeScript.Initialize(snakeData.direction, allSegments);
         }
+
+        Debug.Log($"Load xong! Đã tạo các nốt rỗng (Empty Nodes) để tối ưu hiệu năng.");
     }
 }

@@ -228,9 +228,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   headPrefab: {fileID: 4484580423729698483, guid: 67f0f56072f20a94e9fbf73b0c74a942,
     type: 3}
-  bodyPrefab: {fileID: 8326224270812529391, guid: c2f6d0f0882754642be8519a548e10b9,
-    type: 3}
-  currentData: {fileID: 11400000, guid: ee5d2d4d4ff9d544a9a318de68eaedd8, type: 2}
+  bodyPrefab: {fileID: 0}
+  currentData: {fileID: 11400000, guid: f2c40a0c89e9a304c954ffd98430e8d1, type: 2}
   levelContainer: {fileID: 1087363345}
   currentSnakeObj: {fileID: 0}
 --- !u!4 &96034496
@@ -1226,7 +1225,7 @@ MonoBehaviour:
   bodyPrefab: {fileID: 8326224270812529391, guid: c2f6d0f0882754642be8519a548e10b9,
     type: 3}
   gameContainer: {fileID: 1087363345}
-  subNodesCount: 5
+  subNodesCount: 10
 --- !u!4 &1494480283
 Transform:
   m_ObjectHideFlags: 0

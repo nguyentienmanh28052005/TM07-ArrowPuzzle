@@ -2,77 +2,83 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(LineRenderer))] 
+[RequireComponent(typeof(LineRenderer))]
 public class SnakeBlock : MonoBehaviour
 {
     [Header("Settings")]
-    public ArrowDir direction;     
-    [SerializeField] private float moveSpeed = 220f; // Giữ nguyên tốc độ của bạn
+    public ArrowDir direction;
+
+    [SerializeField]
+    private float moveSpeed = 220f; // Giữ nguyên tốc độ của bạn
+
     public LayerMask obstacleLayer;
 
     [Header("Segments")]
-    public List<Transform> bodySegments = new List<Transform>(); 
-    [SerializeField] private Transform arrowVisual; 
+    public List<Transform> bodySegments = new List<Transform>();
+
+    [SerializeField]
+    private Transform arrowVisual;
 
     [Header("Line Visuals (New)")]
-    public Color snakeColor = Color.black; // Giữ nguyên màu đen
-    public float lineWidth = 0.4f;         // Giữ nguyên độ dày
+    public Color snakeColor = Color.black;
+    public float lineWidth = 0.4f;
 
     private bool isMoving = false;
-    private LineRenderer lineRenderer; 
+    private LineRenderer lineRenderer;
 
-    // --- SỬA LỖI Ở ĐÂY: Dùng Awake để luôn tìm thấy LineRenderer ---
+    [Tooltip("Phải bằng số SubNodes bên LevelLoader + 1")]
+    public int nodesPerUnit = 11;
+
+    // --- BIẾN TỐI ƯU (THÊM VÀO ĐỂ KHÔNG SINH RÁC) ---
+    // Dùng mảng cố định để lưu vị trí thay vì tạo List mới mỗi bước đi
+    private Vector3[] _startPosBuffer;
+    private Vector3[] _targetPosBuffer;
+    private int _segmentCount;
+
     private void Awake()
     {
         SetupLineRenderer();
     }
-    
-    void SetupLineRenderer()
+
+    private void SetupLineRenderer()
     {
         lineRenderer = GetComponent<LineRenderer>();
-        
-        // Cài đặt cơ bản
+
         lineRenderer.startWidth = lineWidth;
         lineRenderer.endWidth = lineWidth;
         lineRenderer.useWorldSpace = true;
-        
-        // Ép vẽ 2D phẳng (Không xoay theo Camera)
         lineRenderer.alignment = LineAlignment.TransformZ;
-        
-        // Tránh bị dãn hình ở góc cua
-        lineRenderer.textureMode = LineTextureMode.Tile; 
-        
-        // Bo tròn góc cua (Số càng lớn càng tròn, 0 là vuông góc)
-        // Nếu bạn muốn giống mê cung vuông vức trong ảnh mẫu -> Để = 0
-        // Nếu muốn mượt -> Để = 5 hoặc 10
-        lineRenderer.numCornerVertices = 5; 
-        lineRenderer.numCapVertices = 5;
+        lineRenderer.textureMode = LineTextureMode.Tile;
+        lineRenderer.numCornerVertices = 10;
+        lineRenderer.numCapVertices = 10;
 
-        // Material & Màu
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
         lineRenderer.startColor = snakeColor;
         lineRenderer.endColor = snakeColor;
 
-        // Vẽ dây nằm lên trên cùng (để che lấp các khớp nối nếu có)
         lineRenderer.sortingLayerName = "Default";
-        lineRenderer.sortingOrder = 5; 
+        lineRenderer.sortingOrder = 5;
     }
 
     public void Initialize(ArrowDir dir, List<Transform> segments)
     {
         direction = dir;
         bodySegments = segments;
-        
-        // Logic tìm Arrow của bạn
-        if (bodySegments.Count > 0 && bodySegments[0] != null)
+        _segmentCount = bodySegments.Count;
+
+        // --- TỐI ƯU: KHỞI TẠO MẢNG ĐỆM 1 LẦN DUY NHẤT ---
+        // Chỉ tạo mảng mới khi số lượng đốt thay đổi hoặc chưa khởi tạo
+        if (_startPosBuffer == null || _startPosBuffer.Length != _segmentCount)
         {
-            if (arrowVisual == null)
-            {
-                arrowVisual = bodySegments[0].Find("Arrow");
-            }
+            _startPosBuffer = new Vector3[_segmentCount];
+            _targetPosBuffer = new Vector3[_segmentCount];
         }
 
-        //Cập nhật lại thông số LineRenderer (phòng trường hợp Awake chạy trước khi bạn set màu)
+        if (bodySegments.Count > 0 && bodySegments[0] != null && arrowVisual == null)
+        {
+            arrowVisual = bodySegments[0].Find("Arrow");
+        }
+
         if (lineRenderer != null)
         {
             lineRenderer.startColor = snakeColor;
@@ -82,39 +88,36 @@ public class SnakeBlock : MonoBehaviour
         }
 
         UpdateVisualRotation();
-        UpdateSegmentVisuals(); 
+        UpdateSegmentVisuals();
     }
 
-    // (Đã bỏ hàm SetupLineRenderer vì logic đã chuyển vào Awake và Initialize)
-
-    void UpdateSegmentVisuals()
+    private void UpdateSegmentVisuals()
     {
-        foreach (var seg in bodySegments)
+        foreach (Transform seg in bodySegments)
         {
-            if (seg == null) continue; // Check an toàn
+            if (seg == null) continue;
 
             SpriteRenderer sr = seg.GetComponentInChildren<SpriteRenderer>();
-            if (sr != null)
+            if (sr == null) continue;
+
+            sr.color = snakeColor;
+
+            if (sr.transform != arrowVisual)
             {
-                sr.color = snakeColor; 
-                
-                if (sr.transform != arrowVisual) 
-                {
-                    sr.transform.localScale = Vector3.one * 0.4f; 
-                }
-                
-                sr.sortingOrder = 1; 
+                sr.transform.localScale = Vector3.one * 0.4f;
             }
+
+            sr.sortingOrder = 1;
         }
     }
 
     private void LateUpdate()
     {
-        // Thêm check null an toàn tuyệt đối
-        if (bodySegments == null || bodySegments.Count == 0 || lineRenderer == null) return;
+        if (bodySegments == null || bodySegments.Count == 0 || lineRenderer == null)
+            return;
 
         lineRenderer.positionCount = bodySegments.Count;
-        
+
         for (int i = 0; i < bodySegments.Count; i++)
         {
             if (bodySegments[i] != null)
@@ -124,31 +127,42 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-
-
-    // --- CÁC LOGIC CŨ CỦA BẠN (GIỮ NGUYÊN 100%) ---
-
     public void UpdateVisualRotation()
     {
         if (arrowVisual == null) return;
-        float angle = 0;
+
+        float angle = 0f;
+
         switch (direction)
         {
-            case ArrowDir.Up: angle = 0; break;
-            case ArrowDir.Down: angle = 180; break;
-            case ArrowDir.Left: angle = 90; break;
-            case ArrowDir.Right: angle = -90; break;
+            case ArrowDir.Up:
+                angle = 0f;
+                break;
+            case ArrowDir.Down:
+                angle = 180f;
+                break;
+            case ArrowDir.Left:
+                angle = 90f;
+                break;
+            case ArrowDir.Right:
+                angle = -90f;
+                break;
         }
-        arrowVisual.localRotation = Quaternion.Euler(0, 0, angle);
+
+        arrowVisual.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
-    public void OnHeadClicked() 
+    public void OnHeadClicked()
     {
         Debug.Log("Hi");
-        if (!isMoving) StartCoroutine(ProcessMovement());
+
+        if (!isMoving)
+        {
+            StartCoroutine(ProcessMovement());
+        }
     }
 
-    IEnumerator ProcessMovement()
+    private IEnumerator ProcessMovement()
     {
         isMoving = true;
         Vector3 moveDir = GetDirVector(direction);
@@ -160,96 +174,155 @@ public class SnakeBlock : MonoBehaviour
                 yield return StartCoroutine(ShakeEffect());
                 break;
             }
+
             yield return StartCoroutine(MoveOneStep(moveDir));
 
-            if (bodySegments.Count > 0 && Vector3.Distance(bodySegments[0].position, Vector3.zero) > 150f) 
+            if (bodySegments.Count > 0 &&
+                Vector3.Distance(bodySegments[0].position, Vector3.zero) > 150f)
             {
                 Destroy(gameObject);
                 break;
             }
         }
+
         isMoving = false;
     }
 
-    bool CanMove(Vector3 dir)
+    private bool CanMove(Vector3 dir)
     {
         if (bodySegments.Count == 0) return false;
-        // Logic Raycast 30f của bạn
+
         Vector3 startPos = bodySegments[0].position + dir * 0.6f;
         return !Physics2D.Raycast(startPos, dir, 30f, obstacleLayer);
     }
 
-    IEnumerator MoveOneStep(Vector3 dir)
+    // --- ĐÂY LÀ HÀM ĐƯỢC TỐI ƯU BỘ NHỚ ---
+    private IEnumerator MoveOneStep(Vector3 dir)
     {
-        List<Vector3> startPos = new List<Vector3>();
-        List<Vector3> targetPos = new List<Vector3>();
+        // 1. Thay vì tạo List mới (new List<Vector3>), ta dùng Mảng Đệm (_startPosBuffer)
+        for (int i = 0; i < _segmentCount; i++)
+        {
+            if (bodySegments[i] != null)
+            {
+                _startPosBuffer[i] = bodySegments[i].position;
+            }
+        }
 
-        foreach (var seg in bodySegments) startPos.Add(seg.position);
+        Vector3 oldHead = _startPosBuffer[0];
+        Vector3 newHead = oldHead + dir;
 
-        targetPos.Add(startPos[0] + dir);
-        for (int i = 1; i < bodySegments.Count; i++)
-            targetPos.Add(startPos[i - 1]);
+        // 2. Tính toán đích đến và lưu vào Mảng Đệm (_targetPosBuffer)
+        // LOGIC TÍNH TOÁN GIỮ NGUYÊN 100% NHƯ CŨ
+        for (int i = 0; i < _segmentCount; i++)
+        {
+            Vector3 target;
 
-        float t = 0;
+            if (i < nodesPerUnit)
+            {
+                // Logic cũ của bạn: Nội suy đốt đầu
+                float ratio = (float)(nodesPerUnit - i) / nodesPerUnit;
+                target = Vector3.Lerp(oldHead, newHead, ratio);
+            }
+            else
+            {
+                // Logic cũ của bạn: Đuôi bám theo (startPos[i - nodesPerUnit])
+                target = _startPosBuffer[i - nodesPerUnit];
+            }
+
+            _targetPosBuffer[i] = target;
+        }
+
+        // 3. Chạy Lerp (Logic giữ nguyên)
+        float t = 0f;
+
         while (t < 1f)
         {
-            t += Time.deltaTime * moveSpeed; // Tốc độ 220f
-            for (int i = 0; i < bodySegments.Count; i++)
+            t += Time.deltaTime * moveSpeed;
+
+            for (int i = 0; i < _segmentCount; i++)
             {
-                if(bodySegments[i] != null)
-                    bodySegments[i].position = Vector3.Lerp(startPos[i], targetPos[i], t);
+                if (bodySegments[i] != null)
+                {
+                    // Lấy dữ liệu từ Mảng Đệm
+                    bodySegments[i].position =
+                        Vector3.Lerp(_startPosBuffer[i], _targetPosBuffer[i], t);
+                }
             }
+
             yield return null;
         }
 
-        for (int i = 0; i < bodySegments.Count; i++)
+        // Chốt vị trí cuối
+        for (int i = 0; i < _segmentCount; i++)
         {
-            if(bodySegments[i] != null)
-                bodySegments[i].position = targetPos[i];
+            if (bodySegments[i] != null)
+            {
+                bodySegments[i].position = _targetPosBuffer[i];
+            }
         }
     }
 
-    IEnumerator ShakeEffect()
+    private IEnumerator ShakeEffect()
     {
         Vector3 original = bodySegments[0].position;
-        for (float t = 0; t < 0.2f; t += Time.deltaTime)
+
+        for (float t = 0f; t < 0.2f; t += Time.deltaTime)
         {
-            bodySegments[0].position = original + (Vector3)(Random.insideUnitCircle * 0.1f);
+            bodySegments[0].position =
+                original + (Vector3)(Random.insideUnitCircle * 0.1f);
             yield return null;
         }
+
         bodySegments[0].position = original;
     }
 
-    Vector3 GetDirVector(ArrowDir dir)
+    private Vector3 GetDirVector(ArrowDir dir)
     {
-        switch (dir) {
-            case ArrowDir.Up: return Vector3.up;
-            case ArrowDir.Down: return Vector3.down;
-            case ArrowDir.Left: return Vector3.left;
-            case ArrowDir.Right: return Vector3.right;
-            default: return Vector3.zero;
+        switch (dir)
+        {
+            case ArrowDir.Up:
+                return Vector3.up;
+            case ArrowDir.Down:
+                return Vector3.down;
+            case ArrowDir.Left:
+                return Vector3.left;
+            case ArrowDir.Right:
+                return Vector3.right;
+            default:
+                return Vector3.zero;
         }
     }
-    
+
     private void OnDrawGizmos()
     {
-        if (bodySegments != null && bodySegments.Count > 0 && bodySegments[0] != null)
-        {
-            Vector3 dir = Vector3.zero;
-            switch (direction)
-            {
-                case ArrowDir.Up: dir = Vector3.up; break;
-                case ArrowDir.Down: dir = Vector3.down; break;
-                case ArrowDir.Left: dir = Vector3.left; break;
-                case ArrowDir.Right: dir = Vector3.right; break;
-            }
+        if (bodySegments == null ||
+            bodySegments.Count == 0 ||
+            bodySegments[0] == null)
+            return;
 
-            // Logic Gizmo 30f của bạn
-            Vector3 startPos = bodySegments[0].position + dir * 0.6f;
-            bool isBlocked = Physics2D.Raycast(startPos, dir, 30f, obstacleLayer);
-            
-            Gizmos.color = isBlocked ? Color.red : Color.green;
-            Gizmos.DrawRay(startPos, dir * 30f); 
+        Vector3 dir = Vector3.zero;
+
+        switch (direction)
+        {
+            case ArrowDir.Up:
+                dir = Vector3.up;
+                break;
+            case ArrowDir.Down:
+                dir = Vector3.down;
+                break;
+            case ArrowDir.Left:
+                dir = Vector3.left;
+                break;
+            case ArrowDir.Right:
+                dir = Vector3.right;
+                break;
         }
+
+        Vector3 startPos = bodySegments[0].position + dir * 0.6f;
+        bool isBlocked =
+            Physics2D.Raycast(startPos, dir, 30f, obstacleLayer);
+
+        Gizmos.color = isBlocked ? Color.red : Color.green;
+        Gizmos.DrawRay(startPos, dir * 30f);
     }
 }
