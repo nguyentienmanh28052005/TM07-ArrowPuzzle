@@ -6,6 +6,17 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Snake.unity
+    path: Assets/Scenes/Boostrap.unity
+    guid: f3e79182065c9a849925e68a3d950a04
+  - enabled: 1
+    path: Assets/Scenes/GameScene.unity
     guid: 2cda990e2423bbf4892e6590ba056729
-  m_configObjects: {}
+  - enabled: 1
+    path: Assets/Scenes/Buffer.unity
+    guid: 9f7664972b726fd40b3e00fa94e2012f
+  - enabled: 1
+    path: Assets/Scenes/GameMenu.unity
+    guid: e150a0d678704734caff445329bf5373
+  m_configObjects:
+    com.unity.addressableassets: {fileID: 11400000, guid: 2501c7dc4693bb747b175c50132da5d1,
+      type: 2}

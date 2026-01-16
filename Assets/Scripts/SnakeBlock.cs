@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,7 +7,8 @@ public class SnakeBlock : MonoBehaviour
 {
     [Header("Settings")]
     public ArrowDir direction;
-    [SerializeField] private float moveSpeed = 1f;
+    // Tốc độ di chuyển
+    [SerializeField] private float moveSpeed = 40f;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -19,18 +20,21 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeColor = Color.black;
     public float lineWidth = 0.4f;
 
-    // --- DỮ LIỆU TỐI ƯU ---
+    // --- DỮ LIỆU ---
     private Vector3[] _allNodePositions;
-    private Vector3[] _startSnapshot;
-    private Vector3[] _targetSnapshot;
+    private Vector3[] _startSnapshot; // Dùng làm đường ray tham chiếu
+    private Vector3[] _originalState; // Lưu trạng thái gốc của level
 
     private int _totalPoints;
-
-    // QUAN TRỌNG: Biến này sẽ được set tự động từ LevelLoader, không chỉnh tay nữa
     private int _nodesPerUnit;
 
     private bool _isMoving = false;
     private LineRenderer lineRenderer;
+
+    private List<Collider2D> _myColliders = new List<Collider2D>();
+
+    // Biến tạm để lưu vị trí đầu mới khi di chuyển
+    private Vector3 _currentNewHeadPos;
 
     private void Awake()
     {
@@ -46,7 +50,6 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.alignment = LineAlignment.TransformZ;
         lineRenderer.textureMode = LineTextureMode.Tile;
 
-        // CHỈNH VỀ 0 ĐỂ HẾT BỊ MÉO (WAVY)
         lineRenderer.numCornerVertices = 0;
         lineRenderer.numCapVertices = 0;
 
@@ -56,28 +59,30 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.sortingOrder = 5;
     }
 
-    // --- INITIALIZE ---
     public void Initialize(ArrowDir dir, List<Transform> mainSegments, int resolution)
     {
         direction = dir;
         bodySegments = mainSegments;
-
-        // ĐỒNG BỘ HÓA ĐỘ PHÂN GIẢI (Quan trọng nhất để không bị méo)
         _nodesPerUnit = resolution;
+
+        _myColliders.Clear();
+        _myColliders.AddRange(GetComponentsInChildren<Collider2D>());
+        foreach (var t in mainSegments)
+        {
+            if (t) _myColliders.AddRange(t.GetComponentsInChildren<Collider2D>());
+        }
 
         if (bodySegments.Count > 0 && bodySegments[0] != null && arrowVisual == null)
             arrowVisual = bodySegments[0].Find("Arrow");
 
-        // Tính toán mảng nốt ảo
         if (bodySegments.Count > 1)
         {
             int segmentsCount = bodySegments.Count - 1;
-            // Công thức chuẩn xác: Tổng điểm = (Số đoạn * mật độ) + 1 điểm chốt
             _totalPoints = (segmentsCount * _nodesPerUnit) + 1;
 
             _allNodePositions = new Vector3[_totalPoints];
             _startSnapshot = new Vector3[_totalPoints];
-            _targetSnapshot = new Vector3[_totalPoints];
+            _originalState = new Vector3[_totalPoints];
 
             int arrayIndex = 0;
             for (int i = 0; i < segmentsCount; i++)
@@ -92,13 +97,13 @@ public class SnakeBlock : MonoBehaviour
                     arrayIndex++;
                 }
             }
-            // Điền điểm cuối
             _allNodePositions[arrayIndex] = bodySegments[segmentsCount].position;
         }
         else if (bodySegments.Count == 1)
         {
             _totalPoints = 1;
             _allNodePositions = new Vector3[] { bodySegments[0].position };
+            _originalState = new Vector3[1];
         }
 
         UpdateSegmentVisuals();
@@ -118,7 +123,7 @@ public class SnakeBlock : MonoBehaviour
                 if (sr.transform != arrowVisual)
                 {
                     sr.enabled = true;
-                    sr.transform.localScale = Vector3.one * 0.4f; // Thu nhỏ thân
+                    sr.transform.localScale = Vector3.one * 0.4f;
                     sr.color = snakeColor;
                 }
                 else
@@ -131,7 +136,7 @@ public class SnakeBlock : MonoBehaviour
 
     private void LateUpdate()
     {
-        
+        UpdateLineRenderer();
     }
 
     private void UpdateLineRenderer()
@@ -151,16 +156,28 @@ public class SnakeBlock : MonoBehaviour
     private IEnumerator ProcessMovement()
     {
         _isMoving = true;
+
+        // Lưu trạng thái gốc
+        System.Array.Copy(_allNodePositions, _originalState, _totalPoints);
+
         Vector3 moveDir = GetDirVector(direction);
 
         while (true)
         {
-            if (!CanMove(moveDir))
+            float distToObstacle = CheckObstacleDistance(moveDir);
+
+            if (distToObstacle < 0.9f)
             {
-                yield return StartCoroutine(ShakeEffect());
+                // A. Lao vào tường (Dùng logic trượt tới)
+                yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
+
+                // B. Lùi về (Dùng logic trượt lui)
+                yield return StartCoroutine(ReturnToOrigin());
+
                 break;
             }
 
+            // C. Đi tiếp 1 bước (Dùng logic trượt tới)
             yield return StartCoroutine(MoveOneStep(moveDir));
 
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
@@ -172,94 +189,231 @@ public class SnakeBlock : MonoBehaviour
         _isMoving = false;
     }
 
-    private bool CanMove(Vector3 dir)
+    private float CheckObstacleDistance(Vector3 dir)
     {
-        if (_totalPoints == 0) return false;
-        Vector3 startPos = _allNodePositions[0] + dir * 0.6f;
-        return !Physics2D.Raycast(startPos, dir, 30f, obstacleLayer);
-    }
+        if (_totalPoints == 0) return 0f;
+        Vector3 startPos = _allNodePositions[0];
+        RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 20f, obstacleLayer);
 
-    // --- LOGIC DI CHUYỂN CHUẨN ---
-    private IEnumerator MoveOneStep(Vector3 dir)
-    {
-        // 1. Snapshot
-        System.Array.Copy(_allNodePositions, _startSnapshot, _totalPoints);
-
-        Vector3 oldHead = _startSnapshot[0];
-        Vector3 newHead = oldHead + dir;
-        float invNodes = 1f / _nodesPerUnit;
-
-        // 2. Tính toán Target
-        for (int i = 0; i < _totalPoints; i++)
+        float closestDist = float.MaxValue;
+        bool found = false;
+        foreach (var hit in hits)
         {
-            if (i < _nodesPerUnit)
+            if (hit.collider != null && !IsMyCollider(hit.collider))
             {
-                // Nội suy đầu
-                float ratio = (_nodesPerUnit - i) * invNodes;
-                _targetSnapshot[i] = Vector3.Lerp(oldHead, newHead, ratio);
-            }
-            else
-            {
-                // Bám đuôi: Lấy vị trí cũ của điểm cách nó đúng 1 Unit (_nodesPerUnit)
-                // Vì _nodesPerUnit được đồng bộ chính xác, phép trừ này sẽ ra đúng tọa độ hình học
-                _targetSnapshot[i] = _startSnapshot[i - _nodesPerUnit];
-            }
-        }
-
-        // 3. Lerp
-        float t = 0f;
-        while (t < 1f)
-        {
-            t += Time.deltaTime * moveSpeed;
-
-            for (int i = 0; i < _totalPoints; i++)
-            {
-                _allNodePositions[i] = Vector3.Lerp(_startSnapshot[i], _targetSnapshot[i], t);
-            }
-
-            // Đồng bộ ngược lại Nốt Gốc (Main Nodes)
-            for (int k = 0; k < bodySegments.Count; k++)
-            {
-                if (bodySegments[k] != null)
+                if (hit.distance < closestDist)
                 {
-                    int virtualIndex = k * _nodesPerUnit;
-                    if (virtualIndex < _totalPoints)
-                    {
-                        bodySegments[k].position = _allNodePositions[virtualIndex];
-                    }
+                    closestDist = hit.distance;
+                    found = true;
                 }
             }
+        }
+        return found ? closestDist : float.MaxValue;
+    }
+
+    private bool IsMyCollider(Collider2D col)
+    {
+        if (_myColliders == null) return false;
+        return _myColliders.Contains(col);
+    }
+
+    // --- LOGIC TRƯỢT TỚI (SLIDE FORWARD) ---
+    // Dùng chung cho cả MoveOneStep và HitObstacle (giai đoạn lao tới)
+    private void UpdateForwardSlide(float shiftAmount)
+    {
+        // shiftAmount: Số lượng index muốn trượt tới (ví dụ 5.5 index)
+
+        // Duyệt qua từng đốt
+        for (int i = 0; i < _totalPoints; i++)
+        {
+            // Vị trí trên đường ray ảo
+            // Đường ray ảo: [NewHead] .... [OldHead] .... [OldBody]
+            // NewHead ở vị trí 0
+            // OldHead ở vị trí nodesPerUnit
+            // OldBody[k] ở vị trí nodesPerUnit + k
+
+            // Khi shiftAmount = 0 -> Node 0 ở OldHead (trackPos = nodesPerUnit)
+            // Khi shiftAmount = nodesPerUnit -> Node 0 ở NewHead (trackPos = 0)
+
+            // Công thức: trackPosition = (nodesPerUnit + i) - shiftAmount
+            float trackPos = (_nodesPerUnit + i) - shiftAmount;
+
+            _allNodePositions[i] = SampleForwardTrack(trackPos);
+        }
+        SyncMainSegments();
+    }
+
+    // Lấy mẫu trên đường ray ảo hướng tới
+    private Vector3 SampleForwardTrack(float trackIndex)
+    {
+        // TrackIndex < 0: Đã vượt quá đích đến (không nên xảy ra, nhưng clamp cho an toàn)
+        if (trackIndex <= 0) return _currentNewHeadPos;
+
+        // TrackIndex >= nodesPerUnit: Nằm trong phần thân cũ (StartSnapshot)
+        if (trackIndex >= _nodesPerUnit)
+        {
+            // Lấy từ mảng StartSnapshot
+            // Index trong mảng = trackIndex - nodesPerUnit
+            float arrayIndexFloat = trackIndex - _nodesPerUnit;
+
+            // Lerp trong mảng snapshot để lấy vị trí mịn
+            return SampleArray(_startSnapshot, arrayIndexFloat);
+        }
+
+        // 0 < TrackIndex < nodesPerUnit: Nằm giữa NewHead và OldHead
+        // Đoạn này là đường thẳng nối từ NewHead đến OldHead
+        // Lerp(NewHead, OldHead, t)
+        float t = trackIndex / _nodesPerUnit;
+        return Vector3.Lerp(_currentNewHeadPos, _startSnapshot[0], t);
+    }
+
+    // --- HÀM DI CHUYỂN 1 BƯỚC (DÙNG LOGIC TRƯỢT MỚI) ---
+    private IEnumerator MoveOneStep(Vector3 dir)
+    {
+        // 1. Snapshot vị trí hiện tại
+        System.Array.Copy(_allNodePositions, _startSnapshot, _totalPoints);
+
+        // 2. Xác định đích đến của đầu
+        _currentNewHeadPos = _startSnapshot[0] + dir;
+
+        // 3. Thực hiện trượt 1 đơn vị (tương đương nodesPerUnit index)
+        float totalShift = _nodesPerUnit;
+        float currentShift = 0f;
+
+        while (currentShift < totalShift)
+        {
+            // Tăng lượng trượt (tính theo index/s)
+            currentShift += Time.deltaTime * moveSpeed * _nodesPerUnit;
+
+            // Clamp
+            float applyShift = Mathf.Min(currentShift, totalShift);
+
+            // Cập nhật vị trí
+            UpdateForwardSlide(applyShift);
 
             yield return null;
         }
 
-        // Chốt vị trí
-        System.Array.Copy(_targetSnapshot, _allNodePositions, _totalPoints);
+        // Chốt vị trí cuối cùng
+        UpdateForwardSlide(totalShift);
+    }
 
+    // --- HÀM VA CHẠM (DÙNG LOGIC TRƯỢT TỚI RỒI LÙI) ---
+    private IEnumerator HitObstacle(Vector3 dir, float distance)
+    {
+        System.Array.Copy(_allNodePositions, _startSnapshot, _totalPoints);
+        _currentNewHeadPos = _startSnapshot[0] + dir;
+
+        // Tính giới hạn trượt
+        // distance là khoảng cách World Unit -> Đổi sang Index Unit
+        // Trừ 0.1f world unit để không chạm tường
+        float maxWorldDist = Mathf.Clamp(distance - 0.1f, 0.2f, 0.9f);
+        float maxShiftIndex = maxWorldDist * _nodesPerUnit;
+
+        // Giai đoạn 1: Trượt tới (Forward Slide)
+        float currentShift = 0f;
+        while (currentShift < maxShiftIndex)
+        {
+            currentShift += Time.deltaTime * moveSpeed * _nodesPerUnit;
+            float applyShift = Mathf.Min(currentShift, maxShiftIndex);
+            UpdateForwardSlide(applyShift);
+            yield return null;
+        }
+
+        // Giai đoạn 2: Trượt lùi (Reverse Forward Slide)
+        // Chỉ đơn giản là giảm currentShift về 0
+        while (currentShift > 0f)
+        {
+            currentShift -= Time.deltaTime * moveSpeed * _nodesPerUnit;
+            float applyShift = Mathf.Max(currentShift, 0f);
+            UpdateForwardSlide(applyShift);
+            yield return null;
+        }
+
+        UpdateForwardSlide(0f); // Reset về đúng vị trí trước khi lao vào
+    }
+
+    // --- HÀM LÙI VỀ GỐC (GIỮ NGUYÊN LOGIC TRƯỢT CŨ VÌ ĐÃ NGON) ---
+    private IEnumerator ReturnToOrigin()
+    {
+        System.Array.Copy(_allNodePositions, _startSnapshot, _totalPoints);
+
+        float headDistance = Vector3.Distance(_startSnapshot[0], _originalState[0]);
+        float totalIndexShift = headDistance * _nodesPerUnit;
+        float currentIndexShift = 0f;
+
+        while (currentIndexShift < totalIndexShift)
+        {
+            currentIndexShift += Time.deltaTime * (int)(moveSpeed/2) * _nodesPerUnit;
+            float shift = Mathf.Min(currentIndexShift, totalIndexShift);
+
+            for (int i = 0; i < _totalPoints; i++)
+            {
+                _allNodePositions[i] = SampleReverseTrack(i + shift, totalIndexShift);
+            }
+
+            SyncMainSegments();
+            yield return null;
+        }
+
+        System.Array.Copy(_originalState, _allNodePositions, _totalPoints);
+        SyncMainSegments();
+    }
+
+    // Helper cho lùi về gốc
+    private Vector3 SampleReverseTrack(float trackIndex, float separationIndices)
+    {
+        int floorIndex = Mathf.FloorToInt(trackIndex);
+        int ceilIndex = Mathf.CeilToInt(trackIndex);
+        float t = trackIndex - floorIndex;
+
+        Vector3 p1 = GetReversePoint(floorIndex, separationIndices);
+        Vector3 p2 = GetReversePoint(ceilIndex, separationIndices);
+
+        return Vector3.Lerp(p1, p2, t);
+    }
+
+    private Vector3 GetReversePoint(int index, float separationIndices)
+    {
+        if (index < _totalPoints) return _startSnapshot[index];
+        else
+        {
+            int originalIndex = Mathf.RoundToInt(index - separationIndices);
+            originalIndex = Mathf.Clamp(originalIndex, 0, _totalPoints - 1);
+            return _originalState[originalIndex];
+        }
+    }
+
+    // Helper lấy mẫu mảng (Lerp giữa các phần tử mảng)
+    private Vector3 SampleArray(Vector3[] arr, float floatIndex)
+    {
+        int count = arr.Length;
+        if (count == 0) return Vector3.zero;
+        if (count == 1) return arr[0];
+
+        // Clamp
+        if (floatIndex <= 0) return arr[0];
+        if (floatIndex >= count - 1) return arr[count - 1];
+
+        int i = Mathf.FloorToInt(floatIndex);
+        float t = floatIndex - i;
+
+        return Vector3.Lerp(arr[i], arr[i + 1], t);
+    }
+
+    private void SyncMainSegments()
+    {
         for (int k = 0; k < bodySegments.Count; k++)
         {
             if (bodySegments[k] != null)
             {
                 int virtualIndex = k * _nodesPerUnit;
                 if (virtualIndex < _totalPoints)
+                {
                     bodySegments[k].position = _allNodePositions[virtualIndex];
+                }
             }
         }
-    }
-
-    private IEnumerator ShakeEffect()
-    {
-        if (_totalPoints == 0) yield break;
-        Vector3 original = _allNodePositions[0];
-        for (float t = 0f; t < 0.2f; t += Time.deltaTime)
-        {
-            Vector3 shake = original + (Vector3)(Random.insideUnitCircle * 0.1f);
-            _allNodePositions[0] = shake;
-            if (bodySegments.Count > 0) bodySegments[0].position = shake;
-            yield return null;
-        }
-        _allNodePositions[0] = original;
-        if (bodySegments.Count > 0) bodySegments[0].position = original;
     }
 
     public void UpdateVisualRotation()

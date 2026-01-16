@@ -15,11 +15,14 @@ public class LevelLoader : MonoBehaviour
 
     [Header("Resolution Settings")]
     [Range(0, 20)]
-    // Lời khuyên: Để số này khoảng 5-9 để rắn trông mịn hơn
     public int subNodesCount = 8;
+
+    public bool editorMode = false;
 
     private void Start()
     {
+        if(!editorMode)
+            levelToPlay = GameManager.Instance.GetCurrentLevelData();
         LoadGame();
     }
 
@@ -49,7 +52,6 @@ public class LevelLoader : MonoBehaviour
 
             List<Transform> mainSegments = new List<Transform>();
 
-            // CHỈ TẠO MAIN NODES (NỐT GỐC)
             for (int i = 0; i < snakeData.segmentPositions.Count; i++)
             {
                 Vector2Int pos = snakeData.segmentPositions[i];
@@ -79,7 +81,6 @@ public class LevelLoader : MonoBehaviour
                 }
             }
 
-            // QUAN TRỌNG: TRUYỀN ĐỘ PHÂN GIẢI VÀO
             int resolution = subNodesCount + 1;
             snakeScript.Initialize(snakeData.direction, mainSegments, resolution);
         }

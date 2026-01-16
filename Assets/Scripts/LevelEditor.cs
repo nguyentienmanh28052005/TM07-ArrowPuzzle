@@ -167,7 +167,6 @@ public class LevelEditor : MonoBehaviour
                 loadedSegments.Add(seg.transform);
             }
 
-            // Fix lỗi CS1501: Truyền độ phân giải mặc định (9) vào
             sb.Initialize(data.direction, loadedSegments, 9);
             sb.UpdateVisualRotation();
         }

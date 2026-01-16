@@ -4,8 +4,8 @@ using UnityEngine;
 [System.Serializable]
 public class SnakeSaveData
 {
-    public ArrowDir direction; // Hướng của đầu
-    public List<Vector2Int> segmentPositions = new List<Vector2Int>(); // List tọa độ: [0] là đầu, [1] là thân...
+    public ArrowDir direction;
+    public List<Vector2Int> segmentPositions = new List<Vector2Int>();
 }
 
 [CreateAssetMenu(fileName = "NewLevel", menuName = "ArrowPuzzle/LevelData")]
