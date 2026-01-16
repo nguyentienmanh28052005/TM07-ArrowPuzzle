@@ -21,20 +21,22 @@ public class SnakeBlock : MonoBehaviour
 
     // --- DỮ LIỆU ---
     private Vector3[] _allNodePositions;
-    private Vector3[] _startSnapshot; // Dùng cho HitObstacle & Move
-    private Vector3[] _targetSnapshot;
-    private Vector3[] _originalState; // Dùng làm khuôn mẫu để lùi về
+    private Vector3[] _originalState; // Trạng thái gốc để tham chiếu
 
     private int _totalPoints;
-    private int _nodesPerUnit;
+    private int _nodesPerUnit; // Mật độ điểm (Points per Unit)
 
     private bool _isMoving = false;
     private LineRenderer lineRenderer;
 
     private List<Collider2D> _myColliders = new List<Collider2D>();
 
-    // Biến tạm để lưu vị trí đầu mới khi di chuyển tới
-    private Vector3 _currentNewHeadPos;
+    // Biến lưu tổng quãng đường đã đi (tính bằng index)
+    private float _accumulatedShift = 0f;
+
+    // Danh sách lưu vị trí bắt đầu của từng đốt xương trong mảng node
+    // Dùng để map đúng GameObject vào đúng vị trí trên đường ray
+    private List<int> _segmentStartIndices = new List<int>();
 
     private void Awake()
     {
@@ -63,7 +65,7 @@ public class SnakeBlock : MonoBehaviour
     {
         direction = dir;
         bodySegments = mainSegments;
-        _nodesPerUnit = resolution;
+        _nodesPerUnit = resolution; // Đây là mật độ chuẩn (số điểm trên 1 đơn vị độ dài)
 
         _myColliders.Clear();
         _myColliders.AddRange(GetComponentsInChildren<Collider2D>());
@@ -75,29 +77,58 @@ public class SnakeBlock : MonoBehaviour
         if (bodySegments.Count > 0 && bodySegments[0] != null && arrowVisual == null)
             arrowVisual = bodySegments[0].Find("Arrow");
 
+        // --- KHỞI TẠO DỮ LIỆU ĐIỂM (LOGIC MỚI: MẬT ĐỘ ĐỒNG NHẤT) ---
         if (bodySegments.Count > 1)
         {
             int segmentsCount = bodySegments.Count - 1;
-            _totalPoints = (segmentsCount * _nodesPerUnit) + 1;
+
+            // 1. Tính toán tổng số điểm cần thiết dựa trên độ dài thực tế
+            _segmentStartIndices.Clear();
+            int currentTotalPoints = 0;
+
+            // List tạm để lưu số điểm của từng đoạn
+            List<int> pointsPerSegment = new List<int>();
+
+            for (int i = 0; i < segmentsCount; i++)
+            {
+                // Lưu index bắt đầu của đoạn này
+                _segmentStartIndices.Add(currentTotalPoints);
+
+                // Tính khoảng cách thực tế giữa 2 đốt
+                float dist = Vector3.Distance(bodySegments[i].position, bodySegments[i + 1].position);
+
+                // Tính số điểm dựa trên độ dài * độ phân giải
+                // Mathf.Max(1, ...) để đảm bảo ít nhất có 1 điểm nối
+                int pointsCount = Mathf.Max(1, Mathf.RoundToInt(dist * _nodesPerUnit));
+
+                pointsPerSegment.Add(pointsCount);
+                currentTotalPoints += pointsCount;
+            }
+            // Add index cho đốt cuối cùng (để sync)
+            _segmentStartIndices.Add(currentTotalPoints);
+
+            // Tổng điểm = tổng các khoảng + 1 điểm chốt cuối
+            _totalPoints = currentTotalPoints + 1;
 
             _allNodePositions = new Vector3[_totalPoints];
-            _startSnapshot = new Vector3[_totalPoints];
-            _targetSnapshot = new Vector3[_totalPoints]; // Khởi tạo mảng target
             _originalState = new Vector3[_totalPoints];
 
+            // 2. Điền dữ liệu vị trí nội suy
             int arrayIndex = 0;
             for (int i = 0; i < segmentsCount; i++)
             {
                 Vector3 start = bodySegments[i].position;
                 Vector3 end = bodySegments[i + 1].position;
+                int count = pointsPerSegment[i];
 
-                for (int j = 0; j < _nodesPerUnit; j++)
+                for (int j = 0; j < count; j++)
                 {
-                    float t = (float)j / _nodesPerUnit;
+                    float t = (float)j / count;
                     _allNodePositions[arrayIndex] = Vector3.Lerp(start, end, t);
                     arrayIndex++;
                 }
             }
+            // Điểm cuối cùng
             _allNodePositions[arrayIndex] = bodySegments[segmentsCount].position;
         }
         else if (bodySegments.Count == 1)
@@ -105,6 +136,8 @@ public class SnakeBlock : MonoBehaviour
             _totalPoints = 1;
             _allNodePositions = new Vector3[] { bodySegments[0].position };
             _originalState = new Vector3[1];
+            _segmentStartIndices.Clear();
+            _segmentStartIndices.Add(0);
         }
 
         UpdateSegmentVisuals();
@@ -158,8 +191,9 @@ public class SnakeBlock : MonoBehaviour
     {
         _isMoving = true;
 
-        // 1. Lưu vị trí gốc (Position Before Run)
+        // 1. Lưu trạng thái gốc & Reset bộ đếm quãng đường
         System.Array.Copy(_allNodePositions, _originalState, _totalPoints);
+        _accumulatedShift = 0f;
 
         Vector3 moveDir = GetDirVector(direction);
 
@@ -169,16 +203,16 @@ public class SnakeBlock : MonoBehaviour
 
             if (distToObstacle < 0.9f)
             {
-                // A. Lao vào tường (Hiệu ứng va chạm)
+                // A. Lao vào tường (Chỉ là tăng shift tạm thời rồi giảm về cũ)
                 yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
 
-                // B. Lùi về vị trí ban đầu (Dùng thuật toán tái tạo đường đi)
+                // B. Lùi về vị trí ban đầu (Giảm shift về 0)
                 yield return StartCoroutine(ReturnToOrigin(moveDir));
 
                 break;
             }
 
-            // C. Đi tiếp 1 bước
+            // C. Đi tiếp 1 bước (Tăng shift lên 1 đơn vị chuẩn)
             yield return StartCoroutine(MoveOneStep(moveDir));
 
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
@@ -218,132 +252,98 @@ public class SnakeBlock : MonoBehaviour
         return _myColliders.Contains(col);
     }
 
-    // --- LOGIC DI CHUYỂN TỚI (SLIDING FORWARD) ---
-    private IEnumerator MoveOneStep(Vector3 dir)
+    // --- HÀM CẬP NHẬT VỊ TRÍ TOÀN BỘ RẮN DỰA TRÊN SHIFT ---
+    // Đây là hàm cốt lõi giúp mọi thứ mượt mà
+    private void UpdateSnakePosition(float shift, Vector3 moveDir)
     {
-        System.Array.Copy(_allNodePositions, _startSnapshot, _totalPoints);
-        _currentNewHeadPos = _startSnapshot[0] + dir;
-
-        float totalShift = _nodesPerUnit;
-        float currentShift = 0f;
-
-        while (currentShift < totalShift)
+        for (int i = 0; i < _totalPoints; i++)
         {
-            currentShift += Time.deltaTime * moveSpeed * _nodesPerUnit;
-            float applyShift = Mathf.Min(currentShift, totalShift);
-            UpdateForwardSlide(applyShift);
-            yield return null;
+            // trackIndex: Vị trí của đốt i trên đường ray ảo.
+            // Công thức: -shift + i
+            // Nếu shift tăng (đi tới), trackIndex giảm (đi vào vùng âm - vùng mở rộng thẳng).
+            float trackIndex = -shift + i;
+
+            _allNodePositions[i] = GetPointOnVirtualTrack(trackIndex, moveDir);
         }
-        UpdateForwardSlide(totalShift);
-    }
-
-    // --- LOGIC VA CHẠM (HIT & BOUNCE) ---
-    private IEnumerator HitObstacle(Vector3 dir, float distance)
-    {
-        System.Array.Copy(_allNodePositions, _startSnapshot, _totalPoints);
-        _currentNewHeadPos = _startSnapshot[0] + dir;
-
-        float maxWorldDist = Mathf.Clamp(distance - 0.1f, 0.2f, 0.9f);
-        float maxShiftIndex = maxWorldDist * _nodesPerUnit;
-
-        // Lao tới
-        float currentShift = 0f;
-        while (currentShift < maxShiftIndex)
-        {
-            currentShift += Time.deltaTime * moveSpeed * _nodesPerUnit;
-            float applyShift = Mathf.Min(currentShift, maxShiftIndex);
-            UpdateForwardSlide(applyShift);
-            yield return null;
-        }
-
-        // Lùi lại (về vị trí trước va chạm)
-        while (currentShift > 0f)
-        {
-            currentShift -= Time.deltaTime * moveSpeed * _nodesPerUnit;
-            float applyShift = Mathf.Max(currentShift, 0f);
-            UpdateForwardSlide(applyShift);
-            yield return null;
-        }
-        UpdateForwardSlide(0f);
-    }
-
-    // --- LOGIC LÙI VỀ GỐC (SỬ DỤNG ĐƯỜNG RAY TÍNH TOÁN) ---
-    // Fix lỗi teleport cho rắn ngắn
-    private IEnumerator ReturnToOrigin(Vector3 dir)
-    {
-        // Tính khoảng cách cần lùi (Distance from Current Head to Original Head)
-        float totalDistance = Vector3.Distance(_allNodePositions[0], _originalState[0]);
-        float totalIndexShift = totalDistance * _nodesPerUnit;
-
-        float currentShift = totalIndexShift;
-
-        // Lặp lùi dần offset từ [Distance -> 0]
-        while (currentShift > 0f)
-        {
-            currentShift -= Time.deltaTime * (int)(moveSpeed/3) * _nodesPerUnit;
-            if (currentShift < 0f) currentShift = 0f;
-
-            for (int i = 0; i < _totalPoints; i++)
-            {
-                // trackIndex: Vị trí trên đường ray ảo.
-                // 0 = Đầu Gốc.
-                // >0 = Thân Gốc.
-                // <0 = Đường đi đã qua (Đường thẳng kéo dài từ đầu gốc).
-
-                // Ví dụ: currentShift = 50. i = 0 (Đầu). trackIndex = -50.
-                // -> Lấy điểm cách đầu gốc 50 index về phía trước.
-                float trackIndex = -currentShift + i;
-
-                _allNodePositions[i] = GetPointOnVirtualTrack(trackIndex, dir);
-            }
-            SyncMainSegments();
-            yield return null;
-        }
-
-        // Chốt vị trí về gốc chính xác
-        System.Array.Copy(_originalState, _allNodePositions, _totalPoints);
         SyncMainSegments();
     }
 
-    // Hàm lấy tọa độ trên đường ray ảo (Kết hợp Mảng Gốc + Toán học Vector)
     private Vector3 GetPointOnVirtualTrack(float trackIndex, Vector3 moveDir)
     {
-        // Nếu trackIndex < 0: Nghĩa là điểm này nằm trên đường thẳng mà rắn đã đi qua
+        // trackIndex < 0: Nằm trên đường thẳng mở rộng từ đầu gốc
         if (trackIndex < 0)
         {
-            // Tính khoảng cách từ đầu gốc (đơn vị world unit)
             float distFromHead = Mathf.Abs(trackIndex) / _nodesPerUnit;
-            // Vị trí = Đầu Gốc + Hướng * Khoảng cách
             return _originalState[0] + moveDir * distFromHead;
         }
+        // trackIndex >= 0: Nằm trong thân gốc (Original Body)
         else
         {
-            // Nếu trackIndex >= 0: Nghĩa là điểm này nằm trong thân rắn gốc
             return SampleArray(_originalState, trackIndex);
         }
     }
 
-    // --- CÁC HÀM HELPER ---
-
-    private void UpdateForwardSlide(float shiftAmount)
+    // --- DI CHUYỂN 1 BƯỚC ---
+    private IEnumerator MoveOneStep(Vector3 dir)
     {
-        for (int i = 0; i < _totalPoints; i++)
-        {
-            // Logic trượt tới: Nối NewHead -> StartSnapshot
-            float trackPos = (_nodesPerUnit + i) - shiftAmount;
+        // Mục tiêu: Tăng shift thêm 1 đơn vị chuẩn (_nodesPerUnit)
+        float startShift = _accumulatedShift;
+        float targetShift = startShift + _nodesPerUnit;
 
-            if (trackPos <= 0) _allNodePositions[i] = _currentNewHeadPos;
-            else if (trackPos >= _nodesPerUnit)
-            {
-                float arrayIndex = trackPos - _nodesPerUnit;
-                _allNodePositions[i] = SampleArray(_startSnapshot, arrayIndex);
-            }
-            else
-            {
-                float t = trackPos / _nodesPerUnit;
-                _allNodePositions[i] = Vector3.Lerp(_currentNewHeadPos, _startSnapshot[0], t);
-            }
+        while (_accumulatedShift < targetShift)
+        {
+            _accumulatedShift += Time.deltaTime * moveSpeed * _nodesPerUnit;
+            if (_accumulatedShift > targetShift) _accumulatedShift = targetShift;
+
+            UpdateSnakePosition(_accumulatedShift, dir);
+            yield return null;
         }
+    }
+
+    // --- VA CHẠM & NẢY ---
+    private IEnumerator HitObstacle(Vector3 dir, float distance)
+    {
+        float startShift = _accumulatedShift;
+
+        // Tính giới hạn nảy (tính bằng world unit -> index unit)
+        float bounceDist = Mathf.Clamp(distance - 0.1f, 0.2f, 0.9f);
+        float targetShift = startShift + (bounceDist * _nodesPerUnit);
+
+        // Lao vào
+        while (_accumulatedShift < targetShift)
+        {
+            _accumulatedShift += Time.deltaTime * moveSpeed * _nodesPerUnit;
+            if (_accumulatedShift > targetShift) _accumulatedShift = targetShift;
+            UpdateSnakePosition(_accumulatedShift, dir);
+            yield return null;
+        }
+
+        // Lùi ra (về lại vị trí trước khi lao vào)
+        while (_accumulatedShift > startShift)
+        {
+            _accumulatedShift -= Time.deltaTime * moveSpeed * _nodesPerUnit;
+            if (_accumulatedShift < startShift) _accumulatedShift = startShift;
+            UpdateSnakePosition(_accumulatedShift, dir);
+            yield return null;
+        }
+    }
+
+    // --- LÙI VỀ VỊ TRÍ GỐC ---
+    private IEnumerator ReturnToOrigin(Vector3 dir)
+    {
+        // Mục tiêu: Giảm shift về 0
+        while (_accumulatedShift > 0f)
+        {
+            // Lùi với tốc độ chậm hơn một chút (1/3 tốc độ đi) để tạo hiệu ứng
+            _accumulatedShift -= Time.deltaTime * (moveSpeed / 3f) * _nodesPerUnit;
+            if (_accumulatedShift < 0f) _accumulatedShift = 0f;
+
+            UpdateSnakePosition(_accumulatedShift, dir);
+            yield return null;
+        }
+
+        // Chốt cứng
+        System.Array.Copy(_originalState, _allNodePositions, _totalPoints);
         SyncMainSegments();
     }
 
@@ -351,8 +351,6 @@ public class SnakeBlock : MonoBehaviour
     {
         int count = arr.Length;
         if (count == 0) return Vector3.zero;
-
-        // Clamp index
         if (floatIndex <= 0) return arr[0];
         if (floatIndex >= count - 1) return arr[count - 1];
 
@@ -362,16 +360,21 @@ public class SnakeBlock : MonoBehaviour
         return Vector3.Lerp(arr[i], arr[i + 1], t);
     }
 
+    // HÀM QUAN TRỌNG: Cập nhật vị trí các đốt xương (GameObject)
     private void SyncMainSegments()
     {
         for (int k = 0; k < bodySegments.Count; k++)
         {
             if (bodySegments[k] != null)
             {
-                int virtualIndex = k * _nodesPerUnit;
-                if (virtualIndex < _totalPoints)
+                // Logic mới: Lấy index từ mảng đã lưu trong Initialize
+                if (k < _segmentStartIndices.Count)
                 {
-                    bodySegments[k].position = _allNodePositions[virtualIndex];
+                    int virtualIndex = _segmentStartIndices[k];
+                    if (virtualIndex < _totalPoints)
+                    {
+                        bodySegments[k].position = _allNodePositions[virtualIndex];
+                    }
                 }
             }
         }
