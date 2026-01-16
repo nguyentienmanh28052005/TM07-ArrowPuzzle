@@ -18,7 +18,6 @@ public class GameManager : Singleton<GameManager>
         if((int)SaveDataPlayer.Instance.Value(1) != 0)
         {
             level = (int)SaveDataPlayer.Instance.Value(1);
-
         }
     }
 

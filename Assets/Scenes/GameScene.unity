@@ -230,7 +230,7 @@ MonoBehaviour:
     type: 3}
   bodyPrefab: {fileID: 8326224270812529391, guid: c2f6d0f0882754642be8519a548e10b9,
     type: 3}
-  currentData: {fileID: 11400000, guid: ee5d2d4d4ff9d544a9a318de68eaedd8, type: 2}
+  currentData: {fileID: 11400000, guid: f2c40a0c89e9a304c954ffd98430e8d1, type: 2}
   levelContainer: {fileID: 1087363345}
   currentSnakeObj: {fileID: 0}
 --- !u!4 &96034496
@@ -355,7 +355,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e587f593bd7ab5648aec739311e62067, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  TargetFrameRate: 60
+  TargetFrameRate: 1200
 --- !u!114 &322357657
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -614,6 +614,51 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7d542ed134ad1d4f93d6ee31acafee6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &504763607
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 504763608}
+  - component: {fileID: 504763609}
+  m_Layer: 0
+  m_Name: LevelController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &504763608
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 504763607}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.32866773, y: 2.4376354, z: 2.4304538}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &504763609
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 504763607}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d29ecbcc8347b694dbcface44d46e09d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  countArrowInGame: 0
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -1530,6 +1575,8 @@ MonoBehaviour:
     type: 3}
   bodyPrefab: {fileID: 8326224270812529391, guid: c2f6d0f0882754642be8519a548e10b9,
     type: 3}
+  dotPrefab: {fileID: 777341060820272979, guid: bb61c86c67198064d9d814dcca291b64,
+    type: 3}
   gameContainer: {fileID: 1087363345}
   subNodesCount: 10
   editorMode: 1
@@ -1898,3 +1945,4 @@ SceneRoots:
   - {fileID: 1403714187}
   - {fileID: 322357660}
   - {fileID: 386524389}
+  - {fileID: 504763608}

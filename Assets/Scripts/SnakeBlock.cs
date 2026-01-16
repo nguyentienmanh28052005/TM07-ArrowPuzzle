@@ -17,6 +17,11 @@ public class SnakeBlock : MonoBehaviour
 
     [Header("Visuals")]
     public Color snakeColor = Color.black;
+
+    public Color snakeMoveColor = new Color(0.31f, 0.99f, 1f, 1f);
+
+    public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
+
     public float lineWidth = 0.4f;
 
     // --- DỮ LIỆU ---
@@ -38,9 +43,18 @@ public class SnakeBlock : MonoBehaviour
     // Dùng để map đúng GameObject vào đúng vị trí trên đường ray
     private List<int> _segmentStartIndices = new List<int>();
 
+    private LevelController levelController;
+
+    private bool outed = false;
+
     private void Awake()
     {
         SetupLineRenderer();
+    }
+
+    private void Start()
+    {
+        levelController = FindObjectOfType<LevelController>();
     }
 
     private void SetupLineRenderer()
@@ -140,12 +154,12 @@ public class SnakeBlock : MonoBehaviour
             _segmentStartIndices.Add(0);
         }
 
-        UpdateSegmentVisuals();
+        UpdateSegmentVisuals(snakeColor);
         UpdateVisualRotation();
         UpdateLineRenderer();
     }
 
-    void UpdateSegmentVisuals()
+    void UpdateSegmentVisuals(Color color)
     {
         foreach (var seg in bodySegments)
         {
@@ -158,11 +172,11 @@ public class SnakeBlock : MonoBehaviour
                 {
                     sr.enabled = true;
                     sr.transform.localScale = Vector3.one * 0.4f;
-                    sr.color = snakeColor;
+                    sr.color = color;
                 }
                 else
                 {
-                    sr.color = snakeColor;
+                    sr.color = color;
                 }
             }
         }
@@ -184,13 +198,19 @@ public class SnakeBlock : MonoBehaviour
 
     public void OnHeadClicked()
     {
-        if (!_isMoving) StartCoroutine(ProcessMovement());
+        if (!_isMoving)
+        {
+            StartCoroutine(ProcessMovement());
+        }
     }
 
     private IEnumerator ProcessMovement()
     {
         _isMoving = true;
-
+        lineRenderer.startColor = snakeMoveColor;
+        lineRenderer.endColor = snakeMoveColor;
+        arrowVisual.GetComponentInChildren<SpriteRenderer>().color = snakeMoveColor;
+        UpdateSegmentVisuals(snakeMoveColor);
         // 1. Lưu trạng thái gốc & Reset bộ đếm quãng đường
         System.Array.Copy(_allNodePositions, _originalState, _totalPoints);
         _accumulatedShift = 0f;
@@ -203,6 +223,10 @@ public class SnakeBlock : MonoBehaviour
 
             if (distToObstacle < 0.9f)
             {
+                lineRenderer.startColor = snakeTakeHitColor;
+                lineRenderer.endColor = snakeTakeHitColor;
+                arrowVisual.GetComponentInChildren<SpriteRenderer>().color = snakeTakeHitColor;
+                UpdateSegmentVisuals(snakeTakeHitColor);
                 // A. Lao vào tường (Chỉ là tăng shift tạm thời rồi giảm về cũ)
                 yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
 
@@ -219,6 +243,12 @@ public class SnakeBlock : MonoBehaviour
             {
                 Destroy(gameObject);
                 break;
+            }
+
+            if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 2500f && !outed)
+            {
+                levelController.SetCountArrowInGame();
+                outed = true;
             }
         }
         _isMoving = false;
