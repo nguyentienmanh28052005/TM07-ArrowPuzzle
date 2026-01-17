@@ -37,5 +37,11 @@ public class GameMenuCanvas : MonoBehaviour
         panelMainMenu.SetActive(true);
     }
 
+    public void ResetGame()
+    {
+        GameManager.Instance.level = 1;
+        SceneController.Instance.LoadScene("GameMenu", false, false);
+    }
+
 
 }

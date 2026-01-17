@@ -5,14 +5,13 @@ using UnityEditor;
 public class LevelEditor : MonoBehaviour
 {
     [Header("Assets")]
-    public GameObject headPrefab; // Prefab đầu rắn
-    public GameObject bodyPrefab; // Prefab thân rắn
+    public GameObject headPrefab;
+    public GameObject bodyPrefab;
 
     [Header("Data")]
-    public LevelDataSO currentData; // Kéo file Level muốn sửa vào đây
-    public Transform levelContainer; // Object cha chứa các con rắn
+    public LevelDataSO currentData;
+    public Transform levelContainer;
 
-    // --- TRẠNG THÁI VẼ ---
     public GameObject currentSnakeObj;
     private SnakeBlock currentSnakeScript;
     private List<Transform> currentSegments = new List<Transform>();
@@ -20,12 +19,10 @@ public class LevelEditor : MonoBehaviour
 
     private void Update()
     {
-        // 1. Phím R: Xoay hướng (Chỉ tác dụng khi đang vẽ)
         if (Input.GetKeyDown(KeyCode.R))
         {
             currentDir++;
             if ((int)currentDir > 3) currentDir = 0;
-            // Debug.Log("Direction: " + currentDir);
             if (currentSnakeScript != null)
             {
                 currentSnakeScript.direction = currentDir;
@@ -33,33 +30,27 @@ public class LevelEditor : MonoBehaviour
             }
         }
 
-        // 2. Phím Space: HOÀN TẤT con rắn đang vẽ
         if (Input.GetKeyDown(KeyCode.Space))
         {
             FinishCurrentSnake();
         }
 
-        // 3. Chuột Trái: VẼ
         if (Input.GetMouseButtonDown(0))
         {
             HandleLeftClick();
         }
 
-        // 4. Chuột Phải: XÓA rắn
         if (Input.GetMouseButtonDown(1))
         {
             HandleRightClick();
         }
     }
 
-    // --- XỬ LÝ CLICK ---
-
     void HandleLeftClick()
     {
         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Vector2Int gridPos = new Vector2Int(Mathf.RoundToInt(mousePos.x), Mathf.RoundToInt(mousePos.y));
 
-        // [MỚI] KIỂM TRA TRÙNG LẶP: Nếu vị trí này đã có object rồi thì không cho vẽ đè lên
         if (IsPositionOccupied(gridPos))
         {
             Debug.LogWarning("Vị trí này đã có vật thể! Không thể đặt chồng lên.");
@@ -70,20 +61,15 @@ public class LevelEditor : MonoBehaviour
         else CreateBodySegment(gridPos);
     }
 
-    // [MỚI] Hàm kiểm tra xem ô lưới có trống không
     bool IsPositionOccupied(Vector2Int pos)
     {
         Vector2 checkPos = new Vector2(pos.x, pos.y);
-        // Kiểm tra va chạm tại điểm đó với Layer "Block"
         Collider2D hit = Physics2D.OverlapPoint(checkPos, LayerMask.GetMask("Block"));
-
-        // Nếu chạm trúng thứ gì đó -> Đã bị chiếm (return true)
         return hit != null;
     }
 
     void HandleRightClick()
     {
-        // Hủy vẽ nếu đang vẽ dở
         if (currentSnakeObj != null)
         {
             Destroy(currentSnakeObj);
@@ -92,7 +78,6 @@ public class LevelEditor : MonoBehaviour
             return;
         }
 
-        // Xóa rắn đã có trên màn hình
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Collider2D hit = Physics2D.OverlapPoint(mousePos, LayerMask.GetMask("Block"));
 
@@ -107,8 +92,6 @@ public class LevelEditor : MonoBehaviour
             }
         }
     }
-
-    // --- LOGIC VẼ ---
 
     void CreateHead(Vector2Int pos)
     {
@@ -141,7 +124,6 @@ public class LevelEditor : MonoBehaviour
     {
         Transform lastSeg = currentSegments[currentSegments.Count - 1];
 
-        // Kiểm tra khoảng cách: Phải nằm cạnh ô trước đó
         if (Vector3.Distance(lastSeg.position, new Vector3(pos.x, pos.y, 0)) > 1.1f)
         {
             Debug.LogWarning("Phải đặt cạnh đốt trước!");
@@ -156,7 +138,6 @@ public class LevelEditor : MonoBehaviour
     {
         if (currentSnakeObj == null) return;
 
-        // Gán list segment vào script để Gizmos vẽ và để lưu data
         currentSnakeScript.bodySegments = new List<Transform>(currentSegments);
         currentSnakeScript.obstacleLayer = LayerMask.GetMask("Block");
 
@@ -165,8 +146,6 @@ public class LevelEditor : MonoBehaviour
         currentSegments.Clear();
         Debug.Log("Đã hoàn tất rắn!");
     }
-
-    // --- SAVE & LOAD ---
 
     [ContextMenu("Save Level")]
     public void SaveLevel()
@@ -247,10 +226,8 @@ public class LevelEditor : MonoBehaviour
         Debug.Log("Đã tải lại dữ liệu level.");
     }
 
-    // --- GIZMOS: VẼ LINE ---
     private void OnDrawGizmos()
     {
-        // 1. Rắn đang vẽ (Màu Đỏ)
         if (currentSegments != null && currentSegments.Count > 1)
         {
             Gizmos.color = Color.red;
@@ -264,7 +241,6 @@ public class LevelEditor : MonoBehaviour
             }
         }
 
-        // 2. Rắn đã xong (Màu Vàng)
         if (levelContainer != null)
         {
             Gizmos.color = Color.yellow;

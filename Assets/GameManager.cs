@@ -7,6 +7,7 @@ public class GameManager : Singleton<GameManager>
 {
     public List<LevelDataSO> levelDataSOs;
     public int level = 1;
+    public int currentMaxLevel = 3;
 
     void Awake()
     {

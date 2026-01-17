@@ -22,9 +22,19 @@ public class LevelController : MonoBehaviour
         if(countArrowInGame <= 0)
         {
             Debug.Log("Level Complete");
-            GameManager.Instance.level++;
-            SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
-            UnityEngine.SceneManagement.SceneManager.LoadScene("GameMenu");
+            if(GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
+            {
+                GameManager.Instance.level++;
+                SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
+            }
+            FindObjectOfType<WinEffectManager>().PlayWinEffect();
+            StartCoroutine(DelayLoadMenu(3f));
         }
+    }
+
+    public IEnumerator DelayLoadMenu(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SceneController.Instance.LoadScene("GameMenu", false, false);
     }
 }

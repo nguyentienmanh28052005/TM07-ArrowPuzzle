@@ -9,7 +9,7 @@ public class LevelLoader : MonoBehaviour
     [Header("Prefabs")]
     public GameObject headPrefab;
     public GameObject bodyPrefab;
-    public GameObject dotPrefab; // Prefab chấm tròn (Grid Marker)
+    public GameObject dotPrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -32,13 +32,11 @@ public class LevelLoader : MonoBehaviour
     {
         if (levelToPlay == null) return;
 
-        // Xóa toàn bộ map cũ
         if (gameContainer != null)
         {
             int childCount = gameContainer.childCount;
             for (int i = childCount - 1; i >= 0; i--)
             {
-                // Dùng DestroyImmediate để đảm bảo xóa sạch ngay lập tức (đặc biệt trong Editor)
                 DestroyImmediate(gameContainer.GetChild(i).gameObject);
             }
         }
@@ -47,7 +45,6 @@ public class LevelLoader : MonoBehaviour
         {
             if (snakeData.segmentPositions.Count == 0) continue;
 
-            // 1. Tạo Rắn (Container cha)
             GameObject snakeObj = new GameObject("Snake");
             if (gameContainer != null) snakeObj.transform.parent = gameContainer;
 
@@ -67,12 +64,6 @@ public class LevelLoader : MonoBehaviour
                 mainSeg.name = (i == 0) ? "Head" : $"Main_{i}";
                 mainSegments.Add(mainSeg.transform);
 
-                // =================================================================
-                // 2. LOGIC TẠO DOT (SỬA THEO YÊU CẦU: 0, 2, 4, 6...)
-                // i = 0 (Head) -> 0 % 2 == 0 -> TẠO
-                // i = 1        -> 1 % 2 != 0 -> KHÔNG TẠO
-                // i = 2        -> 2 % 2 == 0 -> TẠO
-                // =================================================================
                 if (dotPrefab != null && i % 2 == 0)
                 {
                     Instantiate(dotPrefab, currentPos, Quaternion.identity, gameContainer);
