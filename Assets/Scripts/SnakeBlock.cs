@@ -56,8 +56,8 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.useWorldSpace = true;
         lineRenderer.alignment = LineAlignment.TransformZ;
         lineRenderer.textureMode = LineTextureMode.Tile;
-        lineRenderer.numCornerVertices = 6;
-        lineRenderer.numCapVertices = 6;
+        lineRenderer.numCornerVertices = 0;
+        lineRenderer.numCapVertices = 0;
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
 
         _currentLineColor = snakeColor;
