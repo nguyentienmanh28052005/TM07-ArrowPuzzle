@@ -43,5 +43,28 @@ public class GameMenuCanvas : MonoBehaviour
         SceneController.Instance.LoadScene("GameMenu", false, false);
     }
 
+    public void UpdateLevelText()
+    {
+        textLevel.text = "Level " + GameManager.Instance.level;
+    }
+
+    public void NextLevel()
+    {
+        if(GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
+        {
+            GameManager.Instance.level++;
+            UpdateLevelText();
+        }
+    }
+
+    public void PreviousLevel()
+    {
+        if(GameManager.Instance.level > 1)
+        {
+            GameManager.Instance.level--;
+            UpdateLevelText();
+        }
+    }
+
 
 }

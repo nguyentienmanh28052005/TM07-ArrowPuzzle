@@ -14,19 +14,19 @@ public class WinEffectManager : MonoBehaviour
     public float scaleMultiplier = 1.5f;
 
     [ContextMenu("Test Win Effect")]
-    public void PlayWinEffect()
+    public float PlayWinEffect()
     {
         if (gameContainer == null)
         {
-            Debug.LogError("Chưa gán GameContainer vào WinEffectManager!");
-            return;
+            return 0f;
         }
 
         GridDot[] allDots = gameContainer.GetComponentsInChildren<GridDot>();
 
-        if (allDots.Length == 0) return;
+        if (allDots.Length == 0) return 0f;
 
         Vector3 center = (centerPoint != null) ? centerPoint.position : Vector3.zero;
+        float maxDuration = 0f;
 
         foreach (var dot in allDots)
         {
@@ -35,7 +35,15 @@ public class WinEffectManager : MonoBehaviour
             float distance = Vector3.Distance(dot.transform.position, center);
             float delay = distance * waveSpeed;
 
+            float totalTimeForThisDot = delay + animationDuration;
+            if (totalTimeForThisDot > maxDuration)
+            {
+                maxDuration = totalTimeForThisDot;
+            }
+
             dot.PlayWinAnimation(winColor, delay, scaleMultiplier, animationDuration);
         }
+
+        return maxDuration;
     }
 }

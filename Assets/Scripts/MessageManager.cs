@@ -6,6 +6,7 @@ using Pixelplacement;
 
 public enum ManhMessageType
 {
+    OnTakeDamage,
     OnGameStart,
     OnRound1,
     OnGameLose,

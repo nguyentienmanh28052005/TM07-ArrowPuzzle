@@ -23,32 +23,47 @@ public class CameraController : MonoBehaviour
     private float dragThreshold = 10f;
     private Vector3 dragOriginScreen;
     private Vector3 dragOriginWorld;
+    private bool isEndGame = false;
+    private Vector3 initialPosition;
 
     void Start()
     {
         cam = GetComponent<Camera>();
         targetZoom = cam.orthographicSize;
+        initialPosition = transform.position;
     }
 
     void Update()
     {
-        if (IsGameplayBlocking)
+        if (IsGameplayBlocking || isEndGame)
         {
             IsDragging = false;
-            return;
+            if (!isEndGame) return;
         }
 
-        if (Input.touchCount > 0)
-            HandleTouchInput();
-        else
-            HandleMouseInput();
-
-        if (cam.orthographicSize != targetZoom)
+        if (!isEndGame)
         {
-            cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, targetZoom, Time.deltaTime * smoothSpeed);
+            if (Input.touchCount > 0)
+                HandleTouchInput();
+            else
+                HandleMouseInput();
         }
 
-        if (useLimits)
+        float currentSmooth = isEndGame ? 2f : smoothSpeed;
+
+        if (Mathf.Abs(cam.orthographicSize - targetZoom) > 0.01f)
+        {
+            cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, targetZoom, Time.deltaTime * currentSmooth);
+        }
+
+        if (isEndGame)
+        {
+            if (Vector3.Distance(transform.position, initialPosition) > 0.01f)
+            {
+                transform.position = Vector3.Lerp(transform.position, initialPosition, Time.deltaTime * currentSmooth);
+            }
+        }
+        else if (useLimits)
         {
             Vector3 clampedPos = transform.position;
             clampedPos.x = Mathf.Clamp(clampedPos.x, minPosition.x, maxPosition.x);
@@ -134,5 +149,11 @@ public class CameraController : MonoBehaviour
 
             if (touch.phase == TouchPhase.Ended) IsDragging = false;
         }
+    }
+
+    public void ZoomToMax()
+    {
+        isEndGame = true;
+        targetZoom = maxZoom;
     }
 }

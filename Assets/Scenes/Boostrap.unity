@@ -340,7 +340,7 @@ PrefabInstance:
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: currentMaxLevel
-      value: 3
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
@@ -350,7 +350,7 @@ PrefabInstance:
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.size
-      value: 3
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
@@ -369,6 +369,18 @@ PrefabInstance:
       propertyPath: levelDataSOs.Array.data[2]
       value: 
       objectReference: {fileID: 11400000, guid: f2c40a0c89e9a304c954ffd98430e8d1,
+        type: 2}
+    - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      propertyPath: levelDataSOs.Array.data[3]
+      value: 
+      objectReference: {fileID: 11400000, guid: 9f2783509d7b86941a1f7b55004ed106,
+        type: 2}
+    - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      propertyPath: levelDataSOs.Array.data[4]
+      value: 
+      objectReference: {fileID: 11400000, guid: c2c8cc4372d5c854186db843753aab8f,
         type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
