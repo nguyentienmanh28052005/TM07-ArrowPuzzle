@@ -45,20 +45,16 @@ public class LevelController : MonoBehaviour
 
     public IEnumerator SequenceWinGame(float waitTime)
     {
-        // 1. Đợi hiệu ứng Dot chạy xong
         yield return new WaitForSeconds(waitTime);
 
-        // 2. Hiện Text Win
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null)
         {
             canvas.ShowWinText();
         }
 
-        // 3. Đợi thêm 2 giây để người chơi đọc chữ
         yield return new WaitForSeconds(2f);
 
-        // 4. Load về Menu
         if (SceneController.Instance != null)
         {
             SceneController.Instance.LoadScene("GameMenu", false, false);
