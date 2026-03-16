@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using DG.Tweening;
 
 public class SnakeInput : MonoBehaviour
@@ -12,13 +12,41 @@ public class SnakeInput : MonoBehaviour
     public float clickRadius = 0.8f;
     public bool useHaptics = true;
 
+    [Header("Guide Line")]
+    [SerializeField] private float guideLineLength = 50f;
+    [SerializeField] private float guideLineWidth = 0.05f;
+    [SerializeField] private Color guideLineColor = new Color(1f, 1f, 1f, 0.35f);
+
     private bool isPressed = false;
     private SnakeBlock parentScript;
     private Coroutine holdCoroutine;
+    private LineRenderer guideLine;
 
     private void Awake()
     {
         parentScript = GetComponentInParent<SnakeBlock>();
+        CreateGuideLine();
+    }
+
+    private void CreateGuideLine()
+    {
+        GameObject guideObj = new GameObject("GuideLine");
+        guideObj.transform.SetParent(transform);
+        guideObj.transform.localPosition = Vector3.zero;
+
+        guideLine = guideObj.AddComponent<LineRenderer>();
+        guideLine.useWorldSpace = true;
+        guideLine.alignment = LineAlignment.TransformZ;
+        guideLine.startWidth = guideLineWidth;
+        guideLine.endWidth = guideLineWidth;
+        guideLine.material = new Material(Shader.Find("Sprites/Default"));
+        guideLine.startColor = guideLineColor;
+        guideLine.endColor = new Color(guideLineColor.r, guideLineColor.g, guideLineColor.b, 0f);
+        guideLine.sortingOrder = 5;
+        guideLine.positionCount = 2;
+        guideLine.numCornerVertices = 0;
+        guideLine.numCapVertices = 0;
+        guideLine.enabled = false;
     }
 
     private void Update()
@@ -45,6 +73,8 @@ public class SnakeInput : MonoBehaviour
             parentScript.SetFocusColor(true, duration);
         }
 
+        ShowGuideLine(true);
+
         if (holdCoroutine != null) StopCoroutine(holdCoroutine);
         holdCoroutine = StartCoroutine(WaitAndScale());
     }
@@ -57,6 +87,8 @@ public class SnakeInput : MonoBehaviour
         CameraController.IsGameplayBlocking = false;
 
         if (holdCoroutine != null) StopCoroutine(holdCoroutine);
+
+        ShowGuideLine(false);
 
         if (parentScript != null)
         {
@@ -87,10 +119,40 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    private void ShowGuideLine(bool show)
+    {
+        if (guideLine == null || parentScript == null) return;
+
+        guideLine.enabled = show;
+
+        if (show)
+        {
+            UpdateGuideLinePositions();
+        }
+    }
+
+    private void UpdateGuideLinePositions()
+    {
+        if (guideLine == null || parentScript == null) return;
+
+        Vector3 headPos = transform.position;
+        Vector3 dir = parentScript.GetDirVector(parentScript.direction);
+        Vector3 endPos = headPos + dir * guideLineLength;
+
+        guideLine.SetPosition(0, headPos);
+        guideLine.SetPosition(1, endPos);
+    }
+
     private void LateUpdate()
     {
         if (isPressed)
         {
+            // Update guide line position while held
+            if (guideLine != null && guideLine.enabled)
+            {
+                UpdateGuideLinePositions();
+            }
+
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             if (Vector2.Distance(transform.position, mousePos) > clickRadius)
             {
@@ -98,6 +160,8 @@ public class SnakeInput : MonoBehaviour
                 CameraController.IsGameplayBlocking = false;
 
                 if (holdCoroutine != null) StopCoroutine(holdCoroutine);
+
+                ShowGuideLine(false);
 
                 if (parentScript != null)
                 {
