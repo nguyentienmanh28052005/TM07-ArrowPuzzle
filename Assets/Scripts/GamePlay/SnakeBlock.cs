@@ -229,24 +229,22 @@ public class SnakeBlock : MonoBehaviour
 
         if (bodySegments.Count > 1)
         {
-            // Build path with fillet arcs at corners to avoid LineRenderer bloat
-            List<Vector3> pathPoints = BuildSmoothedPath();
-
+            int segmentsCount = bodySegments.Count - 1;
             _segmentStartIndices.Clear();
-            // Map each bodySegment to the closest point in pathPoints
-            for (int k = 0; k < bodySegments.Count; k++)
-            {
-                float bestDist = float.MaxValue;
-                int bestIdx = 0;
-                for (int p = 0; p < pathPoints.Count; p++)
-                {
-                    float d = Vector3.SqrMagnitude(pathPoints[p] - bodySegments[k].position);
-                    if (d < bestDist) { bestDist = d; bestIdx = p; }
-                }
-                _segmentStartIndices.Add(bestIdx);
-            }
+            int currentTotalPoints = 0;
+            List<int> pointsPerSegment = new List<int>();
 
-            _totalPoints = pathPoints.Count;
+            for (int i = 0; i < segmentsCount; i++)
+            {
+                _segmentStartIndices.Add(currentTotalPoints);
+                float dist = Vector3.Distance(bodySegments[i].position, bodySegments[i + 1].position);
+                int pointsCount = Mathf.Max(1, Mathf.RoundToInt(dist * _nodesPerUnit));
+                pointsPerSegment.Add(pointsCount);
+                currentTotalPoints += pointsCount;
+            }
+            _segmentStartIndices.Add(currentTotalPoints);
+            _totalPoints = currentTotalPoints + 1;
+
             _managedAllNodePositions = new Vector3[_totalPoints];
 
             if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
@@ -255,8 +253,20 @@ public class SnakeBlock : MonoBehaviour
             _nativeOriginalState = new NativeArray<Vector3>(_totalPoints, Allocator.Persistent);
             _nativeAllNodePositions = new NativeArray<Vector3>(_totalPoints, Allocator.Persistent);
 
-            for (int i = 0; i < _totalPoints; i++)
-                _nativeOriginalState[i] = pathPoints[i];
+            int arrayIndex = 0;
+            for (int i = 0; i < segmentsCount; i++)
+            {
+                Vector3 start = bodySegments[i].position;
+                Vector3 end = bodySegments[i + 1].position;
+                int count = pointsPerSegment[i];
+                for (int j = 0; j < count; j++)
+                {
+                    float t = (float)j / count;
+                    _nativeOriginalState[arrayIndex] = Vector3.Lerp(start, end, t);
+                    arrayIndex++;
+                }
+            }
+            _nativeOriginalState[arrayIndex] = bodySegments[segmentsCount].position;
 
             _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
             _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
@@ -298,9 +308,19 @@ public class SnakeBlock : MonoBehaviour
     {
         if (lineRenderer != null && _totalPoints > 0 && _isInitialized)
         {
-            lineRenderer.positionCount = _totalPoints;
             _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
-            lineRenderer.SetPositions(_managedAllNodePositions);
+
+            if (_totalPoints > 2 && cornerRadius > 0f)
+            {
+                Vector3[] smoothed = BuildSmoothedPositionsForRender(_managedAllNodePositions);
+                lineRenderer.positionCount = smoothed.Length;
+                lineRenderer.SetPositions(smoothed);
+            }
+            else
+            {
+                lineRenderer.positionCount = _totalPoints;
+                lineRenderer.SetPositions(_managedAllNodePositions);
+            }
         }
     }
 
@@ -460,78 +480,69 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    private List<Vector3> BuildSmoothedPath()
+    /// <summary>
+    /// Takes the current movement positions and returns a smoothed version
+    /// for LineRenderer display only. Detects sharp corners and replaces
+    /// them with quadratic Bezier curves.
+    /// </summary>
+    private Vector3[] BuildSmoothedPositionsForRender(Vector3[] positions)
     {
-        List<Vector3> path = new List<Vector3>();
-        int segCount = bodySegments.Count - 1;
+        if (positions.Length < 3) return positions;
 
-        for (int i = 0; i < segCount; i++)
+        List<Vector3> result = new List<Vector3>(positions.Length + cornerSmoothSteps * 4);
+        result.Add(positions[0]);
+
+        float angleThreshold = 15f; // degrees - detect corners sharper than this
+
+        for (int i = 1; i < positions.Length - 1; i++)
         {
-            Vector3 segStart = bodySegments[i].position;
-            Vector3 segEnd = bodySegments[i + 1].position;
-            float segDist = Vector3.Distance(segStart, segEnd);
+            Vector3 prev = positions[i - 1];
+            Vector3 curr = positions[i];
+            Vector3 next = positions[i + 1];
 
-            // Clamp cornerRadius so it doesn't exceed half the segment length
-            float r = Mathf.Min(cornerRadius, segDist * 0.45f);
+            Vector3 dirIn = (curr - prev);
+            Vector3 dirOut = (next - curr);
 
-            // Determine actual start/end of the straight portion
-            Vector3 lineStart = segStart;
-            Vector3 lineEnd = segEnd;
-
-            // If not the first segment, start after the previous corner arc
-            if (i > 0)
+            if (dirIn.sqrMagnitude < 0.0001f || dirOut.sqrMagnitude < 0.0001f)
             {
-                Vector3 dir = (segEnd - segStart).normalized;
-                lineStart = segStart + dir * r;
+                result.Add(curr);
+                continue;
             }
 
-            // If not the last segment, end before the next corner arc
-            if (i < segCount - 1)
+            float angle = Vector3.Angle(dirIn, dirOut);
+
+            if (angle > angleThreshold)
             {
-                Vector3 dir = (segEnd - segStart).normalized;
-                lineEnd = segEnd - dir * r;
-            }
+                // This is a corner - replace with bezier curve
+                float distIn = dirIn.magnitude;
+                float distOut = dirOut.magnitude;
+                float r = Mathf.Min(cornerRadius, distIn * 0.4f, distOut * 0.4f);
 
-            // Add interpolated points along the straight portion
-            float straightDist = Vector3.Distance(lineStart, lineEnd);
-            int pointsCount = Mathf.Max(1, Mathf.RoundToInt(straightDist * _nodesPerUnit));
-            for (int j = 0; j < pointsCount; j++)
-            {
-                float t = (float)j / pointsCount;
-                path.Add(Vector3.Lerp(lineStart, lineEnd, t));
-            }
-            path.Add(lineEnd);
+                Vector3 p0 = curr - dirIn.normalized * r; // point before corner
+                Vector3 p1 = curr;                         // corner (control point)
+                Vector3 p2 = curr + dirOut.normalized * r; // point after corner
 
-            // At the corner: add an arc from lineEnd to the start of the next straight portion
-            if (i < segCount - 1)
-            {
-                Vector3 nextSegEnd = bodySegments[i + 2].position;
-                Vector3 dirIn = (segEnd - segStart).normalized;
-                Vector3 dirOut = (nextSegEnd - segEnd).normalized;
-                float nextSegDist = Vector3.Distance(segEnd, nextSegEnd);
-                float rNext = Mathf.Min(cornerRadius, nextSegDist * 0.45f);
+                // Remove the last added point if it's very close to p0
+                // (to avoid duplicate points near the corner)
+                if (result.Count > 0 && Vector3.SqrMagnitude(result[result.Count - 1] - p0) < 0.001f)
+                    result.RemoveAt(result.Count - 1);
 
-                Vector3 arcStart = segEnd - dirIn * r;
-                Vector3 arcEnd = segEnd + dirOut * rNext;
-
-                int steps = Mathf.Max(2, cornerSmoothSteps);
-                for (int s = 1; s < steps; s++)
+                int steps = Mathf.Max(3, cornerSmoothSteps);
+                for (int s = 0; s <= steps; s++)
                 {
                     float t = (float)s / steps;
-                    // Quadratic Bezier through the corner point for a smooth curve
-                    Vector3 p0 = arcStart;
-                    Vector3 p1 = segEnd; // control point at the corner
-                    Vector3 p2 = arcEnd;
                     Vector3 pt = (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-                    path.Add(pt);
+                    result.Add(pt);
                 }
+            }
+            else
+            {
+                result.Add(curr);
             }
         }
 
-        // Add the very last point
-        path.Add(bodySegments[segCount].position);
-
-        return path;
+        result.Add(positions[positions.Length - 1]);
+        return result.ToArray();
     }
 
     public void UpdateVisualRotation()
