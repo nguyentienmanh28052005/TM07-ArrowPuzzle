@@ -14,6 +14,7 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private float moveSpeed = 100f;
     [SerializeField] private float cornerRadius = 0.25f;
     [SerializeField] private int cornerSmoothSteps = 6;
+    [SerializeField] private float spawnSpeed = 150f; // Thêm từ Code 2
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -26,10 +27,11 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.4f;
 
+    // --- Job System Variables ---
     private NativeArray<Vector3> _nativeOriginalState;
     private NativeArray<Vector3> _nativeAllNodePositions;
-
     private Vector3[] _managedAllNodePositions;
+
     private int _totalPoints;
     private int _nodesPerUnit;
     private bool _isMoving = false;
@@ -45,6 +47,10 @@ public class SnakeBlock : MonoBehaviour
     private Color _currentLineColor;
     private bool _forceRedraw = false;
     private bool _isInitialized = false;
+
+    // --- Animation Variables ---
+    private int _visiblePoints;
+    private bool _isSpawning = false;
 
     private void Awake()
     {
@@ -119,10 +125,7 @@ public class SnakeBlock : MonoBehaviour
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
 
         _colorTweener = DOTween.To(() => _currentLineColor, x => _currentLineColor = x, targetColor, duration)
-            .OnUpdate(() =>
-            {
-                ApplyColorToAll(_currentLineColor);
-            })
+            .OnUpdate(() => ApplyColorToAll(_currentLineColor))
             .SetLink(gameObject);
     }
 
@@ -160,7 +163,8 @@ public class SnakeBlock : MonoBehaviour
 
     public void OnHeadClicked()
     {
-        if (!_isMoving) StartCoroutine(ProcessMovement());
+        // Chặn người dùng di chuyển khi rắn đang thực hiện animation xuất hiện
+        if (!_isMoving && !_isSpawning) StartCoroutine(ProcessMovement());
     }
 
     private IEnumerator ProcessMovement()
@@ -179,8 +183,16 @@ public class SnakeBlock : MonoBehaviour
 
             if (distToObstacle < 0.9f)
             {
+                // Gọi sự kiện va chạm (Giữ nguyên của bạn)
                 MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
+
                 SetColorImmediate(snakeTakeHitColor);
+
+                // --- THÊM HIỆU ỨNG RUNG TỪ CODE 2 ---
+#if UNITY_ANDROID || UNITY_IOS
+                Handheld.Vibrate();
+#endif
+
                 yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
                 yield return StartCoroutine(ReturnToOrigin(moveDir));
                 break;
@@ -196,7 +208,7 @@ public class SnakeBlock : MonoBehaviour
 
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 1600f && !outed)
             {
-                levelController.SetCountArrowInGame();
+                if (levelController != null) levelController.SetCountArrowInGame();
                 outed = true;
             }
         }
@@ -287,40 +299,109 @@ public class SnakeBlock : MonoBehaviour
         }
 
         _isInitialized = true;
+        _visiblePoints = 0; // Đặt mốc 0 điểm hiển thị lúc khởi tạo
 
         ApplyColorToAll(snakeColor);
         UpdateVisualRotation();
-        UpdateLineRenderer();
 
-        _forceRedraw = true;
+        // --- THÊM LOGIC ẨN TẤT CẢ TỪ CODE 2 ---
+        for (int i = 0; i < bodySegments.Count; i++)
+        {
+            if (bodySegments[i] != null) SetSegmentVisible(bodySegments[i], false);
+        }
+
+        // Bắt đầu hiệu ứng xuất hiện
+        StartCoroutine(PlaySpawnAnimation());
+    }
+
+    // --- CÁC HÀM SPAWN ANIMATION TỪ CODE 2 ---
+    private void SetSegmentVisible(Transform seg, bool visible)
+    {
+        var renderers = seg.GetComponentsInChildren<SpriteRenderer>();
+        foreach (var sr in renderers) sr.enabled = visible;
+    }
+
+    private IEnumerator PlaySpawnAnimation()
+    {
+        _isSpawning = true;
+        _visiblePoints = 1;
+
+        // Hiện cái đầu rắn ngay lập tức
+        if (bodySegments.Count > 0 && bodySegments[0] != null)
+            SetSegmentVisible(bodySegments[0], true);
+
+        yield return null;
+
+        float progress = 1f;
+        while (_visiblePoints < _totalPoints)
+        {
+            progress += Time.deltaTime * spawnSpeed;
+            _visiblePoints = Mathf.Min(Mathf.FloorToInt(progress), _totalPoints);
+
+            // Bật dần các segment khi animation quét qua
+            for (int k = 1; k < bodySegments.Count; k++)
+            {
+                if (bodySegments[k] == null) continue;
+                if (k < _segmentStartIndices.Count && _visiblePoints >= _segmentStartIndices[k])
+                {
+                    SetSegmentVisible(bodySegments[k], true);
+                }
+            }
+            yield return null;
+        }
+
+        _visiblePoints = _totalPoints;
+        _isSpawning = false;
+        _forceRedraw = true; // Đảm bảo frame cuối vẽ hoàn hảo
     }
 
     private void LateUpdate()
     {
-        if (_isMoving || _forceRedraw)
+        // Cập nhật LineRenderer khi Đang Di chuyển, Bị Yêu Cầu, hoặc Đang Spawn
+        if (_isMoving || _forceRedraw || _isSpawning)
         {
             UpdateLineRenderer();
-            if (!_isMoving) _forceRedraw = false;
+            if (!_isMoving && !_isSpawning) _forceRedraw = false;
         }
     }
 
     private void UpdateLineRenderer()
     {
-        if (lineRenderer != null && _totalPoints > 0 && _isInitialized)
-        {
-            _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
+        if (lineRenderer == null || _totalPoints <= 0 || !_isInitialized) return;
 
-            if (_totalPoints > 2 && cornerRadius > 0f)
-            {
-                Vector3[] smoothed = BuildSmoothedPositionsForRender(_managedAllNodePositions);
-                lineRenderer.positionCount = smoothed.Length;
-                lineRenderer.SetPositions(smoothed);
-            }
-            else
-            {
-                lineRenderer.positionCount = _totalPoints;
-                lineRenderer.SetPositions(_managedAllNodePositions);
-            }
+        // Kéo data từ unmanaged memory sang mảng bình thường
+        _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
+
+        // --- LOGIC CẮT MẢNG THEO SPAWN TỪ CODE 2 ---
+        int pointCount = _isSpawning ? Mathf.Min(_visiblePoints, _totalPoints) : _totalPoints;
+        if (pointCount <= 0)
+        {
+            lineRenderer.positionCount = 0;
+            return;
+        }
+
+        Vector3[] renderPoints;
+        if (pointCount < _totalPoints)
+        {
+            renderPoints = new Vector3[pointCount];
+            System.Array.Copy(_managedAllNodePositions, renderPoints, pointCount);
+        }
+        else
+        {
+            renderPoints = _managedAllNodePositions;
+        }
+
+        // Áp dụng thuật toán bo góc
+        if (pointCount > 2 && cornerRadius > 0f)
+        {
+            Vector3[] smoothed = BuildSmoothedPositionsForRender(renderPoints);
+            lineRenderer.positionCount = smoothed.Length;
+            lineRenderer.SetPositions(smoothed);
+        }
+        else
+        {
+            lineRenderer.positionCount = pointCount;
+            lineRenderer.SetPositions(renderPoints);
         }
     }
 
@@ -406,7 +487,7 @@ public class SnakeBlock : MonoBehaviour
                 }
                 else
                 {
-                    int idx = (int)trackIndex; // math.floor
+                    int idx = (int)trackIndex;
                     float t = trackIndex - idx;
                     currentPositions[i] = Vector3.Lerp(originalState[idx], originalState[idx + 1], t);
                 }
@@ -480,11 +561,6 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Takes the current movement positions and returns a smoothed version
-    /// for LineRenderer display only. Detects sharp corners and replaces
-    /// them with quadratic Bezier curves.
-    /// </summary>
     private Vector3[] BuildSmoothedPositionsForRender(Vector3[] positions)
     {
         if (positions.Length < 3) return positions;
@@ -492,7 +568,7 @@ public class SnakeBlock : MonoBehaviour
         List<Vector3> result = new List<Vector3>(positions.Length + cornerSmoothSteps * 4);
         result.Add(positions[0]);
 
-        float angleThreshold = 15f; // degrees - detect corners sharper than this
+        float angleThreshold = 15f;
 
         for (int i = 1; i < positions.Length - 1; i++)
         {
@@ -513,17 +589,14 @@ public class SnakeBlock : MonoBehaviour
 
             if (angle > angleThreshold)
             {
-                // This is a corner - replace with bezier curve
                 float distIn = dirIn.magnitude;
                 float distOut = dirOut.magnitude;
                 float r = Mathf.Min(cornerRadius, distIn * 0.4f, distOut * 0.4f);
 
-                Vector3 p0 = curr - dirIn.normalized * r; // point before corner
-                Vector3 p1 = curr;                         // corner (control point)
-                Vector3 p2 = curr + dirOut.normalized * r; // point after corner
+                Vector3 p0 = curr - dirIn.normalized * r;
+                Vector3 p1 = curr;
+                Vector3 p2 = curr + dirOut.normalized * r;
 
-                // Remove the last added point if it's very close to p0
-                // (to avoid duplicate points near the corner)
                 if (result.Count > 0 && Vector3.SqrMagnitude(result[result.Count - 1] - p0) < 0.001f)
                     result.RemoveAt(result.Count - 1);
 
