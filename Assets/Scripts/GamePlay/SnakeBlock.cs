@@ -11,10 +11,10 @@ public class SnakeBlock : MonoBehaviour
 {
     [Header("Settings")]
     public ArrowDir direction;
-    [SerializeField] private float moveSpeed = 100f;
+    [SerializeField] private float moveSpeed = 120f;
     [SerializeField] private float cornerRadius = 0.25f;
     [SerializeField] private int cornerSmoothSteps = 6;
-    [SerializeField] private float spawnSpeed = 150f; // Thêm từ Code 2
+    [SerializeField] private float spawnSpeed = 200f;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -163,7 +163,6 @@ public class SnakeBlock : MonoBehaviour
 
     public void OnHeadClicked()
     {
-        // Chặn người dùng di chuyển khi rắn đang thực hiện animation xuất hiện
         if (!_isMoving && !_isSpawning) StartCoroutine(ProcessMovement());
     }
 
@@ -183,12 +182,10 @@ public class SnakeBlock : MonoBehaviour
 
             if (distToObstacle < 0.9f)
             {
-                // Gọi sự kiện va chạm (Giữ nguyên của bạn)
+                // Gọi sự kiện va chạm
                 MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
-
                 SetColorImmediate(snakeTakeHitColor);
 
-                // --- THÊM HIỆU ỨNG RUNG TỪ CODE 2 ---
 #if UNITY_ANDROID || UNITY_IOS
                 Handheld.Vibrate();
 #endif
@@ -254,7 +251,7 @@ public class SnakeBlock : MonoBehaviour
                 pointsPerSegment.Add(pointsCount);
                 currentTotalPoints += pointsCount;
             }
-            _segmentStartIndices.Add(currentTotalPoints);
+            _segmentStartIndices.Add(currentTotalPoints); // Index cho node cuối (Tail)
             _totalPoints = currentTotalPoints + 1;
 
             _managedAllNodePositions = new Vector3[_totalPoints];
@@ -299,50 +296,55 @@ public class SnakeBlock : MonoBehaviour
         }
 
         _isInitialized = true;
-        _visiblePoints = 0; // Đặt mốc 0 điểm hiển thị lúc khởi tạo
+        _visiblePoints = 0;
 
         ApplyColorToAll(snakeColor);
         UpdateVisualRotation();
 
-        // --- THÊM LOGIC ẨN TẤT CẢ TỪ CODE 2 ---
+        // Ẩn toàn bộ cơ thể ban đầu
         for (int i = 0; i < bodySegments.Count; i++)
         {
             if (bodySegments[i] != null) SetSegmentVisible(bodySegments[i], false);
         }
 
-        // Bắt đầu hiệu ứng xuất hiện
-        StartCoroutine(PlaySpawnAnimation());
+        // Kích hoạt Spawn từ Đuôi -> Đầu
+        StartCoroutine(PlaySpawnAnimationFromTail());
     }
 
-    // --- CÁC HÀM SPAWN ANIMATION TỪ CODE 2 ---
     private void SetSegmentVisible(Transform seg, bool visible)
     {
         var renderers = seg.GetComponentsInChildren<SpriteRenderer>();
         foreach (var sr in renderers) sr.enabled = visible;
     }
 
-    private IEnumerator PlaySpawnAnimation()
+    // Đã đổi tên và logic: Spawn từ Đuôi -> Đầu
+    private IEnumerator PlaySpawnAnimationFromTail()
     {
         _isSpawning = true;
-        _visiblePoints = 1;
+        _visiblePoints = Mathf.Min(2, _totalPoints);
 
-        // Hiện cái đầu rắn ngay lập tức
-        if (bodySegments.Count > 0 && bodySegments[0] != null)
-            SetSegmentVisible(bodySegments[0], true);
+        // Bật hiển thị phần Đuôi (Tail) ngay lập tức
+        if (bodySegments.Count > 0)
+        {
+            SetSegmentVisible(bodySegments[bodySegments.Count - 1], true);
+        }
 
         yield return null;
 
-        float progress = 1f;
+        float progress = _visiblePoints;
         while (_visiblePoints < _totalPoints)
         {
             progress += Time.deltaTime * spawnSpeed;
             _visiblePoints = Mathf.Min(Mathf.FloorToInt(progress), _totalPoints);
 
-            // Bật dần các segment khi animation quét qua
+            int currentStartIndex = _totalPoints - _visiblePoints;
+
+            // Bật dần các body segment ở giữa (CỐ TÌNH BỎ QUA ĐẦU k=0 để xử lý cuối cùng)
             for (int k = 1; k < bodySegments.Count; k++)
             {
                 if (bodySegments[k] == null) continue;
-                if (k < _segmentStartIndices.Count && _visiblePoints >= _segmentStartIndices[k])
+                
+                if (currentStartIndex <= _segmentStartIndices[k])
                 {
                     SetSegmentVisible(bodySegments[k], true);
                 }
@@ -350,14 +352,32 @@ public class SnakeBlock : MonoBehaviour
             yield return null;
         }
 
+        // --- CẬP NHẬT MỚI: Bật Đầu mũi tên cuối cùng và gọi hiệu ứng Nảy ---
+        if (bodySegments.Count > 0 && bodySegments[0] != null)
+        {
+            Transform head = bodySegments[0];
+            SetSegmentVisible(head, true);
+
+            // Lấy lại scale gốc an toàn đã lưu từ đầu
+            Vector3 originalScale = _originalSegmentScales.Count > 0 ? _originalSegmentScales[0] : Vector3.one;
+
+            // Xóa các hiệu ứng cũ để tránh lỗi đè chéo (overlapping)
+            head.DOKill();
+
+            // Ép kích thước về 0, sau đó Tween lên kích thước gốc với Ease.OutBack
+            head.localScale = Vector3.zero;
+            head.DOScale(originalScale, 0.4f)
+                .SetEase(Ease.OutBack) // Đồ thị toán học giúp nó lố qua originalScale rồi thụt về
+                .SetLink(head.gameObject); // An toàn bộ nhớ, hủy Tween nếu GameObject bị xóa
+        }
+
         _visiblePoints = _totalPoints;
         _isSpawning = false;
-        _forceRedraw = true; // Đảm bảo frame cuối vẽ hoàn hảo
+        _forceRedraw = true;
     }
 
     private void LateUpdate()
     {
-        // Cập nhật LineRenderer khi Đang Di chuyển, Bị Yêu Cầu, hoặc Đang Spawn
         if (_isMoving || _forceRedraw || _isSpawning)
         {
             UpdateLineRenderer();
@@ -369,10 +389,8 @@ public class SnakeBlock : MonoBehaviour
     {
         if (lineRenderer == null || _totalPoints <= 0 || !_isInitialized) return;
 
-        // Kéo data từ unmanaged memory sang mảng bình thường
         _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
 
-        // --- LOGIC CẮT MẢNG THEO SPAWN TỪ CODE 2 ---
         int pointCount = _isSpawning ? Mathf.Min(_visiblePoints, _totalPoints) : _totalPoints;
         if (pointCount <= 0)
         {
@@ -380,18 +398,20 @@ public class SnakeBlock : MonoBehaviour
             return;
         }
 
-        Vector3[] renderPoints;
-        if (pointCount < _totalPoints)
+        Vector3[] renderPoints = new Vector3[pointCount];
+        
+        if (_isSpawning && pointCount < _totalPoints)
         {
-            renderPoints = new Vector3[pointCount];
-            System.Array.Copy(_managedAllNodePositions, renderPoints, pointCount);
+            // --- LOGIC LẤY TỪ ĐUÔI ---
+            // Copy số lượng 'pointCount' phần tử từ phía CUỐI của mảng gốc
+            int startIndex = _totalPoints - pointCount;
+            System.Array.Copy(_managedAllNodePositions, startIndex, renderPoints, 0, pointCount);
         }
         else
         {
             renderPoints = _managedAllNodePositions;
         }
 
-        // Áp dụng thuật toán bo góc
         if (pointCount > 2 && cornerRadius > 0f)
         {
             Vector3[] smoothed = BuildSmoothedPositionsForRender(renderPoints);
