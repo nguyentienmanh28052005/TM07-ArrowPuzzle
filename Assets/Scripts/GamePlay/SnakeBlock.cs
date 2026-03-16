@@ -1,14 +1,19 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Burst;
 
 [RequireComponent(typeof(LineRenderer))]
 public class SnakeBlock : MonoBehaviour
 {
     [Header("Settings")]
     public ArrowDir direction;
-    [SerializeField] private float moveSpeed = 40f;
+    [SerializeField] private float moveSpeed = 100f;
+    [SerializeField] private float cornerRadius = 0.25f;
+    [SerializeField] private int cornerSmoothSteps = 6;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -21,8 +26,10 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.4f;
 
-    private Vector3[] _allNodePositions;
-    private Vector3[] _originalState;
+    private NativeArray<Vector3> _nativeOriginalState;
+    private NativeArray<Vector3> _nativeAllNodePositions;
+
+    private Vector3[] _managedAllNodePositions;
     private int _totalPoints;
     private int _nodesPerUnit;
     private bool _isMoving = false;
@@ -34,9 +41,10 @@ public class SnakeBlock : MonoBehaviour
     private bool outed = false;
     private float _originalWidthMultiplier = 1f;
     private List<Vector3> _originalSegmentScales = new List<Vector3>();
-
     private Tweener _colorTweener;
     private Color _currentLineColor;
+    private bool _forceRedraw = false;
+    private bool _isInitialized = false;
 
     private void Awake()
     {
@@ -48,6 +56,12 @@ public class SnakeBlock : MonoBehaviour
         levelController = FindObjectOfType<LevelController>();
     }
 
+    private void OnDestroy()
+    {
+        if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
+        if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
+    }
+
     private void SetupLineRenderer()
     {
         lineRenderer = GetComponent<LineRenderer>();
@@ -57,13 +71,11 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.alignment = LineAlignment.TransformZ;
         lineRenderer.textureMode = LineTextureMode.Tile;
         lineRenderer.numCornerVertices = 0;
-        lineRenderer.numCapVertices = 0;
+        lineRenderer.numCapVertices = 10;
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-
         _currentLineColor = snakeColor;
         lineRenderer.startColor = snakeColor;
         lineRenderer.endColor = snakeColor;
-
         lineRenderer.sortingOrder = 10;
         _originalWidthMultiplier = lineRenderer.widthMultiplier;
     }
@@ -74,9 +86,13 @@ public class SnakeBlock : MonoBehaviour
         {
             float targetWidth = isFocused ? (_originalWidthMultiplier * scaleFactor) : _originalWidthMultiplier;
             lineRenderer.DOKill();
-            DOTween.To(() => lineRenderer.widthMultiplier, x => lineRenderer.widthMultiplier = x, targetWidth, duration)
-                .SetEase(isFocused ? Ease.OutBack : Ease.OutQuad)
-                .SetTarget(lineRenderer).SetLink(gameObject);
+            DOTween.To(() => lineRenderer.widthMultiplier, x =>
+            {
+                lineRenderer.widthMultiplier = x;
+                _forceRedraw = true;
+            }, targetWidth, duration)
+            .SetEase(isFocused ? Ease.OutBack : Ease.OutQuad)
+            .SetTarget(lineRenderer).SetLink(gameObject);
         }
 
         for (int i = 0; i < bodySegments.Count; i++)
@@ -113,7 +129,6 @@ public class SnakeBlock : MonoBehaviour
     private void SetColorImmediate(Color color)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
-
         _currentLineColor = color;
         ApplyColorToAll(color);
     }
@@ -151,10 +166,10 @@ public class SnakeBlock : MonoBehaviour
     private IEnumerator ProcessMovement()
     {
         _isMoving = true;
-
         SetFocusColor(false, 0.5f);
 
-        System.Array.Copy(_allNodePositions, _originalState, _totalPoints);
+        _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
+
         _accumulatedShift = 0f;
         Vector3 moveDir = GetDirVector(direction);
 
@@ -164,8 +179,8 @@ public class SnakeBlock : MonoBehaviour
 
             if (distToObstacle < 0.9f)
             {
+                MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
                 SetColorImmediate(snakeTakeHitColor);
-
                 yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
                 yield return StartCoroutine(ReturnToOrigin(moveDir));
                 break;
@@ -214,73 +229,85 @@ public class SnakeBlock : MonoBehaviour
 
         if (bodySegments.Count > 1)
         {
-            int segmentsCount = bodySegments.Count - 1;
+            // Build path with fillet arcs at corners to avoid LineRenderer bloat
+            List<Vector3> pathPoints = BuildSmoothedPath();
+
             _segmentStartIndices.Clear();
-            int currentTotalPoints = 0;
-            List<int> pointsPerSegment = new List<int>();
-
-            for (int i = 0; i < segmentsCount; i++)
+            // Map each bodySegment to the closest point in pathPoints
+            for (int k = 0; k < bodySegments.Count; k++)
             {
-                _segmentStartIndices.Add(currentTotalPoints);
-                float dist = Vector3.Distance(bodySegments[i].position, bodySegments[i + 1].position);
-                int pointsCount = Mathf.Max(1, Mathf.RoundToInt(dist * _nodesPerUnit));
-                pointsPerSegment.Add(pointsCount);
-                currentTotalPoints += pointsCount;
-            }
-            _segmentStartIndices.Add(currentTotalPoints);
-            _totalPoints = currentTotalPoints + 1;
-            _allNodePositions = new Vector3[_totalPoints];
-            _originalState = new Vector3[_totalPoints];
-
-            int arrayIndex = 0;
-            for (int i = 0; i < segmentsCount; i++)
-            {
-                Vector3 start = bodySegments[i].position;
-                Vector3 end = bodySegments[i + 1].position;
-                int count = pointsPerSegment[i];
-                for (int j = 0; j < count; j++)
+                float bestDist = float.MaxValue;
+                int bestIdx = 0;
+                for (int p = 0; p < pathPoints.Count; p++)
                 {
-                    float t = (float)j / count;
-                    _allNodePositions[arrayIndex] = Vector3.Lerp(start, end, t);
-                    arrayIndex++;
+                    float d = Vector3.SqrMagnitude(pathPoints[p] - bodySegments[k].position);
+                    if (d < bestDist) { bestDist = d; bestIdx = p; }
                 }
+                _segmentStartIndices.Add(bestIdx);
             }
-            _allNodePositions[arrayIndex] = bodySegments[segmentsCount].position;
+
+            _totalPoints = pathPoints.Count;
+            _managedAllNodePositions = new Vector3[_totalPoints];
+
+            if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
+            if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
+
+            _nativeOriginalState = new NativeArray<Vector3>(_totalPoints, Allocator.Persistent);
+            _nativeAllNodePositions = new NativeArray<Vector3>(_totalPoints, Allocator.Persistent);
+
+            for (int i = 0; i < _totalPoints; i++)
+                _nativeOriginalState[i] = pathPoints[i];
+
+            _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
+            _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
         }
         else if (bodySegments.Count == 1)
         {
             _totalPoints = 1;
-            _allNodePositions = new Vector3[] { bodySegments[0].position };
-            _originalState = new Vector3[1];
+            _managedAllNodePositions = new Vector3[] { bodySegments[0].position };
+
+            if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
+            if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
+
+            _nativeOriginalState = new NativeArray<Vector3>(new Vector3[] { bodySegments[0].position }, Allocator.Persistent);
+            _nativeAllNodePositions = new NativeArray<Vector3>(new Vector3[] { bodySegments[0].position }, Allocator.Persistent);
+
             _segmentStartIndices.Clear();
             _segmentStartIndices.Add(0);
         }
 
+        _isInitialized = true;
+
         ApplyColorToAll(snakeColor);
         UpdateVisualRotation();
         UpdateLineRenderer();
+
+        _forceRedraw = true;
     }
 
-    void UpdateSegmentVisuals(Color color)
+    private void LateUpdate()
     {
-        ApplyColorToAll(color);
+        if (_isMoving || _forceRedraw)
+        {
+            UpdateLineRenderer();
+            if (!_isMoving) _forceRedraw = false;
+        }
     }
-
-    private void LateUpdate() { UpdateLineRenderer(); }
 
     private void UpdateLineRenderer()
     {
-        if (lineRenderer != null && _totalPoints > 0)
+        if (lineRenderer != null && _totalPoints > 0 && _isInitialized)
         {
             lineRenderer.positionCount = _totalPoints;
-            lineRenderer.SetPositions(_allNodePositions);
+            _nativeAllNodePositions.CopyTo(_managedAllNodePositions);
+            lineRenderer.SetPositions(_managedAllNodePositions);
         }
     }
 
     private float CheckObstacleDistance(Vector3 dir)
     {
-        if (_totalPoints == 0) return 0f;
-        Vector3 startPos = _allNodePositions[0];
+        if (_totalPoints == 0 || !_isInitialized) return 0f;
+        Vector3 startPos = _nativeAllNodePositions[0];
         RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 20f, obstacleLayer);
         float closestDist = float.MaxValue;
         bool found = false;
@@ -298,26 +325,73 @@ public class SnakeBlock : MonoBehaviour
         return found ? closestDist : float.MaxValue;
     }
 
-    private bool IsMyCollider(Collider2D col) { if (_myColliders == null) return false; return _myColliders.Contains(col); }
+    private bool IsMyCollider(Collider2D col)
+    {
+        if (_myColliders == null) return false;
+        return _myColliders.Contains(col);
+    }
 
     private void UpdateSnakePosition(float shift, Vector3 moveDir)
     {
-        for (int i = 0; i < _totalPoints; i++)
+        if (!_isInitialized) return;
+
+        CalculateSnakePositionJob job = new CalculateSnakePositionJob
         {
-            float trackIndex = -shift + i;
-            _allNodePositions[i] = GetPointOnVirtualTrack(trackIndex, moveDir);
-        }
+            shift = shift,
+            moveDir = moveDir,
+            nodesPerUnit = _nodesPerUnit,
+            originalState = _nativeOriginalState,
+            currentPositions = _nativeAllNodePositions
+        };
+
+        JobHandle handle = job.Schedule(_totalPoints, 64);
+        handle.Complete();
+
         SyncMainSegments();
     }
 
-    private Vector3 GetPointOnVirtualTrack(float trackIndex, Vector3 moveDir)
+    [BurstCompile]
+    struct CalculateSnakePositionJob : IJobParallelFor
     {
-        if (trackIndex < 0)
+        public float shift;
+        public Vector3 moveDir;
+        public int nodesPerUnit;
+        [ReadOnly] public NativeArray<Vector3> originalState;
+        [WriteOnly] public NativeArray<Vector3> currentPositions;
+
+        public void Execute(int i)
         {
-            float distFromHead = Mathf.Abs(trackIndex) / _nodesPerUnit;
-            return _originalState[0] + moveDir * distFromHead;
+            float trackIndex = -shift + i;
+            if (trackIndex < 0)
+            {
+                float distFromHead = Mathf.Abs(trackIndex) / nodesPerUnit;
+                currentPositions[i] = originalState[0] + moveDir * distFromHead;
+            }
+            else
+            {
+                int count = originalState.Length;
+                if (count == 0)
+                {
+                    currentPositions[i] = Vector3.zero;
+                    return;
+                }
+
+                if (trackIndex <= 0)
+                {
+                    currentPositions[i] = originalState[0];
+                }
+                else if (trackIndex >= count - 1)
+                {
+                    currentPositions[i] = originalState[count - 1];
+                }
+                else
+                {
+                    int idx = (int)trackIndex; // math.floor
+                    float t = trackIndex - idx;
+                    currentPositions[i] = Vector3.Lerp(originalState[idx], originalState[idx + 1], t);
+                }
+            }
         }
-        else return SampleArray(_originalState, trackIndex);
     }
 
     private IEnumerator MoveOneStep(Vector3 dir)
@@ -363,19 +437,9 @@ public class SnakeBlock : MonoBehaviour
             UpdateSnakePosition(_accumulatedShift, dir);
             yield return null;
         }
-        System.Array.Copy(_originalState, _allNodePositions, _totalPoints);
-        SyncMainSegments();
-    }
 
-    private Vector3 SampleArray(Vector3[] arr, float floatIndex)
-    {
-        int count = arr.Length;
-        if (count == 0) return Vector3.zero;
-        if (floatIndex <= 0) return arr[0];
-        if (floatIndex >= count - 1) return arr[count - 1];
-        int i = Mathf.FloorToInt(floatIndex);
-        float t = floatIndex - i;
-        return Vector3.Lerp(arr[i], arr[i + 1], t);
+        _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
+        SyncMainSegments();
     }
 
     private void SyncMainSegments()
@@ -387,10 +451,87 @@ public class SnakeBlock : MonoBehaviour
                 if (k < _segmentStartIndices.Count)
                 {
                     int virtualIndex = _segmentStartIndices[k];
-                    if (virtualIndex < _totalPoints) bodySegments[k].position = _allNodePositions[virtualIndex];
+                    if (virtualIndex < _totalPoints)
+                    {
+                        bodySegments[k].position = _nativeAllNodePositions[virtualIndex];
+                    }
                 }
             }
         }
+    }
+
+    private List<Vector3> BuildSmoothedPath()
+    {
+        List<Vector3> path = new List<Vector3>();
+        int segCount = bodySegments.Count - 1;
+
+        for (int i = 0; i < segCount; i++)
+        {
+            Vector3 segStart = bodySegments[i].position;
+            Vector3 segEnd = bodySegments[i + 1].position;
+            float segDist = Vector3.Distance(segStart, segEnd);
+
+            // Clamp cornerRadius so it doesn't exceed half the segment length
+            float r = Mathf.Min(cornerRadius, segDist * 0.45f);
+
+            // Determine actual start/end of the straight portion
+            Vector3 lineStart = segStart;
+            Vector3 lineEnd = segEnd;
+
+            // If not the first segment, start after the previous corner arc
+            if (i > 0)
+            {
+                Vector3 dir = (segEnd - segStart).normalized;
+                lineStart = segStart + dir * r;
+            }
+
+            // If not the last segment, end before the next corner arc
+            if (i < segCount - 1)
+            {
+                Vector3 dir = (segEnd - segStart).normalized;
+                lineEnd = segEnd - dir * r;
+            }
+
+            // Add interpolated points along the straight portion
+            float straightDist = Vector3.Distance(lineStart, lineEnd);
+            int pointsCount = Mathf.Max(1, Mathf.RoundToInt(straightDist * _nodesPerUnit));
+            for (int j = 0; j < pointsCount; j++)
+            {
+                float t = (float)j / pointsCount;
+                path.Add(Vector3.Lerp(lineStart, lineEnd, t));
+            }
+            path.Add(lineEnd);
+
+            // At the corner: add an arc from lineEnd to the start of the next straight portion
+            if (i < segCount - 1)
+            {
+                Vector3 nextSegEnd = bodySegments[i + 2].position;
+                Vector3 dirIn = (segEnd - segStart).normalized;
+                Vector3 dirOut = (nextSegEnd - segEnd).normalized;
+                float nextSegDist = Vector3.Distance(segEnd, nextSegEnd);
+                float rNext = Mathf.Min(cornerRadius, nextSegDist * 0.45f);
+
+                Vector3 arcStart = segEnd - dirIn * r;
+                Vector3 arcEnd = segEnd + dirOut * rNext;
+
+                int steps = Mathf.Max(2, cornerSmoothSteps);
+                for (int s = 1; s < steps; s++)
+                {
+                    float t = (float)s / steps;
+                    // Quadratic Bezier through the corner point for a smooth curve
+                    Vector3 p0 = arcStart;
+                    Vector3 p1 = segEnd; // control point at the corner
+                    Vector3 p2 = arcEnd;
+                    Vector3 pt = (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+                    path.Add(pt);
+                }
+            }
+        }
+
+        // Add the very last point
+        path.Add(bodySegments[segCount].position);
+
+        return path;
     }
 
     public void UpdateVisualRotation()
