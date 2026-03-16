@@ -11,6 +11,7 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private float moveSpeed = 40f;
     [SerializeField] private float cornerRadius = 0.25f;
     [SerializeField] private int cornerSmoothSteps = 6;
+    [SerializeField] private float spawnSpeed = 150f;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -39,6 +40,8 @@ public class SnakeBlock : MonoBehaviour
     private Tweener _colorTweener;
     private Color _currentLineColor;
     private bool _isInitialized = false;
+    private int _visiblePoints;
+    private bool _isSpawning = false;
 
     private void Awake()
     {
@@ -147,7 +150,7 @@ public class SnakeBlock : MonoBehaviour
 
     public void OnHeadClicked()
     {
-        if (!_isMoving) StartCoroutine(ProcessMovement());
+        if (!_isMoving && !_isSpawning) StartCoroutine(ProcessMovement());
     }
 
     private IEnumerator ProcessMovement()
@@ -167,6 +170,7 @@ public class SnakeBlock : MonoBehaviour
             {
                 MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
                 SetColorImmediate(snakeTakeHitColor);
+                Handheld.Vibrate();
                 yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
                 yield return StartCoroutine(ReturnToOrigin(moveDir));
                 break;
@@ -258,9 +262,63 @@ public class SnakeBlock : MonoBehaviour
         }
 
         _isInitialized = true;
+        _visiblePoints = 0;
 
         ApplyColorToAll(snakeColor);
         UpdateVisualRotation();
+
+        // Hide all segments, they will appear during spawn animation
+        for (int i = 0; i < bodySegments.Count; i++)
+        {
+            if (bodySegments[i] != null)
+            {
+                SetSegmentVisible(bodySegments[i], false);
+            }
+        }
+
+        StartCoroutine(PlaySpawnAnimation());
+    }
+
+    private void SetSegmentVisible(Transform seg, bool visible)
+    {
+        var renderers = seg.GetComponentsInChildren<SpriteRenderer>();
+        foreach (var sr in renderers)
+            sr.enabled = visible;
+    }
+
+    private IEnumerator PlaySpawnAnimation()
+    {
+        _isSpawning = true;
+        _visiblePoints = 1;
+
+        // Show head immediately
+        if (bodySegments.Count > 0 && bodySegments[0] != null)
+            SetSegmentVisible(bodySegments[0], true);
+
+        yield return null;
+
+        // Gradually reveal points from head to tail
+        float progress = 1f;
+        while (_visiblePoints < _totalPoints)
+        {
+            progress += Time.deltaTime * spawnSpeed;
+            _visiblePoints = Mathf.Min(Mathf.FloorToInt(progress), _totalPoints);
+
+            // Show body segments as animation reaches them
+            for (int k = 1; k < bodySegments.Count; k++)
+            {
+                if (bodySegments[k] == null) continue;
+                if (k < _segmentStartIndices.Count && _visiblePoints >= _segmentStartIndices[k])
+                {
+                    SetSegmentVisible(bodySegments[k], true);
+                }
+            }
+
+            yield return null;
+        }
+
+        _visiblePoints = _totalPoints;
+        _isSpawning = false;
         UpdateLineRenderer();
     }
 
@@ -273,19 +331,38 @@ public class SnakeBlock : MonoBehaviour
 
     private void UpdateLineRenderer()
     {
-        if (lineRenderer != null && _totalPoints > 0)
+        if (lineRenderer == null || _totalPoints <= 0) return;
+
+        int pointCount = _isSpawning ? Mathf.Min(_visiblePoints, _totalPoints) : _totalPoints;
+        if (pointCount <= 0)
         {
-            if (_totalPoints > 2 && cornerRadius > 0f)
-            {
-                Vector3[] smoothed = BuildSmoothedPositionsForRender(_allNodePositions);
-                lineRenderer.positionCount = smoothed.Length;
-                lineRenderer.SetPositions(smoothed);
-            }
-            else
-            {
-                lineRenderer.positionCount = _totalPoints;
-                lineRenderer.SetPositions(_allNodePositions);
-            }
+            lineRenderer.positionCount = 0;
+            return;
+        }
+
+        // Get the subset of points to render
+        Vector3[] renderPoints;
+        if (pointCount < _totalPoints)
+        {
+            renderPoints = new Vector3[pointCount];
+            System.Array.Copy(_allNodePositions, renderPoints, pointCount);
+        }
+        else
+        {
+            renderPoints = _allNodePositions;
+        }
+
+        // Apply corner smoothing
+        if (pointCount > 2 && cornerRadius > 0f)
+        {
+            Vector3[] smoothed = BuildSmoothedPositionsForRender(renderPoints);
+            lineRenderer.positionCount = smoothed.Length;
+            lineRenderer.SetPositions(smoothed);
+        }
+        else
+        {
+            lineRenderer.positionCount = pointCount;
+            lineRenderer.SetPositions(renderPoints);
         }
     }
 
