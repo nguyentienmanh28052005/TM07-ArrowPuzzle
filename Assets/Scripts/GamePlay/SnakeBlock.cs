@@ -22,7 +22,7 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private Transform arrowVisual;
 
     [Header("Visuals")]
-    public Color snakeColor = Color.black;
+    public Color snakeColor = Color.white;
     public Color snakeMoveColor = new Color(0.172f, 0.125f, 1f, 1f);
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.4f;
@@ -326,7 +326,7 @@ public class SnakeBlock : MonoBehaviour
         // Bật hiển thị phần Đuôi (Tail) ngay lập tức
         if (bodySegments.Count > 0)
         {
-            SetSegmentVisible(bodySegments[bodySegments.Count - 1], true);
+            //SetSegmentVisible(bodySegments[bodySegments.Count - 1], true);
         }
 
         yield return null;
@@ -346,7 +346,7 @@ public class SnakeBlock : MonoBehaviour
                 
                 if (currentStartIndex <= _segmentStartIndices[k])
                 {
-                    SetSegmentVisible(bodySegments[k], true);
+                    //SetSegmentVisible(bodySegments[k], true);
                 }
             }
             yield return null;
