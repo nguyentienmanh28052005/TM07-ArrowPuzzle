@@ -38,6 +38,6 @@ public class DrawGrid : MonoBehaviour
         }
 
         Gizmos.color = Color.red;
-        Gizmos.DrawSphere(center, size * 0.1f);
+        Gizmos.DrawSphere(center, size * 0.4f);
     }
 }

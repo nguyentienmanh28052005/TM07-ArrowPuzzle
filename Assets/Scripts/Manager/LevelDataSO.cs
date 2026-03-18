@@ -5,6 +5,7 @@ using UnityEngine;
 public class SnakeSaveData
 {
     public ArrowDir direction;
+    public Color arrowColor;
     public List<Vector2Int> segmentPositions = new List<Vector2Int>();
 }
 

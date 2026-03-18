@@ -12,7 +12,7 @@ public class SnakeBlock : MonoBehaviour
     [Header("Settings")]
     public ArrowDir direction;
     [SerializeField] private float moveSpeed = 120f;
-    [SerializeField] private float cornerRadius = 0.25f;
+    [SerializeField] private float cornerRadius = 0.5f;
     [SerializeField] private int cornerSmoothSteps = 6;
     [SerializeField] private float spawnSpeed = 200f;
     public LayerMask obstacleLayer;
@@ -23,7 +23,7 @@ public class SnakeBlock : MonoBehaviour
 
     [Header("Visuals")]
     public Color snakeColor = Color.white;
-    public Color snakeMoveColor = new Color(0.172f, 0.125f, 1f, 1f);
+    public Color snakeMoveColor = Color.white;
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.4f;
 
@@ -182,7 +182,6 @@ public class SnakeBlock : MonoBehaviour
 
             if (distToObstacle < 0.9f)
             {
-                // Gọi sự kiện va chạm
                 MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
                 SetColorImmediate(snakeTakeHitColor);
 
@@ -195,7 +194,22 @@ public class SnakeBlock : MonoBehaviour
                 break;
             }
 
+            // --- LOGIC MỚI BỔ SUNG Ở ĐÂY ---
+            // 1. Lưu lại vị trí của đốt Đuôi (cuối cùng) TRƯỚC khi nó bước đi
+            Vector3 tailPosBefore = bodySegments.Count > 0 ? bodySegments[bodySegments.Count - 1].position : Vector3.zero;
+
+            // 2. Thực hiện bước đi
             yield return StartCoroutine(MoveOneStep(moveDir));
+
+            // 3. SAU khi bước đi xong, vị trí cũ vừa bị trống. Tìm trong sổ GridMap xem có Dot nào ở đó không
+            Vector2Int tailGridPos = new Vector2Int(Mathf.RoundToInt(tailPosBefore.x), Mathf.RoundToInt(tailPosBefore.y));
+            
+            // 4. Nếu tồn tại Dot tại vị trí đuôi vừa nhấc lên, gọi lệnh tỏa sáng
+            if (GridDot.GridMap.TryGetValue(tailGridPos, out GridDot dotToAnimate))
+            {
+                dotToAnimate.PlayLeaveEffect();
+            }
+            // -------------------------------
 
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
             {
@@ -213,8 +227,9 @@ public class SnakeBlock : MonoBehaviour
         _isMoving = false;
     }
 
-    public void Initialize(ArrowDir dir, List<Transform> mainSegments, int resolution)
+    public void Initialize(ArrowDir dir, List<Transform> mainSegments, int resolution, Color color)
     {
+        snakeColor = color;
         direction = dir;
         bodySegments = mainSegments;
         _nodesPerUnit = resolution;
@@ -298,7 +313,7 @@ public class SnakeBlock : MonoBehaviour
         _isInitialized = true;
         _visiblePoints = 0;
 
-        ApplyColorToAll(snakeColor);
+        ApplyColorToAll(color);
         UpdateVisualRotation();
 
         // Ẩn toàn bộ cơ thể ban đầu

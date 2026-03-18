@@ -20,6 +20,12 @@ public class SnakeInput : MonoBehaviour
     private void Awake()
     {
         parentScript = GetComponentInParent<SnakeBlock>();
+
+        if (FindObjectOfType<LevelEditor>() != null)
+        {
+            this.enabled = false;
+            return;
+        }
     }
 
     private void Update()

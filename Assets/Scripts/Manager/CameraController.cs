@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(Camera))]
@@ -11,8 +12,12 @@ public class CameraController : MonoBehaviour
     public float zoomSpeedPC = 5f;
     public float zoomSpeedMobile = 0.01f;
     public float minZoom = 5f;
-    public float maxZoom = 20f;
+    public float maxZoom = 30f; // Nên để maxZoom khá lớn để làm khoảng lùi cho Intro
     public float zoomSmoothTime = 0.1f;
+
+    [Header("Auto Fit Settings")]
+    [Tooltip("Khoảng cách viền lề (Padding) để mũi tên không dính sát mép màn hình")]
+    public float autoFitPadding = 3f;
 
     [Header("Pan Settings")]
     public bool useLimits = true;
@@ -26,7 +31,10 @@ public class CameraController : MonoBehaviour
 
     private Camera cam;
     private float targetZoom;
-    private float zoomVelocity; // Dùng cho SmoothDamp
+    private float zoomVelocity; 
+    
+    // Biến gameZoom giờ đây được tính toán tự động ngầm, không cần nhập tay
+    private float gameZoom; 
     
     private Vector3 initialPosition;
     private Vector3 panVelocity;
@@ -35,19 +43,88 @@ public class CameraController : MonoBehaviour
     private bool isEndGame = false;
     private bool wasZoomingLastFrame = false;
 
-    void Start()
+    private IEnumerator Start()
     {
         cam = GetComponent<Camera>();
-        targetZoom = cam.orthographicSize;
-        initialPosition = transform.position;
+
+        // Đợi 1 frame để đảm bảo LevelLoader đã sinh ra toàn bộ các đốt rắn trên Scene
+        yield return new WaitForEndOfFrame(); 
+
+        AutoFitMap();
     }
 
-    void LateUpdate() // Dùng LateUpdate để camera mượt hơn sau khi các logic khác đã chạy
+    private void AutoFitMap()
+    {
+        // 1. Quét toàn bộ khối rắn trong màn chơi
+        SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
+        
+        if (allSnakes.Length == 0) return;
+
+        float minX = float.MaxValue;
+        float maxX = float.MinValue;
+        float minY = float.MaxValue;
+        float maxY = float.MinValue;
+        bool hasNodes = false;
+
+        // 2. Tìm ra 4 điểm cực đại (Biên giới của bản đồ)
+        foreach (var snake in allSnakes)
+        {
+            if (snake.bodySegments == null) continue;
+
+            foreach (Transform seg in snake.bodySegments)
+            {
+                if (seg != null)
+                {
+                    Vector3 pos = seg.position;
+                    if (pos.x < minX) minX = pos.x;
+                    if (pos.x > maxX) maxX = pos.x;
+                    if (pos.y < minY) minY = pos.y;
+                    if (pos.y > maxY) maxY = pos.y;
+                    hasNodes = true;
+                }
+            }
+        }
+
+        if (!hasNodes) return;
+
+        // 3. Tính toán Chiều rộng, Chiều cao và Tâm điểm của bản đồ
+        float width = maxX - minX;
+        float height = maxY - minY;
+        
+        // Cập nhật initialPosition (Tâm của camera) nhưng PHẢI GIỮ NGUYÊN trục Z của camera
+        initialPosition = new Vector3(minX + width / 2f, minY + height / 2f, transform.position.z);
+
+        // 4. Tính toán Orthographic Size vừa khít với màn hình
+        float sizeByHeight = height / 2f;
+        float sizeByWidth = (width / 2f) / cam.aspect;
+        
+        // Lấy giá trị lớn hơn để đảm bảo không bị cắt góc, cộng thêm padding lề
+        gameZoom = Mathf.Max(sizeByHeight, sizeByWidth) + autoFitPadding;
+
+        // Đảm bảo maxZoom luôn lớn hơn gameZoom một chút để người chơi còn không gian kéo thả
+        maxZoom = Mathf.Max(maxZoom, gameZoom + 5f);
+
+        // 5. Khởi tạo Hiệu ứng Intro
+        transform.position = initialPosition;
+        cam.orthographicSize = maxZoom; // Bắt đầu từ rất xa
+        targetZoom = gameZoom;          // Trượt mượt mà về gameZoom
+        
+        IsGameplayBlocking = true;
+        Invoke(nameof(UnlockGameplay), 1f); 
+    }
+
+    private void UnlockGameplay()
+    {
+        IsGameplayBlocking = false;
+    }
+
+    void LateUpdate() 
     {
         if (IsGameplayBlocking || isEndGame)
         {
             IsDragging = false;
             if (isEndGame) HandleEndGame();
+            if (!isEndGame) ApplyMovementAndZoom(); 
             return;
         }
 
@@ -57,27 +134,20 @@ public class CameraController : MonoBehaviour
 
     private void HandleInput()
     {
-        // Ưu tiên xử lý Touch trên Mobile
         if (Input.touchCount > 0)
-        {
             HandleTouchInput();
-        }
         else
-        {
             HandleMouseInput();
-        }
     }
 
     private void HandleMouseInput()
     {
-        // 1. Zoom PC
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0)
         {
             targetZoom -= scroll * zoomSpeedPC;
         }
 
-        // 2. Pan PC (Chuột phải hoặc Chuột giữa tùy bạn, ở đây dùng chuột phải - 1)
         if (Input.GetMouseButtonDown(1))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -98,7 +168,6 @@ public class CameraController : MonoBehaviour
 
     private void HandleTouchInput()
     {
-        // Chống xuyên qua UI
         if (Input.touchCount > 0 && EventSystem.current != null)
         {
             if (EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId)) return;
@@ -106,7 +175,6 @@ public class CameraController : MonoBehaviour
 
         if (Input.touchCount >= 2)
         {
-            // --- LOGIC ZOOM ---
             wasZoomingLastFrame = true;
             IsDragging = true;
 
@@ -121,14 +189,12 @@ public class CameraController : MonoBehaviour
 
             targetZoom -= (curMag - prevMag) * zoomSpeedMobile;
             
-            // Cập nhật điểm neo liên tục để khi thả 1 ngón không bị giật
             lastPanScreenPos = (t0.position + t1.position) * 0.5f;
         }
         else if (Input.touchCount == 1)
         {
             Touch touch = Input.GetTouch(0);
 
-            // FIX GIẬT: Nếu vừa thả ngón thứ 2 ra, reset điểm neo và bỏ qua frame đó
             if (wasZoomingLastFrame)
             {
                 lastPanScreenPos = touch.position;
@@ -169,7 +235,6 @@ public class CameraController : MonoBehaviour
 
         if (IsDragging)
         {
-            // Dùng ScreenToWorldPoint để tốc độ di chuyển tỉ lệ thuận với mức Zoom
             Vector3 worldDelta = cam.ScreenToWorldPoint(lastPanScreenPos) - cam.ScreenToWorldPoint(currentScreenPos);
             transform.position += worldDelta;
 
@@ -182,18 +247,15 @@ public class CameraController : MonoBehaviour
 
     private void ApplyMovementAndZoom()
     {
-        // 1. Thực hiện Zoom mượt với SmoothDamp (tốt hơn Lerp cho camera)
         targetZoom = Mathf.Clamp(targetZoom, minZoom, maxZoom);
         cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, targetZoom, ref zoomVelocity, zoomSmoothTime);
 
-        // 2. Thực hiện Quán tính (Inertia)
         if (useInertia && !IsDragging && panVelocity.sqrMagnitude > 0.0001f)
         {
             transform.position += panVelocity * Time.deltaTime;
             panVelocity = Vector3.Lerp(panVelocity, Vector3.zero, dampingFactor * Time.deltaTime);
         }
 
-        // 3. Giới hạn vùng di chuyển
         if (useLimits)
         {
             Vector3 pos = transform.position;
@@ -205,14 +267,15 @@ public class CameraController : MonoBehaviour
 
     private void HandleEndGame()
     {
+        // Khi thắng game, Camera tự động chạy về Tâm và Zoom vừa khít map như lúc đầu
         transform.position = Vector3.Lerp(transform.position, initialPosition, Time.deltaTime * 2f);
-        cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, maxZoom, Time.deltaTime * 2f);
+        cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, gameZoom, Time.deltaTime * 2f);
     }
 
-    public void ZoomToMax()
+    public void ZoomToEndGame()
     {
         isEndGame = true;
-        targetZoom = maxZoom;
+        targetZoom = gameZoom;
         panVelocity = Vector3.zero;
     }
 }

@@ -88,7 +88,7 @@ public class LevelLoader : MonoBehaviour
             }
 
             int resolution = subNodesCount + 1;
-            snakeScript.Initialize(snakeData.direction, mainSegments, resolution);
+            snakeScript.Initialize(snakeData.direction, mainSegments, resolution, snakeData.arrowColor);
         }
 
         Debug.Log("Load Game Success.");

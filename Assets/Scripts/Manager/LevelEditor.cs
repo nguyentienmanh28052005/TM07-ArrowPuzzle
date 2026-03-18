@@ -1,6 +1,12 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
+
+// THÊM MỚI: Bổ sung công cụ Paint vào Enum
+public enum EditorToolType { Draw, Erase, Paint }
 
 public class LevelEditor : MonoBehaviour
 {
@@ -12,41 +18,99 @@ public class LevelEditor : MonoBehaviour
     public LevelDataSO currentData;
     public Transform levelContainer;
 
-    public GameObject currentSnakeObj;
+    [Header("Current Editor State")]
+    public EditorToolType currentTool = EditorToolType.Draw;
+    public ArrowDir currentDir = ArrowDir.Up;
+    public Color currentColor = Color.white; 
+
+    private GameObject currentSnakeObj;
     private SnakeBlock currentSnakeScript;
     private List<Transform> currentSegments = new List<Transform>();
-    private ArrowDir currentDir = ArrowDir.Up;
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.Space)) UI_FinishSnake();
+        if (Input.GetKeyDown(KeyCode.R)) 
         {
-            currentDir++;
-            if ((int)currentDir > 3) currentDir = 0;
-            if (currentSnakeScript != null)
-            {
-                currentSnakeScript.direction = currentDir;
-                currentSnakeScript.UpdateVisualRotation();
-            }
+            int nextDir = (int)currentDir + 1;
+            UI_SetDirection(nextDir > 3 ? 0 : nextDir);
         }
 
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            FinishCurrentSnake();
-        }
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
         if (Input.GetMouseButtonDown(0))
         {
-            HandleLeftClick();
+            if (currentTool == EditorToolType.Draw) HandleLeftClick();
+            else if (currentTool == EditorToolType.Erase) HandleEraseClick();
+            else if (currentTool == EditorToolType.Paint) HandlePaintClick(); // Gọi hàm tô màu
         }
 
         if (Input.GetMouseButtonDown(1))
         {
-            HandleRightClick();
+            //HandleRightClick();
         }
     }
 
-    void HandleLeftClick()
+    // ==========================================
+    // CÁC HÀM DÀNH CHO NÚT BẤM UI
+    // ==========================================
+
+    public void UI_SetTool(int toolIndex)
+    {
+        currentTool = (EditorToolType)toolIndex;
+        Debug.Log("Công cụ hiện tại: " + currentTool);
+    }
+
+    public void UI_SetDirection(int dirIndex)
+    {
+        currentDir = (ArrowDir)dirIndex;
+        if (currentSnakeScript != null)
+        {
+            currentSnakeScript.direction = currentDir;
+            currentSnakeScript.UpdateVisualRotation();
+        }
+    }
+
+    public void UI_SetColor(Color newColor)
+    {
+        currentColor = newColor;
+        
+        if (currentSnakeScript != null)
+        {
+            LineRenderer lr = currentSnakeScript.GetComponent<LineRenderer>();
+            if (lr)
+            {
+                lr.startColor = currentColor;
+                lr.endColor = currentColor;
+            }
+
+            SpriteRenderer[] renderers = currentSnakeScript.GetComponentsInChildren<SpriteRenderer>();
+            foreach (var sr in renderers) sr.color = currentColor;
+        }
+        Debug.Log("Màu hiện tại: " + currentColor);
+    }
+
+    public void UI_FinishSnake()
+    {
+        if (currentSnakeObj == null) return;
+
+        currentSnakeScript.bodySegments = new List<Transform>(currentSegments);
+        currentSnakeScript.obstacleLayer = LayerMask.GetMask("Block");
+
+        currentSnakeObj = null;
+        currentSnakeScript = null;
+        currentSegments.Clear();
+        Debug.Log("Đã hoàn tất rắn!");
+    }
+
+    public void UI_SaveLevel() { SaveLevel(); }
+    public void UI_LoadLevel() { LoadLevelToEdit(); }
+
+    // ==========================================
+    // LOGIC VẼ, XÓA VÀ TÔ MÀU (CORE)
+    // ==========================================
+
+    private void HandleLeftClick()
     {
         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Vector2Int gridPos = new Vector2Int(Mathf.RoundToInt(mousePos.x), Mathf.RoundToInt(mousePos.y));
@@ -61,39 +125,76 @@ public class LevelEditor : MonoBehaviour
         else CreateBodySegment(gridPos);
     }
 
-    bool IsPositionOccupied(Vector2Int pos)
+    private void HandleEraseClick()
     {
-        Vector2 checkPos = new Vector2(pos.x, pos.y);
-        Collider2D hit = Physics2D.OverlapPoint(checkPos, LayerMask.GetMask("Block"));
-        return hit != null;
-    }
-
-    void HandleRightClick()
-    {
-        if (currentSnakeObj != null)
-        {
-            Destroy(currentSnakeObj);
-            currentSnakeObj = null;
-            currentSegments.Clear();
-            return;
-        }
-
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Collider2D hit = Physics2D.OverlapPoint(mousePos, LayerMask.GetMask("Block"));
 
         if (hit != null)
         {
             SnakeBlock sb = hit.GetComponentInParent<SnakeBlock>();
-
             if (sb != null)
             {
+                if (sb.gameObject == currentSnakeObj)
+                {
+                    currentSnakeObj = null;
+                    currentSnakeScript = null;
+                    currentSegments.Clear();
+                }
                 Destroy(sb.gameObject);
-                Debug.Log("Đã xóa rắn: " + sb.gameObject.name);
             }
         }
     }
 
-    void CreateHead(Vector2Int pos)
+    // THÊM MỚI: Hàm xử lý khi dùng Thùng Sơn click vào rắn cũ
+    private void HandlePaintClick()
+    {
+        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Collider2D hit = Physics2D.OverlapPoint(mousePos, LayerMask.GetMask("Block"));
+
+        if (hit != null)
+        {
+            SnakeBlock sb = hit.GetComponentInParent<SnakeBlock>();
+            if (sb != null)
+            {
+                // 1. Đổi màu đường thẳng
+                LineRenderer lr = sb.GetComponent<LineRenderer>();
+                if (lr != null)
+                {
+                    lr.startColor = currentColor;
+                    lr.endColor = currentColor;
+                }
+
+                // 2. Đổi màu toàn bộ hình ảnh (Đầu mũi tên, Thân)
+                SpriteRenderer[] renderers = sb.GetComponentsInChildren<SpriteRenderer>();
+                foreach (SpriteRenderer sr in renderers)
+                {
+                    sr.color = currentColor;
+                }
+
+                Debug.Log($"Đã tô màu mới cho rắn: {sb.gameObject.name}");
+            }
+        }
+    }
+
+    private void HandleRightClick()
+    {
+        if (currentSnakeObj != null)
+        {
+            Destroy(currentSnakeObj);
+            currentSnakeObj = null;
+            currentSegments.Clear();
+        }
+    }
+
+    private bool IsPositionOccupied(Vector2Int pos)
+    {
+        Vector2 checkPos = new Vector2(pos.x, pos.y);
+        Collider2D hit = Physics2D.OverlapPoint(checkPos, LayerMask.GetMask("Block"));
+        return hit != null;
+    }
+
+    private void CreateHead(Vector2Int pos)
     {
         currentSnakeObj = new GameObject("Snake_" + pos);
         currentSnakeObj.transform.parent = levelContainer;
@@ -105,6 +206,18 @@ public class LevelEditor : MonoBehaviour
         currentSegments.Add(headParams.transform);
 
         currentSnakeScript.direction = currentDir;
+        
+        LineRenderer lr = currentSnakeScript.GetComponent<LineRenderer>();
+        if (lr)
+        {
+            lr.startColor = currentColor;
+            lr.endColor = currentColor;
+        }
+
+        // Đổ màu ngay cho Head Prefab khi vừa tạo
+        SpriteRenderer[] srs = headParams.GetComponentsInChildren<SpriteRenderer>();
+        foreach (var sr in srs) sr.color = currentColor;
+
         Transform arrowVis = headParams.transform.Find("Arrow");
         if (arrowVis)
         {
@@ -120,7 +233,7 @@ public class LevelEditor : MonoBehaviour
         }
     }
 
-    void CreateBodySegment(Vector2Int pos)
+    private void CreateBodySegment(Vector2Int pos)
     {
         Transform lastSeg = currentSegments[currentSegments.Count - 1];
 
@@ -132,23 +245,18 @@ public class LevelEditor : MonoBehaviour
 
         GameObject body = Instantiate(bodyPrefab, new Vector3(pos.x, pos.y, 0), Quaternion.identity, currentSnakeObj.transform);
         currentSegments.Add(body.transform);
+
+        // Đổ màu ngay cho Body Prefab khi vừa tạo
+        SpriteRenderer[] srs = body.GetComponentsInChildren<SpriteRenderer>();
+        foreach (var sr in srs) sr.color = currentColor;
     }
 
-    void FinishCurrentSnake()
-    {
-        if (currentSnakeObj == null) return;
-
-        currentSnakeScript.bodySegments = new List<Transform>(currentSegments);
-        currentSnakeScript.obstacleLayer = LayerMask.GetMask("Block");
-
-        currentSnakeObj = null;
-        currentSnakeScript = null;
-        currentSegments.Clear();
-        Debug.Log("Đã hoàn tất rắn!");
-    }
+    // ==========================================
+    // LƯU VÀ TẢI DỮ LIỆU
+    // ==========================================
 
     [ContextMenu("Save Level")]
-    public void SaveLevel()
+    private void SaveLevel()
     {
         if (currentData == null) return;
         currentData.snakes.Clear();
@@ -160,6 +268,10 @@ public class LevelEditor : MonoBehaviour
             {
                 SnakeSaveData data = new SnakeSaveData();
                 data.direction = sb.direction;
+
+                LineRenderer lr = sb.GetComponent<LineRenderer>();
+                if (lr != null) data.arrowColor = lr.startColor;
+                else data.arrowColor = Color.white;
 
                 List<Transform> segmentsToSave = sb.bodySegments;
                 if (segmentsToSave == null || segmentsToSave.Count == 0)
@@ -180,15 +292,15 @@ public class LevelEditor : MonoBehaviour
 #if UNITY_EDITOR
         EditorUtility.SetDirty(currentData);
 #endif
-        Debug.Log("Đã lưu đè lên file Level cũ!");
+        Debug.Log("Đã lưu Level!");
     }
 
     [ContextMenu("Load Level To Edit")]
-    public void LoadLevelToEdit()
+    private void LoadLevelToEdit()
     {
         if (currentData == null)
         {
-            Debug.LogError("Chưa kéo file Level Data vào ô Current Data!");
+            Debug.LogError("Chưa có Level Data!");
             return;
         }
 
@@ -219,11 +331,10 @@ public class LevelEditor : MonoBehaviour
             }
 
             sb.bodySegments = loadedSegments;
-            sb.Initialize(data.direction, loadedSegments, 9);
+            sb.Initialize(data.direction, loadedSegments, 9, data.arrowColor);
             sb.UpdateVisualRotation();
         }
-
-        Debug.Log("Đã tải lại dữ liệu level.");
+        Debug.Log("Đã tải Level.");
     }
 
     private void OnDrawGizmos()
@@ -258,9 +369,7 @@ public class LevelEditor : MonoBehaviour
                         }
                     }
                     if (sb.bodySegments[sb.bodySegments.Count - 1] != null)
-                    {
                         Gizmos.DrawSphere(sb.bodySegments[sb.bodySegments.Count - 1].position, 0.1f);
-                    }
                 }
             }
         }

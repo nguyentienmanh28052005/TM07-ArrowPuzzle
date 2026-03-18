@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   snakes:
   - direction: 0
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: -16, y: 17}
     - {x: -16, y: 16}
     - {x: -16, y: 15}
   - direction: 2
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: -12, y: 17}
     - {x: -11, y: 17}
@@ -40,6 +42,7 @@ MonoBehaviour:
     - {x: -3, y: 19}
     - {x: -4, y: 19}
   - direction: 2
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -12, y: 15}
     - {x: -11, y: 15}
@@ -79,6 +82,7 @@ MonoBehaviour:
     - {x: 12, y: 18}
     - {x: 12, y: 19}
   - direction: 3
+    arrowColor: {r: 0.80784315, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: 10, y: 17}
     - {x: 9, y: 17}
@@ -104,6 +108,7 @@ MonoBehaviour:
     - {x: 1, y: 23}
     - {x: 2, y: 23}
   - direction: 3
+    arrowColor: {r: 0, g: 1, b: 0.9882353, a: 1}
     segmentPositions:
     - {x: 16, y: 13}
     - {x: 15, y: 13}
@@ -143,6 +148,7 @@ MonoBehaviour:
     - {x: -14, y: 18}
     - {x: -14, y: 19}
   - direction: 0
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -10, y: 11}
     - {x: -10, y: 10}
@@ -170,6 +176,7 @@ MonoBehaviour:
     - {x: -22, y: 2}
     - {x: -22, y: 3}
   - direction: 2
+    arrowColor: {r: 1, g: 0, b: 0.64705884, a: 1}
     segmentPositions:
     - {x: -20, y: 7}
     - {x: -19, y: 7}
@@ -189,6 +196,7 @@ MonoBehaviour:
     - {x: -14, y: 10}
     - {x: -14, y: 9}
   - direction: 1
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: -18, y: 1}
     - {x: -18, y: 2}
@@ -200,6 +208,7 @@ MonoBehaviour:
     - {x: -16, y: 0}
     - {x: -16, y: -1}
   - direction: 2
+    arrowColor: {r: 0, g: 0.24313726, b: 1, a: 1}
     segmentPositions:
     - {x: -14, y: 3}
     - {x: -13, y: 3}
@@ -219,6 +228,7 @@ MonoBehaviour:
     - {x: -11, y: -1}
     - {x: -10, y: -1}
   - direction: 0
+    arrowColor: {r: 0.8980392, g: 1, b: 0, a: 1}
     segmentPositions:
     - {x: -6, y: 7}
     - {x: -6, y: 6}
@@ -226,6 +236,7 @@ MonoBehaviour:
     - {x: -6, y: 4}
     - {x: -6, y: 3}
   - direction: 0
+    arrowColor: {r: 0, g: 1, b: 0.9882353, a: 1}
     segmentPositions:
     - {x: -4, y: 7}
     - {x: -4, y: 6}
@@ -241,6 +252,7 @@ MonoBehaviour:
     - {x: 3, y: 3}
     - {x: 4, y: 3}
   - direction: 3
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 4, y: 7}
     - {x: 3, y: 7}
@@ -274,6 +286,7 @@ MonoBehaviour:
     - {x: 7, y: 3}
     - {x: 6, y: 3}
   - direction: 1
+    arrowColor: {r: 0, g: 0.24313726, b: 1, a: 1}
     segmentPositions:
     - {x: 14, y: 5}
     - {x: 14, y: 6}
@@ -315,6 +328,7 @@ MonoBehaviour:
     - {x: 3, y: 9}
     - {x: 4, y: 9}
   - direction: 0
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 12, y: 9}
     - {x: 12, y: 8}
@@ -332,6 +346,7 @@ MonoBehaviour:
     - {x: 9, y: 9}
     - {x: 10, y: 9}
   - direction: 2
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: -6, y: 1}
     - {x: -5, y: 1}
@@ -341,6 +356,7 @@ MonoBehaviour:
     - {x: -1, y: 1}
     - {x: 0, y: 1}
   - direction: 2
+    arrowColor: {r: 0, g: 1, b: 0.9882353, a: 1}
     segmentPositions:
     - {x: -6, y: -1}
     - {x: -5, y: -1}
@@ -384,6 +400,7 @@ MonoBehaviour:
     - {x: 10, y: -10}
     - {x: 10, y: -9}
   - direction: 1
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 12, y: -7}
     - {x: 12, y: -6}
@@ -393,6 +410,7 @@ MonoBehaviour:
     - {x: 12, y: -2}
     - {x: 12, y: -1}
   - direction: 2
+    arrowColor: {r: 0, g: 0.24313726, b: 1, a: 1}
     segmentPositions:
     - {x: 4, y: -1}
     - {x: 5, y: -1}
@@ -436,6 +454,7 @@ MonoBehaviour:
     - {x: -6, y: -10}
     - {x: -6, y: -11}
   - direction: 2
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 4, y: -3}
     - {x: 5, y: -3}
@@ -443,6 +462,7 @@ MonoBehaviour:
     - {x: 7, y: -3}
     - {x: 8, y: -3}
   - direction: 3
+    arrowColor: {r: 1, g: 0, b: 0.64705884, a: 1}
     segmentPositions:
     - {x: -8, y: -5}
     - {x: -9, y: -5}
@@ -476,6 +496,7 @@ MonoBehaviour:
     - {x: -11, y: -9}
     - {x: -10, y: -9}
   - direction: 3
+    arrowColor: {r: 0, g: 1, b: 0.9882353, a: 1}
     segmentPositions:
     - {x: -14, y: -13}
     - {x: -15, y: -13}
@@ -513,6 +534,7 @@ MonoBehaviour:
     - {x: -8, y: 10}
     - {x: -8, y: 11}
   - direction: 2
+    arrowColor: {r: 0, g: 1, b: 0.30588236, a: 1}
     segmentPositions:
     - {x: 2, y: -9}
     - {x: 3, y: -9}
@@ -526,6 +548,7 @@ MonoBehaviour:
     - {x: 9, y: -7}
     - {x: 10, y: -7}
   - direction: 1
+    arrowColor: {r: 0.80784315, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: 6, y: -13}
     - {x: 6, y: -12}
@@ -559,6 +582,7 @@ MonoBehaviour:
     - {x: -2, y: -8}
     - {x: -2, y: -7}
   - direction: 3
+    arrowColor: {r: 0, g: 1, b: 0.30588236, a: 1}
     segmentPositions:
     - {x: 2, y: -13}
     - {x: 1, y: -13}
@@ -572,6 +596,7 @@ MonoBehaviour:
     - {x: -7, y: -13}
     - {x: -8, y: -13}
   - direction: 3
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: -4, y: -15}
     - {x: -5, y: -15}
@@ -585,6 +610,7 @@ MonoBehaviour:
     - {x: -11, y: -13}
     - {x: -12, y: -13}
   - direction: 3
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 6, y: -15}
     - {x: 5, y: -15}
@@ -604,6 +630,7 @@ MonoBehaviour:
     - {x: -7, y: -17}
     - {x: -8, y: -17}
   - direction: 0
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 16, y: 7}
     - {x: 16, y: 6}
@@ -637,11 +664,13 @@ MonoBehaviour:
     - {x: 8, y: -12}
     - {x: 8, y: -11}
   - direction: 3
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 20, y: 7}
     - {x: 19, y: 7}
     - {x: 18, y: 7}
   - direction: 3
+    arrowColor: {r: 0.80784315, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: 22, y: 5}
     - {x: 21, y: 5}
@@ -655,6 +684,7 @@ MonoBehaviour:
     - {x: 18, y: 0}
     - {x: 18, y: -1}
   - direction: 2
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 20, y: 3}
     - {x: 21, y: 3}
@@ -664,16 +694,19 @@ MonoBehaviour:
     - {x: 21, y: 1}
     - {x: 20, y: 1}
   - direction: 1
+    arrowColor: {r: 0, g: 0.24313726, b: 1, a: 1}
     segmentPositions:
     - {x: 18, y: -7}
     - {x: 18, y: -6}
     - {x: 18, y: -5}
   - direction: 3
+    arrowColor: {r: 0.8980392, g: 1, b: 0, a: 1}
     segmentPositions:
     - {x: 20, y: -9}
     - {x: 19, y: -9}
     - {x: 18, y: -9}
   - direction: 1
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 18, y: -13}
     - {x: 18, y: -12}
@@ -683,6 +716,7 @@ MonoBehaviour:
     - {x: 20, y: -12}
     - {x: 20, y: -13}
   - direction: 0
+    arrowColor: {r: 0.8980392, g: 1, b: 0, a: 1}
     segmentPositions:
     - {x: 8, y: -17}
     - {x: 8, y: -18}
@@ -690,6 +724,7 @@ MonoBehaviour:
     - {x: 8, y: -20}
     - {x: 8, y: -21}
   - direction: 1
+    arrowColor: {r: 0, g: 1, b: 0.68235296, a: 1}
     segmentPositions:
     - {x: 6, y: -21}
     - {x: 6, y: -20}
@@ -705,6 +740,7 @@ MonoBehaviour:
     - {x: 3, y: -19}
     - {x: 4, y: -19}
   - direction: 1
+    arrowColor: {r: 1, g: 0, b: 0.64705884, a: 1}
     segmentPositions:
     - {x: 10, y: -19}
     - {x: 10, y: -18}
@@ -714,11 +750,13 @@ MonoBehaviour:
     - {x: 9, y: -15}
     - {x: 8, y: -15}
   - direction: 0
+    arrowColor: {r: 0, g: 1, b: 0.9882353, a: 1}
     segmentPositions:
     - {x: -10, y: -17}
     - {x: -10, y: -18}
     - {x: -10, y: -19}
   - direction: 3
+    arrowColor: {r: 0.8980392, g: 1, b: 0, a: 1}
     segmentPositions:
     - {x: -6, y: -21}
     - {x: -7, y: -21}
@@ -732,6 +770,7 @@ MonoBehaviour:
     - {x: -3, y: -19}
     - {x: -2, y: -19}
   - direction: 1
+    arrowColor: {r: 0, g: 1, b: 0.30588236, a: 1}
     segmentPositions:
     - {x: -18, y: -13}
     - {x: -18, y: -12}
@@ -743,6 +782,7 @@ MonoBehaviour:
     - {x: -18, y: -6}
     - {x: -18, y: -5}
   - direction: 0
+    arrowColor: {r: 0, g: 0.24313726, b: 1, a: 1}
     segmentPositions:
     - {x: -20, y: -9}
     - {x: -20, y: -10}

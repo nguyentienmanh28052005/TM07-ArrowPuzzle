@@ -29,7 +29,7 @@ public class LevelController : MonoBehaviour
             CameraController cam = FindObjectOfType<CameraController>();
             if (cam != null)
             {
-                cam.ZoomToMax();
+                cam.ZoomToEndGame();
             }
 
             float effectDuration = 0f;
