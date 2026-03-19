@@ -1,6 +1,10 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using TMPro;
+using UnityEngine.UI;
+
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -20,8 +24,13 @@ public class LevelEditor : MonoBehaviour
 
     [Header("Current Editor State")]
     public EditorToolType currentTool = EditorToolType.Draw;
+
+    [SerializeField] private TextMeshProUGUI textCurrentTool;
+
     public ArrowDir currentDir = ArrowDir.Up;
     public Color currentColor = Color.white; 
+
+    public Image colorPreviewImage;
 
     private GameObject currentSnakeObj;
     private SnakeBlock currentSnakeScript;
@@ -58,12 +67,14 @@ public class LevelEditor : MonoBehaviour
     public void UI_SetTool(int toolIndex)
     {
         currentTool = (EditorToolType)toolIndex;
+        if (textCurrentTool != null) textCurrentTool.text = $"{currentTool} - {currentDir}";
         Debug.Log("Công cụ hiện tại: " + currentTool);
     }
 
     public void UI_SetDirection(int dirIndex)
     {
         currentDir = (ArrowDir)dirIndex;
+        if (textCurrentTool != null) textCurrentTool.text = $"{currentTool} - {currentDir}";
         if (currentSnakeScript != null)
         {
             currentSnakeScript.direction = currentDir;
@@ -74,6 +85,7 @@ public class LevelEditor : MonoBehaviour
     public void UI_SetColor(Color newColor)
     {
         currentColor = newColor;
+        if (colorPreviewImage != null) colorPreviewImage.color = currentColor;
         
         if (currentSnakeScript != null)
         {

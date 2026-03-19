@@ -367,8 +367,10 @@ MonoBehaviour:
   currentData: {fileID: 11400000, guid: 9f2783509d7b86941a1f7b55004ed106, type: 2}
   levelContainer: {fileID: 1087363345}
   currentTool: 0
+  textCurrentTool: {fileID: 0}
   currentDir: 0
   currentColor: {r: 1, g: 1, b: 1, a: 1}
+  colorPreviewImage: {fileID: 0}
 --- !u!4 &96034496
 Transform:
   m_ObjectHideFlags: 0
@@ -914,7 +916,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.091911644, g: 0.10850084, b: 0.14716971, a: 0}
+  m_BackGroundColor: {r: 0.078431375, g: 0.09411765, b: 0.1254902, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
