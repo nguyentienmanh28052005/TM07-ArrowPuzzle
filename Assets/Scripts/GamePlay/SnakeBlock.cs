@@ -190,30 +190,54 @@ public class SnakeBlock : MonoBehaviour
 
         int _lastProcessedGrid = 0;
 
+        // === BƯỚC 1: KHÁM ĐƯỜNG (PRE-FLIGHT CHECK) ===
+        // Quét một tia siêu dài (100 units) để xem đường ra khỏi map có trống không
+        float initialPathCheck = CheckObstacleDistance(moveDir);
+        bool isGhostMode = (initialPathCheck == float.MaxValue);
+
+        // Nếu đường hoàn toàn trống -> Bật chế độ Tàng hình vật lý
+        if (isGhostMode)
+        {
+            // Tắt toàn bộ Collider để các mũi tên khác có thể bay xuyên qua con rắn này
+            foreach (var col in _myColliders)
+            {
+                if (col != null) col.enabled = false;
+            }
+        }
+        // ==============================================
+
         while (true)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            float distToObstacle = CheckObstacleDistance(moveDir);
-            float stepDist = safeDeltaTime * _currentMoveSpeed;
 
-            if (distToObstacle < stepDist + 0.9f)
+            // === BƯỚC 2: CHỈ XÉT VA CHẠM NẾU KHÔNG PHẢI GHOST MODE ===
+            if (!isGhostMode)
             {
-                MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
-                AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
-                SetColorImmediate(snakeTakeHitColor);
+                float distToObstacle = CheckObstacleDistance(moveDir);
+                float stepDist = safeDeltaTime * _currentMoveSpeed;
 
-                MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
+                if (distToObstacle < stepDist + 0.9f)
+                {
+                    MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
+                    AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
+                    SetColorImmediate(snakeTakeHitColor);
 
-                yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
-                yield return StartCoroutine(ReturnToOrigin(moveDir));
-                break;
+                    MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
+
+                    yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
+                    yield return StartCoroutine(ReturnToOrigin(moveDir));
+                    break; // Thoát vòng lặp
+                }
             }
+            // =========================================================
 
+            // Di chuyển bình thường
             _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * safeDeltaTime);
             _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
             
             UpdateSnakePosition(_accumulatedShift, moveDir);
 
+            // Vét lưới bật hiệu ứng (Catch-up animation)
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
             while (_lastProcessedGrid < currentGridProgress)
             {
@@ -225,6 +249,7 @@ public class SnakeBlock : MonoBehaviour
                 _lastProcessedGrid++;
             }
 
+            // Hủy object khi đã bay quá xa
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
             {
                 Destroy(gameObject);
@@ -241,6 +266,39 @@ public class SnakeBlock : MonoBehaviour
         }
 
         _isMoving = false;
+    }
+
+    private float CheckObstacleDistance(Vector3 dir)
+    {
+        if (_totalPoints == 0 || !_isInitialized) return 0f;
+
+        if (_isJobRunning)
+        {
+            _jobHandle.Complete();
+            _isJobRunning = false;
+            SyncMainSegments();
+        }
+
+        Vector3 startPos = _nativeAllNodePositions[0];
+        
+        // CẬP NHẬT: Tăng khoảng cách quét (Raycast length) từ 20f lên 100f 
+        // để đảm bảo tia sáng quét xuyên thấu ra tận rìa ngoài cùng của bản đồ
+        RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 100f, obstacleLayer);
+        
+        float closestDist = float.MaxValue;
+        bool found = false;
+        foreach (var hit in hits)
+        {
+            if (hit.collider != null && !IsMyCollider(hit.collider))
+            {
+                if (hit.distance < closestDist)
+                {
+                    closestDist = hit.distance;
+                    found = true;
+                }
+            }
+        }
+        return found ? closestDist : float.MaxValue;
     }
 
     private IEnumerator HitObstacle(Vector3 dir, float distance)
@@ -490,34 +548,34 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    private float CheckObstacleDistance(Vector3 dir)
-    {
-        if (_totalPoints == 0 || !_isInitialized) return 0f;
+    // private float CheckObstacleDistance(Vector3 dir)
+    // {
+    //     if (_totalPoints == 0 || !_isInitialized) return 0f;
 
-        if (_isJobRunning)
-        {
-            _jobHandle.Complete();
-            _isJobRunning = false;
-            SyncMainSegments();
-        }
+    //     if (_isJobRunning)
+    //     {
+    //         _jobHandle.Complete();
+    //         _isJobRunning = false;
+    //         SyncMainSegments();
+    //     }
 
-        Vector3 startPos = _nativeAllNodePositions[0];
-        RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 20f, obstacleLayer);
-        float closestDist = float.MaxValue;
-        bool found = false;
-        foreach (var hit in hits)
-        {
-            if (hit.collider != null && !IsMyCollider(hit.collider))
-            {
-                if (hit.distance < closestDist)
-                {
-                    closestDist = hit.distance;
-                    found = true;
-                }
-            }
-        }
-        return found ? closestDist : float.MaxValue;
-    }
+    //     Vector3 startPos = _nativeAllNodePositions[0];
+    //     RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 20f, obstacleLayer);
+    //     float closestDist = float.MaxValue;
+    //     bool found = false;
+    //     foreach (var hit in hits)
+    //     {
+    //         if (hit.collider != null && !IsMyCollider(hit.collider))
+    //         {
+    //             if (hit.distance < closestDist)
+    //             {
+    //                 closestDist = hit.distance;
+    //                 found = true;
+    //             }
+    //         }
+    //     }
+    //     return found ? closestDist : float.MaxValue;
+    // }
 
     private bool IsMyCollider(Collider2D col)
     {
