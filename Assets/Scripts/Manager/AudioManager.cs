@@ -20,6 +20,8 @@ public class AudioManager : Singleton<AudioManager>
     [Header("SFX Clips")] 
     // public AudioClip _sfxGameOver;
     public AudioClip sfxArrowTap;
+
+    public AudioClip sfxArrowHit;
     // public AudioClip _sfxTakeItem;
     // public AudioClip _sfxDropItem;
     // public AudioClip _sfxPlasmaGunReload;

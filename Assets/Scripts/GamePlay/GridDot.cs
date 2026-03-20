@@ -76,7 +76,7 @@ public class GridDot : MonoBehaviour
     }
 
     // --- LOGIC MỚI: HIỆU ỨNG KHI ĐUÔI RỜI KHỎI (TRAIL EFFECT) ---
-    public void PlayLeaveEffect(float scaleAmount = 2.2f, float totalDuration = 0.4f)
+    public void PlayLeaveEffect(float scaleAmount = 2.5f, float totalDuration = 0.5f)
     {
         // Phải ngắt các hiệu ứng đang chạy lỡ dở để không bị xung đột co giật hình ảnh
         StopAllCoroutines(); 

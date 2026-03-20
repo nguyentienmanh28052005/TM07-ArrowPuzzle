@@ -80,9 +80,9 @@ public class SnakeInput : MonoBehaviour
                 willMove = true;
                 if (parentScript != null)
                 {
-                    AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap);
+                    AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
                     parentScript.OnHeadClicked();
-                    MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.LightImpact);
+                    MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.Selection);
                 }
             }
         }

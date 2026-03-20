@@ -12,5 +12,9 @@ public class SnakeSaveData
 [CreateAssetMenu(fileName = "NewLevel", menuName = "ArrowPuzzle/LevelData")]
 public class LevelDataSO : ScriptableObject
 {
+    public GameMode gameMode;
+
+    public LevelDifficulty levelDifficulty;
+    
     public List<SnakeSaveData> snakes = new List<SnakeSaveData>();
 }

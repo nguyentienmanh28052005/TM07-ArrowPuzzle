@@ -1,7 +1,7 @@
 using System.Collections; 
 using System.Threading; 
 using UnityEngine; 
-public class FrameRateManager: MonoBehaviour 
+public class TargetFPS: MonoBehaviour 
 { 
     [Header("Frame Settings")] 
     int MaxRate = 9999; 

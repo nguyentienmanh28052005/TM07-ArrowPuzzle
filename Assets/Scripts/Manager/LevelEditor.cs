@@ -40,6 +40,11 @@ public class LevelEditor : MonoBehaviour
     private Stack<GameObject> finishedSnakesHistory = new Stack<GameObject>();
     #endregion
 
+    private void Start()
+    {
+        LoadLevelToEdit();
+    }
+
     #region [ MAIN LOOP ]
     private void Update()
     {

@@ -281,6 +281,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5af75808f4aebdc4daf836fa586b5a51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1273439569
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1273439562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e587f593bd7ab5648aec739311e62067, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  TargetFrameRate: 60
 --- !u!1 &1435478203
 GameObject:
   m_ObjectHideFlags: 0
@@ -315,7 +328,8 @@ MonoBehaviour:
   _dontDestroyOnLoad: 1
   _poolSize: 10
   _musicSource: {fileID: 1435478207}
-  sfxArrowTap: {fileID: 8300000, guid: dd763f8bca7bcd843b42bea8e963ed34, type: 3}
+  sfxArrowTap: {fileID: 8300000, guid: c5a48e92a3dd4154688d7835b6b839bb, type: 3}
+  sfxArrowHit: {fileID: 8300000, guid: cad913f5880294b43978dfd8a0996d6c, type: 3}
 --- !u!4 &1435478205
 Transform:
   m_ObjectHideFlags: 0
@@ -564,6 +578,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1273439568}
+    - targetCorrespondingSourceObject: {fileID: 419848607566054223, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1273439569}
   m_SourcePrefab: {fileID: 100100000, guid: cd8c41575da1c1242a885d47437c735a, type: 3}
 --- !u!1 &1648152347
 GameObject:

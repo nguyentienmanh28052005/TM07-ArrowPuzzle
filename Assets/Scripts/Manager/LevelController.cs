@@ -57,7 +57,7 @@ public class LevelController : MonoBehaviour
 
         if (SceneController.Instance != null)
         {
-            SceneController.Instance.LoadScene("GameMenu", false, false);
+            SceneController.Instance.LoadScene("GameScene", false, false);
         }
     }
 }
