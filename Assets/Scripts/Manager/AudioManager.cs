@@ -22,6 +22,8 @@ public class AudioManager : Singleton<AudioManager>
     public AudioClip sfxArrowTap;
 
     public AudioClip sfxArrowHit;
+
+    public AudioClip btnClick;
     // public AudioClip _sfxTakeItem;
     // public AudioClip _sfxDropItem;
     // public AudioClip _sfxPlasmaGunReload;

@@ -37,6 +37,10 @@ public class SnakeInput : MonoBehaviour
     private void HandleInputDown()
     {
         if (CameraController.IsDragging) return;
+        
+        // === CẬP NHẬT: CHẶN CLICK NẾU MŨI TÊN ĐANG DI CHUYỂN HOẶC ĐANG LÙI ===
+        if (parentScript != null && parentScript.IsMoving) return;
+        // ====================================================================
 
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         float dist = Vector2.Distance(transform.position, mousePos);

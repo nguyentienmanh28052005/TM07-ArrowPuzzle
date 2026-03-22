@@ -293,7 +293,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e587f593bd7ab5648aec739311e62067, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  TargetFrameRate: 60
+  TargetFrameRate: 120
 --- !u!1 &1435478203
 GameObject:
   m_ObjectHideFlags: 0
@@ -328,8 +328,9 @@ MonoBehaviour:
   _dontDestroyOnLoad: 1
   _poolSize: 10
   _musicSource: {fileID: 1435478207}
-  sfxArrowTap: {fileID: 8300000, guid: c5a48e92a3dd4154688d7835b6b839bb, type: 3}
+  sfxArrowTap: {fileID: 8300000, guid: d12077135438e9541b0a8835b2a25ccb, type: 3}
   sfxArrowHit: {fileID: 8300000, guid: cad913f5880294b43978dfd8a0996d6c, type: 3}
+  btnClick: {fileID: 8300000, guid: d12077135438e9541b0a8835b2a25ccb, type: 3}
 --- !u!4 &1435478205
 Transform:
   m_ObjectHideFlags: 0
@@ -524,7 +525,7 @@ PrefabInstance:
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: currentMaxLevel
-      value: 5
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
@@ -534,7 +535,7 @@ PrefabInstance:
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.size
-      value: 5
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
@@ -565,6 +566,12 @@ PrefabInstance:
       propertyPath: levelDataSOs.Array.data[4]
       value: 
       objectReference: {fileID: 11400000, guid: c2c8cc4372d5c854186db843753aab8f,
+        type: 2}
+    - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      propertyPath: levelDataSOs.Array.data[5]
+      value: 
+      objectReference: {fileID: 11400000, guid: 89d72be13160cd74a88ffe2f7ee8988a,
         type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -736,7 +743,7 @@ PrefabInstance:
     - target: {fileID: 3667331962432866190, guid: 6b72279db2bc98948aba768426b8938f,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -4.9999695
+      value: -5
       objectReference: {fileID: 0}
     - target: {fileID: 5073719301693592686, guid: 6b72279db2bc98948aba768426b8938f,
         type: 3}

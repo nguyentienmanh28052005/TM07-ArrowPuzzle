@@ -1,97 +1,123 @@
-using System.Collections;
-using System.Collections.Generic;
-using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.Events;
+using DG.Tweening;
 
-
-public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, IPointerMoveHandler
+[RequireComponent(typeof(Image))]
+public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
 {
-    [Header("Visual related")]
-    [SerializeField] private Sprite _default, _pressed;
-    private Image _image;
-    
-    [Space(10)]
-    [Header("Scales")]
-    [SerializeField] private float _pointerHoverScale = 1.1f;
-    [SerializeField] private float _pointerReleaseScale = 1f;
-    [SerializeField] private float _pointerClickScale = 0.9f;
+    [Header("State")]
+    public bool interactable = true;
+    public UnityEvent onClick; // Sự kiện xuất ra ngoài để gắn hàm (giống Button gốc của Unity)
 
-    [Space(10)]
-    [Header("Audio Clips")]
-    //[SerializeField] private GameEnum.AudioEnum _clickSound;
-    // [SerializeField] private AudioEnum _hoverSound;
+    [Header("Visual Settings")]
+    [SerializeField] private Sprite _defaultSprite;
+    [SerializeField] private Sprite _pressedSprite;
+    [SerializeField] private Sprite _disabledSprite; // Hình ảnh khi nút bị khóa
     
-    private RectTransform _rectTransform;
-    private float _changeY = 5.6f;
-    
-   
-    
-    private Vector3 _originalLocalScale;
-    
-    private void Awake() 
+    [Header("Animation Settings")]
+    [SerializeField] private float _hoverScale = 1.05f;
+    [SerializeField] private float _clickScale = 0.9f;
+    [SerializeField] private float _tweenDuration = 0.15f;
+    [SerializeField] private Ease _tweenEase = Ease.OutQuad;
+
+    private Image _image;
+    private Vector3 _originalScale;
+    private bool _isPressed = false;
+    private bool _isHovered = false;
+
+    private void Awake()
     {
         _image = GetComponent<Image>();
-        _rectTransform = GetComponent<RectTransform>();
-        // _image.sprite = _default;
+        _originalScale = transform.localScale;
         
-        _originalLocalScale = this.transform.localScale;
-    }
-    
-    public void OnPointerUp(PointerEventData eventData)
-    {
-        Debug.Log("OnPointerUp");
-        //MessageManager.Instance.SendMessage(new Message(ManhMessageType.OnButtonClick));
-        //transform.localScale = _originalLocalScale;
-        //_image.sprite = _default;
-        transform.DOScale(_originalLocalScale, 0.2f);
-        // DOTween.Sequence().Append(transform.DOScale(_originalLocalScale, 0.25f))
-        //     .OnComplete(() =>
-        //     {
-        //     });
-
+        if (_defaultSprite == null) _defaultSprite = _image.sprite;
+        
+        UpdateVisualState();
     }
 
-    public void OnPointerDown(PointerEventData eventData)
+    // Hàm public để khóa/mở nút qua code
+    public void SetInteractable(bool state)
     {
-        Debug.Log("OnPointerDown");
-        //transform.localScale = _originalLocalScale * _pointerClickScale;
-        //_image.sprite = _pressed;
-        transform.DOScale(_originalLocalScale * _pointerClickScale, 0.2f);
-        // DOTween.Sequence()
-        //     .Append(transform.DOScale(_originalLocalScale * _pointerClickScale, 0.45f))
-        //     .OnComplete((() =>
-        //     {
-        //     }));
+        interactable = state;
+        UpdateVisualState();
     }
 
-    public void OnPointerClick(PointerEventData eventData)
+    private void UpdateVisualState()
     {
-        Debug.Log("OnPointerClick");
-        //Module.MediumVibrate();
+        if (!interactable)
+        {
+            if (_disabledSprite != null) _image.sprite = _disabledSprite;
+            else _image.color = Color.gray; // Làm xám nếu không có hình disabled
+            
+            transform.DOKill();
+            transform.localScale = _originalScale;
+        }
+        else
+        {
+            _image.color = Color.white;
+            _image.sprite = _defaultSprite;
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        Debug.Log("OnPointerEnter");
-        // //AudioManager.Instance.Play(_hoverSound);
-        //DOTween.Sequence().Append(transform.DOScale(_originalLocalScale * _pointerHoverScale, 0.2f));
+        if (!interactable) return;
+        _isHovered = true;
+        
+        // DOKill là BẮT BUỘC để hủy tween cũ đang chạy dở
+        transform.DOKill();
+        transform.DOScale(_originalScale * _hoverScale, _tweenDuration)
+            .SetEase(_tweenEase)
+            .SetUpdate(true); // SetUpdate(true) giúp UI vẫn chạy animation khi Pause Game (Time.timeScale = 0)
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        Debug.Log("OnPointerExit");
-        //DOTween.Sequence().Append(transform.DOScale(_originalLocalScale, 0.2f));
+        if (!interactable) return;
+        _isHovered = false;
+        _isPressed = false;
+        
+        _image.sprite = _defaultSprite;
+        transform.DOKill();
+        transform.DOScale(_originalScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
     }
 
-    
-    // detect and handle events when a pointer (e.g., mouse cursor or touch) moves over a UI element
-    public void OnPointerMove(PointerEventData eventData)
+    public void OnPointerDown(PointerEventData eventData)
     {
-        //Debug.Log("OnPointerMove");
-        // transform.localScale = localScaleOld * _pointerHoverScale;
+        if (!interactable) return;
+        _isPressed = true;
+        
+        if (_pressedSprite != null) _image.sprite = _pressedSprite;
+        
+        transform.DOKill();
+        transform.DOScale(_originalScale * _clickScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (!interactable) return;
+        _isPressed = false;
+        
+        _image.sprite = _defaultSprite;
+        
+        transform.DOKill();
+        // Trả về hoverScale nếu chuột vẫn đang nằm trên nút, ngược lại trả về originalScale
+        float targetScale = _isHovered ? _hoverScale : 1f;
+        transform.DOScale(_originalScale * targetScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!interactable) return;
+        
+        // Gọi âm thanh và rung ở đây (Tích hợp hệ thống của bạn)
+        // AudioManager.Instance.PlaySfx(...);
+        // MOST_HapticFeedback.Generate(...);
+        
+        // Kích hoạt sự kiện thực tế
+        AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
+        onClick?.Invoke();
     }
 }
-

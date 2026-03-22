@@ -12,15 +12,16 @@ public class SnakeBlock : MonoBehaviour
 {
     [Header("Movement Settings (New)")]
     public ArrowDir direction;
-    [SerializeField] private float startMoveSpeed = 30f;  
+    [SerializeField] private float startMoveSpeed = 0f;  
     [SerializeField] private float maxMoveSpeed = 300f;   
-    [SerializeField] private float acceleration = 150f;   
-    private float _currentMoveSpeed;                      
+    [SerializeField] private float acceleration = 160f;   
+    [SerializeField] private float returnMoveSpeed = 25f;
+        private float _currentMoveSpeed;                      
 
     [Header("Corner & Spawn Settings")]
     [SerializeField] private float cornerRadius = 1f;
     [SerializeField] private int cornerSmoothSteps = 10;
-    [SerializeField] private float spawnSpeed = 200f;
+    [SerializeField] private float spawnSpeed = 100f;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -31,7 +32,7 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeColor = Color.white;
     public Color snakeMoveColor = Color.white;
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
-    public float lineWidth = 0.4f;
+    public float lineWidth = 0.35f;
 
     // --- Job System Variables ---
     private NativeArray<Vector3> _nativeOriginalState;
@@ -43,6 +44,7 @@ public class SnakeBlock : MonoBehaviour
     private int _totalPoints;
     private int _nodesPerUnit;
     private bool _isMoving = false;
+    public bool IsMoving => _isMoving;
     private LineRenderer lineRenderer;
     private List<Collider2D> _myColliders = new List<Collider2D>();
     private float _accumulatedShift = 0f;
@@ -61,6 +63,9 @@ public class SnakeBlock : MonoBehaviour
 
     private int _visiblePoints;
     private bool _isSpawning = false;
+    
+    
+    private bool _hasDealtDamage = false;
 
     private void Awake()
     {
@@ -216,28 +221,35 @@ public class SnakeBlock : MonoBehaviour
                 float distToObstacle = CheckObstacleDistance(moveDir);
                 float stepDist = safeDeltaTime * _currentMoveSpeed;
 
+                // Nếu chuẩn bị đâm tường trong frame này
                 if (distToObstacle < stepDist + 0.9f)
                 {
-                    MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
+                    // CẬP NHẬT: CHỈ TRỪ MÁU TRONG LẦN ĐÂM ĐẦU TIÊN
+                    if (!_hasDealtDamage)
+                    {
+                        MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
+                        _hasDealtDamage = true; // Đánh dấu đã trừ máu
+                    }
+
+                    // Phản hồi xúc giác & Âm thanh luôn bật để người chơi biết đã đâm
                     AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
                     SetColorImmediate(snakeTakeHitColor);
-
                     MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
 
                     yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
                     yield return StartCoroutine(ReturnToOrigin(moveDir));
-                    break; // Thoát vòng lặp
+                    break; // Phải thoát vòng lặp sau khi bị dội về
                 }
             }
             // =========================================================
 
-            // Di chuyển bình thường
+            // === BƯỚC 3: DI CHUYỂN BÌNH THƯỜNG ===
             _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * safeDeltaTime);
             _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
             
             UpdateSnakePosition(_accumulatedShift, moveDir);
 
-            // Vét lưới bật hiệu ứng (Catch-up animation)
+            // === BƯỚC 4: VÉT LƯỚI (CATCH-UP ANIMATION) ===
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
             while (_lastProcessedGrid < currentGridProgress)
             {
@@ -249,7 +261,7 @@ public class SnakeBlock : MonoBehaviour
                 _lastProcessedGrid++;
             }
 
-            // Hủy object khi đã bay quá xa
+            // === BƯỚC 5: KIỂM TRA RA KHỎI MAP ===
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
             {
                 Destroy(gameObject);
@@ -262,6 +274,7 @@ public class SnakeBlock : MonoBehaviour
                 outed = true;
             }
 
+            // Kết thúc khung hình, trả quyền cho luồng đồ họa
             yield return null;
         }
 
@@ -304,27 +317,26 @@ public class SnakeBlock : MonoBehaviour
     private IEnumerator HitObstacle(Vector3 dir, float distance)
     {
         float startShift = _accumulatedShift;
+        
+        // Tính quãng đường để đâm sát mặt vào tường
         float travelDist = Mathf.Max(0f, distance - 0.1f); 
         float targetShift = startShift + (travelDist * _nodesPerUnit);
         
+        // GIAI ĐOẠN ĐÂM VÀO: Sử dụng đúng tốc độ đang đi (_currentMoveSpeed)
         while (_accumulatedShift < targetShift)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            _accumulatedShift += safeDeltaTime * maxMoveSpeed * _nodesPerUnit;
+            
+            _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
+            
             if (_accumulatedShift > targetShift) _accumulatedShift = targetShift;
             UpdateSnakePosition(_accumulatedShift, dir);
+            
             yield return null;
         }
 
-        float recoilShift = Mathf.Max(0f, targetShift - (0.8f * _nodesPerUnit));
-        while (_accumulatedShift > recoilShift)
-        {
-            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            _accumulatedShift -= safeDeltaTime * maxMoveSpeed * _nodesPerUnit;
-            if (_accumulatedShift < recoilShift) _accumulatedShift = recoilShift;
-            UpdateSnakePosition(_accumulatedShift, dir);
-            yield return null;
-        }
+        // Đã xóa bỏ hoàn toàn giai đoạn bật lại (Recoil).
+        // Hàm sẽ kết thúc ngay tại đây và nhả quyền điều khiển thẳng cho ReturnToOrigin.
     }
 
     private IEnumerator ReturnToOrigin(Vector3 dir)
@@ -332,8 +344,12 @@ public class SnakeBlock : MonoBehaviour
         while (_accumulatedShift > 0f)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            _accumulatedShift -= safeDeltaTime * (maxMoveSpeed / 3f) * _nodesPerUnit;
+            
+            // CẬP NHẬT: Sử dụng tốc độ lùi cố định (returnMoveSpeed)
+            _accumulatedShift -= safeDeltaTime * returnMoveSpeed * _nodesPerUnit;
+            
             if (_accumulatedShift < 0f) _accumulatedShift = 0f;
+            
             UpdateSnakePosition(_accumulatedShift, dir);
             yield return null;
         }
