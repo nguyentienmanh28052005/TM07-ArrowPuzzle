@@ -203,6 +203,7 @@ public class SnakeBlock : MonoBehaviour
         // Nếu đường hoàn toàn trống -> Bật chế độ Tàng hình vật lý
         if (isGhostMode)
         {
+            ComboManager.Instance.AddCombo(); 
             // Tắt toàn bộ Collider để các mũi tên khác có thể bay xuyên qua con rắn này
             foreach (var col in _myColliders)
             {
@@ -230,7 +231,7 @@ public class SnakeBlock : MonoBehaviour
                         MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
                         _hasDealtDamage = true; // Đánh dấu đã trừ máu
                     }
-
+                    ComboManager.Instance.StopCombo();
                     // Phản hồi xúc giác & Âm thanh luôn bật để người chơi biết đã đâm
                     AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
                     SetColorImmediate(snakeTakeHitColor);
