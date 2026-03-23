@@ -9,12 +9,12 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 {
     [Header("State")]
     public bool interactable = true;
-    public UnityEvent onClick; // Sự kiện xuất ra ngoài để gắn hàm (giống Button gốc của Unity)
+    public UnityEvent onClick;
 
     [Header("Visual Settings")]
     [SerializeField] private Sprite _defaultSprite;
     [SerializeField] private Sprite _pressedSprite;
-    [SerializeField] private Sprite _disabledSprite; // Hình ảnh khi nút bị khóa
+    [SerializeField] private Sprite _disabledSprite;
     
     [Header("Animation Settings")]
     [SerializeField] private float _hoverScale = 1.05f;
@@ -32,32 +32,50 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         _image = GetComponent<Image>();
         _originalScale = transform.localScale;
         
-        if (_defaultSprite == null) _defaultSprite = _image.sprite;
+        // ĐÃ XÓA dòng ép lấy sprite mặc định ở đây để tôn trọng quyết định để trống của bạn
         
         UpdateVisualState();
     }
 
-    // Hàm public để khóa/mở nút qua code
     public void SetInteractable(bool state)
     {
         interactable = state;
         UpdateVisualState();
     }
 
+    // ==========================================
+    // CƠ CHẾ ẨN HIỆN & ĐỔ MÀU (CẬP NHẬT MỚI)
+    // ==========================================
+    private void SetSpriteDisplay(Sprite spriteToDisplay, bool isDisabledState = false)
+    {
+        if (spriteToDisplay == null)
+        {
+            // KHÔNG CÓ HÌNH -> Tàng hình hoàn toàn (Alpha = 0)
+            _image.sprite = null;
+            _image.color = new Color(1f, 1f, 1f, 0f); 
+        }
+        else
+        {
+            // CÓ HÌNH -> Hiện hình (Alpha = 1) và đổ màu xám nếu nút bị khóa
+            _image.sprite = spriteToDisplay;
+            _image.color = isDisabledState ? Color.gray : Color.white;
+        }
+    }
+
     private void UpdateVisualState()
     {
         if (!interactable)
         {
-            if (_disabledSprite != null) _image.sprite = _disabledSprite;
-            else _image.color = Color.gray; // Làm xám nếu không có hình disabled
-            
             transform.DOKill();
             transform.localScale = _originalScale;
+            
+            // Fallback: Ưu tiên dùng DisabledSprite, nếu để trống thì lấy DefaultSprite làm xám
+            Sprite targetSprite = _disabledSprite != null ? _disabledSprite : _defaultSprite;
+            SetSpriteDisplay(targetSprite, true);
         }
         else
         {
-            _image.color = Color.white;
-            _image.sprite = _defaultSprite;
+            SetSpriteDisplay(_defaultSprite, false);
         }
     }
 
@@ -66,11 +84,8 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         if (!interactable) return;
         _isHovered = true;
         
-        // DOKill là BẮT BUỘC để hủy tween cũ đang chạy dở
         transform.DOKill();
-        transform.DOScale(_originalScale * _hoverScale, _tweenDuration)
-            .SetEase(_tweenEase)
-            .SetUpdate(true); // SetUpdate(true) giúp UI vẫn chạy animation khi Pause Game (Time.timeScale = 0)
+        transform.DOScale(_originalScale * _hoverScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -79,7 +94,8 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         _isHovered = false;
         _isPressed = false;
         
-        _image.sprite = _defaultSprite;
+        SetSpriteDisplay(_defaultSprite, false);
+        
         transform.DOKill();
         transform.DOScale(_originalScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
     }
@@ -89,7 +105,9 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         if (!interactable) return;
         _isPressed = true;
         
-        if (_pressedSprite != null) _image.sprite = _pressedSprite;
+        // Fallback: Ưu tiên dùng PressedSprite, nếu để trống thì giữ nguyên DefaultSprite
+        Sprite targetSprite = _pressedSprite != null ? _pressedSprite : _defaultSprite;
+        SetSpriteDisplay(targetSprite, false);
         
         transform.DOKill();
         transform.DOScale(_originalScale * _clickScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
@@ -100,10 +118,9 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         if (!interactable) return;
         _isPressed = false;
         
-        _image.sprite = _defaultSprite;
+        SetSpriteDisplay(_defaultSprite, false);
         
         transform.DOKill();
-        // Trả về hoverScale nếu chuột vẫn đang nằm trên nút, ngược lại trả về originalScale
         float targetScale = _isHovered ? _hoverScale : 1f;
         transform.DOScale(_originalScale * targetScale, _tweenDuration).SetEase(_tweenEase).SetUpdate(true);
     }
@@ -112,11 +129,6 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
     {
         if (!interactable) return;
         
-        // Gọi âm thanh và rung ở đây (Tích hợp hệ thống của bạn)
-        // AudioManager.Instance.PlaySfx(...);
-        // MOST_HapticFeedback.Generate(...);
-        
-        // Kích hoạt sự kiện thực tế
         AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
         onClick?.Invoke();
     }

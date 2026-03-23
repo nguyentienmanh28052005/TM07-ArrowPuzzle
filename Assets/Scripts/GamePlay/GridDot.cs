@@ -1,35 +1,44 @@
 ﻿using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening; // BẮT BUỘC PHẢI CÓ
 
 public class GridDot : MonoBehaviour
 {
-    // BÍ QUYẾT TỐI ƯU O(1): Cuốn sổ đăng ký tọa độ của tất cả các Dot trên map
     public static Dictionary<Vector2Int, GridDot> GridMap = new Dictionary<Vector2Int, GridDot>();
 
     private SpriteRenderer spriteRenderer;
     private Vector3 originalScale;
     private Color originalColor;
+    
+    // Cờ bảo vệ nội bộ: Nếu Dot này đã bắt đầu chuỗi Win, cấm mọi tương tác khác
+    private bool _isWinning = false; 
 
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalScale = transform.localScale;
-        
-        // Lưu lại màu nguyên thủy của Dot để lát nữa phục hồi
-        originalColor = spriteRenderer.color; 
+        if (spriteRenderer != null) originalColor = spriteRenderer.color; 
     }
 
     void OnEnable()
     {
-        // Ghi danh vào sổ khi được bật lên
+        _isWinning = false;
+        
+        // Ghi danh vào sổ
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
         GridMap[pos] = this;
+        
+        // Reset sạch sẽ trạng thái (Phòng trường hợp dùng Object Pooling)
+        transform.localScale = originalScale;
+        if (spriteRenderer != null) spriteRenderer.color = originalColor;
     }
 
     void OnDisable()
     {
-        // Xóa tên khỏi sổ khi bị tắt đi để chống lỗi Null
+        transform.DOKill();
+        if (spriteRenderer != null) spriteRenderer.DOKill();
+
+        // Xóa sổ
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
         if (GridMap.ContainsKey(pos) && GridMap[pos] == this)
         {
@@ -37,88 +46,64 @@ public class GridDot : MonoBehaviour
         }
     }
 
+    // ==========================================
+    // 1. HIỆU ỨNG KHI WIN GAME (SÓNG DOMINO)
+    // ==========================================
     public void PlayWinAnimation(Color targetColor, float delay, float scaleAmount, float duration)
     {
-        StartCoroutine(CoWinAnimation(targetColor, delay, scaleAmount, duration));
+        _isWinning = true;
+
+        // BÓP PHANH: Giết chết mọi animation "Đi qua" đang chạy dở
+        transform.DOKill();
+        if (spriteRenderer != null) spriteRenderer.DOKill();
+
+        // QUAN TRỌNG NHẤT: Ép cục Dot thu về trạng thái gốc NGAY LẬP TỨC. 
+        // Tránh tình trạng nó bị kẹt ở size khổng lồ trong lúc chờ biến 'delay'
+        transform.localScale = originalScale;
+        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+
+        float halfDuration = duration / 2f;
+
+        // Dùng Sequence ghép chuỗi animation cực kỳ gọn gàng
+        Sequence winSeq = DOTween.Sequence();
+        
+        // 1. Chờ đến lượt (Domino Delay)
+        if (delay > 0) winSeq.AppendInterval(delay);
+
+        // 2. Phóng to ra (Pha 1)
+        winSeq.Append(transform.DOScale(originalScale * scaleAmount, halfDuration).SetEase(Ease.OutQuad));
+        
+        // 3. Thu nhỏ về 0 và đổi màu (Pha 2)
+        winSeq.Append(transform.DOScale(Vector3.zero, halfDuration).SetEase(Ease.InBack));
+        winSeq.Join(spriteRenderer.DOColor(targetColor, halfDuration)); // Join chạy song song với Append trên
+        
+        // An toàn chống văng lỗi nếu Dot bị Destroy giữa chừng
+        winSeq.SetLink(gameObject); 
     }
 
-    private IEnumerator CoWinAnimation(Color targetColor, float delay, float scaleAmount, float totalDuration)
-    {
-        if (delay > 0) yield return new WaitForSeconds(delay);
-
-        float halfDuration = totalDuration / 2f;
-        float elapsed = 0f;
-        Color startColor = spriteRenderer.color;
-        Vector3 targetScaleVec = originalScale * scaleAmount;
-
-        while (elapsed < halfDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
-
-            transform.localScale = Vector3.Lerp(originalScale, targetScaleVec, t);
-            yield return null;
-        }
-
-        elapsed = 0f;
-        while (elapsed < halfDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
-
-            transform.localScale = Vector3.Lerp(targetScaleVec, Vector3.zero, t);
-            spriteRenderer.color = Color.Lerp(startColor, targetColor, t);
-            yield return null;
-        }
-
-        transform.localScale = Vector3.zero;
-        spriteRenderer.color = targetColor;
-    }
-
-    // --- LOGIC MỚI: HIỆU ỨNG KHI ĐUÔI RỜI KHỎI (TRAIL EFFECT) ---
+    // ==========================================
+    // 2. HIỆU ỨNG KHI MŨI TÊN ĐI QUA (TRAIL EFFECT)
+    // ==========================================
     public void PlayLeaveEffect(float scaleAmount = 2.5f, float totalDuration = 0.5f)
     {
-        // Phải ngắt các hiệu ứng đang chạy lỡ dở để không bị xung đột co giật hình ảnh
-        StopAllCoroutines(); 
-        transform.localScale = originalScale;
-        spriteRenderer.color = originalColor;
-        
-        StartCoroutine(CoLeaveEffect(scaleAmount, totalDuration));
-    }
+        // BỨC TƯỜNG THÉP: Cấm chạy nếu Game đã kết thúc hoặc Dot này đang chạy Win
+        if ((GameManager.Instance != null && GameManager.Instance.isGameOver) || _isWinning) return;
 
-    private IEnumerator CoLeaveEffect(float scaleAmount, float totalDuration)
-    {
+        transform.DOKill();
+        if (spriteRenderer != null) spriteRenderer.DOKill();
+
         float halfDuration = totalDuration / 2f;
-        float elapsed = 0f;
+
+        Sequence leaveSeq = DOTween.Sequence();
         
-        Vector3 targetScaleVec = originalScale * scaleAmount;
-        Color targetColor = Color.white; // Sáng bừng lên màu trắng
-
         // Pha 1: To dần ra và sáng lên màu trắng
-        while (elapsed < halfDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
+        leaveSeq.Append(transform.DOScale(originalScale * scaleAmount, halfDuration).SetEase(Ease.OutQuad));
+        leaveSeq.Join(spriteRenderer.DOColor(Color.white, halfDuration));
 
-            transform.localScale = Vector3.Lerp(originalScale, targetScaleVec, t);
-            spriteRenderer.color = Color.Lerp(originalColor, targetColor, t);
-            yield return null;
-        }
+        // Pha 2: Trở về như cũ
+        leaveSeq.Append(transform.DOScale(originalScale, halfDuration).SetEase(Ease.InQuad));
+        leaveSeq.Join(spriteRenderer.DOColor(originalColor, halfDuration));
 
-        // Pha 2: Nhỏ lại về kích thước ban đầu và trả lại màu ban đầu
-        elapsed = 0f;
-        while (elapsed < halfDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
-
-            transform.localScale = Vector3.Lerp(targetScaleVec, originalScale, t);
-            spriteRenderer.color = Color.Lerp(targetColor, originalColor, t);
-            yield return null;
-        }
-
-        // Khóa chốt an toàn ở frame cuối cùng
-        transform.localScale = originalScale;
-        spriteRenderer.color = originalColor;
+        leaveSeq.SetLink(gameObject);
     }
 }

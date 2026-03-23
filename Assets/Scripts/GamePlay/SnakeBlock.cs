@@ -21,7 +21,7 @@ public class SnakeBlock : MonoBehaviour
     [Header("Corner & Spawn Settings")]
     [SerializeField] private float cornerRadius = 1f;
     [SerializeField] private int cornerSmoothSteps = 10;
-    [SerializeField] private float spawnSpeed = 100f;
+    [SerializeField] private float spawnSpeed = 50f;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
