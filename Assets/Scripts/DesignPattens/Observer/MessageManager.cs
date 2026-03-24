@@ -14,6 +14,7 @@ public enum ManhMessageType
     OnButtonClick,
     OnComplete,
     OnUnScrewTool,
+    OnShowAllPaths,
 }
 
 

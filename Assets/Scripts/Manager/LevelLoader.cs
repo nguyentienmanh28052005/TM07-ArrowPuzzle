@@ -51,6 +51,8 @@ public class LevelLoader : MonoBehaviour
             SnakeBlock snakeScript = snakeObj.AddComponent<SnakeBlock>();
             snakeScript.obstacleLayer = LayerMask.GetMask("Block");
 
+            snakeObj.AddComponent<ArrowGuideline>();
+
             List<Transform> mainSegments = new List<Transform>();
 
             for (int i = 0; i < snakeData.segmentPositions.Count; i++)

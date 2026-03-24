@@ -30,6 +30,8 @@ public class GameCanvas : MonoBehaviour
     [SerializeField] private float popupAnimDuration = 0.3f;
     [SerializeField] private float overlayAlpha = 0.75f;
 
+    private bool _isShowing = false;
+
     private List<GameObject> hearts;
     private int countHeart;
     private Vector3 _pauseOriginalScale;
@@ -171,7 +173,7 @@ public class GameCanvas : MonoBehaviour
 
         content.DOKill();
         Sequence seq = DOTween.Sequence();
-        seq.Join(content.DOScale(content.localScale * 1.1f, popupAnimDuration * 0.3f).SetEase(Ease.OutQuad));
+        seq.Join(content.DOScale(content.localScale * 1.02f, popupAnimDuration * 0.3f).SetEase(Ease.OutQuad));
         seq.Append(content.DOScale(Vector3.zero, popupAnimDuration * 0.7f).SetEase(Ease.InBack));
         seq.Join(panel.DOFade(0f, popupAnimDuration * 0.5f).SetDelay(popupAnimDuration * 0.5f));
         
@@ -180,7 +182,7 @@ public class GameCanvas : MonoBehaviour
         seq.OnComplete(() => 
         {
             panel.gameObject.SetActive(false);
-            onComplete?.Invoke();
+            onComplete?.Invoke();   
         });
     }
 
@@ -319,4 +321,11 @@ public class GameCanvas : MonoBehaviour
             if (img != null) img.color = Color.white;
         });
     }
+
+    public void ShowAllPaths()
+    {
+        _isShowing = !_isShowing;
+        MessageManager.Instance.SendMessage(ManhMessageType.OnShowAllPaths, _isShowing);
+    }
+
 }

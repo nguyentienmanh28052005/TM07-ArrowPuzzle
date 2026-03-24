@@ -21,7 +21,7 @@ public class SnakeBlock : MonoBehaviour
     [Header("Corner & Spawn Settings")]
     [SerializeField] private float cornerRadius = 1f;
     [SerializeField] private int cornerSmoothSteps = 10;
-    [SerializeField] private float spawnSpeed = 50f;
+    [SerializeField] private float spawnSpeed = 100f;
     public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
@@ -100,6 +100,11 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.endColor = snakeColor;
         lineRenderer.sortingOrder = 10;
         _originalWidthMultiplier = lineRenderer.widthMultiplier;
+    }
+
+    public void SetColorImmediatePublic(Color color)
+    {
+        SetColorImmediate(color);
     }
 
     public void SetFocusEffect(bool isFocused, float scaleFactor, float duration)

@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using UnityEngine.EventSystems; // BẮT BUỘC: Thư viện xử lý sự kiện UI
+using UnityEngine.EventSystems; 
 using DG.Tweening;
 using Solo.MOST_IN_ONE;
 
@@ -8,15 +8,18 @@ public class SnakeInput : MonoBehaviour
     [Header("Effect Settings")]
     public float scaleFactor = 1.3f;
     public float duration = 0.2f;
-    public float holdThreshold = 0.15f;
+    public float holdThreshold = 2f;
 
     [Header("Input Settings")]
     public float clickRadius = 0.8f;
     public bool useHaptics = true;
 
     private bool isPressed = false;
+    private bool isHolding = false;
+    
     private SnakeBlock parentScript;
     private Coroutine holdCoroutine;
+    private ArrowGuideline _guidelineCache;
 
     private void Awake()
     {
@@ -29,35 +32,32 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        if (parentScript != null)
+        {
+            _guidelineCache = parentScript.GetComponent<ArrowGuideline>();
+        }
+    }
+
     private void Update()
     {
-        // ==========================================
-        // LÁ CHẮN UI CHỐNG CLICK XUYÊN TÁO
-        // ==========================================
-        
-        // 1. Nếu game đang tạm dừng (TimeScale = 0), ngắt hoàn toàn thao tác
         if (Time.timeScale == 0f) return;
 
-        // 2. Nếu người chơi đang chạm vào bất kỳ UI nào (Nút Pause, Màn đen Overlay)
         if (IsPointerOverUI())
         {
-            // Bắt buộc phải nhả trạng thái Pressed ra nếu đang đè chuột rồi trượt vào UI
             if (isPressed) HandleInputUp(); 
-            return; // Thoát ngay lập tức, bỏ qua mọi lệnh click bên dưới
+            return; 
         }
 
-        // ==========================================
-        
         if (Input.GetMouseButtonDown(0)) HandleInputDown();
         if (Input.GetMouseButtonUp(0)) HandleInputUp();
     }
 
-    // Hàm phụ trợ bọc thép kiểm tra UI trên cả Máy tính lẫn Điện thoại
     private bool IsPointerOverUI()
     {
         if (EventSystem.current == null) return false;
 
-        // Xử lý riêng cho cảm ứng trên điện thoại Mobile
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
@@ -67,15 +67,12 @@ public class SnakeInput : MonoBehaviour
             }
         }
         
-        // Xử lý cho Chuột máy tính (hoặc Simulator)
         return EventSystem.current.IsPointerOverGameObject();
     }
 
     private void HandleInputDown()
     {
         if (CameraController.IsDragging) return;
-        
-        // Chặn click nếu mũi tên đang di chuyển hoặc đang lùi
         if (parentScript != null && parentScript.IsMoving) return;
 
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
@@ -84,7 +81,24 @@ public class SnakeInput : MonoBehaviour
         if (dist > clickRadius) return;
         if (!IsClosestToClick(mousePos)) return;
 
+        if (EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive)
+        {
+            CameraController.IsGameplayBlocking = true;
+            EraseManager.Instance.ExecuteErase(parentScript);
+            return; 
+        }
+
+        // =========================================================
+        // DẬP TẮT HINT NGAY KHI NGƯỜI CHƠI CHẠM VÀO MỘT CON RẮN BẤT KỲ
+        // =========================================================
+        if (HintManager.Instance != null)
+        {
+            HintManager.Instance.StopHintImmediate();
+        }
+
         isPressed = true;
+        isHolding = false; 
+        
         CameraController.IsGameplayBlocking = true;
 
         if (parentScript != null)
@@ -101,6 +115,7 @@ public class SnakeInput : MonoBehaviour
         if (!isPressed) return;
 
         isPressed = false;
+        isHolding = false;
         CameraController.IsGameplayBlocking = false;
 
         if (holdCoroutine != null) StopCoroutine(holdCoroutine);
@@ -110,33 +125,32 @@ public class SnakeInput : MonoBehaviour
             parentScript.SetFocusEffect(false, 1f, duration);
         }
 
+        if (_guidelineCache != null)
+        {
+            _guidelineCache.SetLineActive(false);
+        }
+
         bool willMove = false;
 
-        if (!CameraController.IsDragging)
+        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        if (Vector2.Distance(transform.position, mousePos) <= clickRadius)
         {
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            if (Vector2.Distance(transform.position, mousePos) <= clickRadius)
+            willMove = true;
+            if (parentScript != null)
             {
-                willMove = true;
-                if (parentScript != null)
+                AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
+                parentScript.OnHeadClicked();
+                
+                if (useHaptics) 
                 {
-                    AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
-                    parentScript.OnHeadClicked();
-                    
-                    if (useHaptics) // Cập nhật nhỏ: Bọc điều kiện useHaptics
-                    {
-                        MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.Selection);
-                    }
+                    MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.Selection);
                 }
             }
         }
 
-        if (parentScript != null)
+        if (parentScript != null && !willMove)
         {
-            if (!willMove)
-            {
-                parentScript.SetFocusColor(false, duration);
-            }
+            parentScript.SetFocusColor(false, duration);
         }
     }
 
@@ -144,18 +158,29 @@ public class SnakeInput : MonoBehaviour
     {
         if (isPressed)
         {
+            CameraController.IsGameplayBlocking = true;
+
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            if (Vector2.Distance(transform.position, mousePos) > clickRadius)
+            bool isInside = Vector2.Distance(transform.position, mousePos) <= clickRadius;
+
+            if (!isInside)
             {
-                isPressed = false;
-                CameraController.IsGameplayBlocking = false;
-
-                if (holdCoroutine != null) StopCoroutine(holdCoroutine);
-
+                if (_guidelineCache != null) _guidelineCache.SetLineActive(false);
                 if (parentScript != null)
                 {
-                    parentScript.SetFocusEffect(false, 1f, duration);
                     parentScript.SetFocusColor(false, duration);
+                }
+            }
+            else
+            {
+                if (isHolding) 
+                {
+                    if (_guidelineCache != null) _guidelineCache.SetLineActive(true);
+                }
+                
+                if (parentScript != null)
+                {
+                    parentScript.SetFocusColor(true, duration);
                 }
             }
         }
@@ -178,7 +203,14 @@ public class SnakeInput : MonoBehaviour
         yield return new WaitForSeconds(holdThreshold);
         if (isPressed && parentScript != null)
         {
+            isHolding = true; 
+
             parentScript.SetFocusEffect(true, scaleFactor, duration);
+            
+            if (_guidelineCache != null)
+            {
+                _guidelineCache.SetLineActive(true);
+            }
         }
     }
 

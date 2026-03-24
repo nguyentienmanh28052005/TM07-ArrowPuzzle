@@ -27,7 +27,7 @@ public class ComboManager : Singleton<ComboManager>
     [SerializeField] private Transform cameraContainer; 
 
     [Header("Visual Juice Settings")]
-    [SerializeField] private float maxRotationTilt = 15f; // Góc nghiêng tối đa (Trái/Phải)
+    [SerializeField] private float maxRotationTilt = 0f; // Góc nghiêng tối đa (Trái/Phải)
     [SerializeField] private List<ComboSettings> colorTierSettings; // KÉO THẢ VÀ PHỐI MÀU TRÊN INSPECTOR
 
     [Header("Kinetic Juice Settings")]
