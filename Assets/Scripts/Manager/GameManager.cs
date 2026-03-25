@@ -28,7 +28,7 @@ public class GameManager : Singleton<GameManager>
         // ==========================================
         // KHUNG HÌNH 1: Hâm nóng UI & Animation (DOTween)
         // ==========================================
-        DOTween.Init(true, true, LogBehaviour.ErrorsOnly).SetCapacity(100, 20); 
+        DOTween.Init(true, true, LogBehaviour.ErrorsOnly).SetCapacity(1000, 200); 
         yield return null; // Nghỉ 1 frame, trả quyền cho CPU vẽ màn hình
 
         // ==========================================

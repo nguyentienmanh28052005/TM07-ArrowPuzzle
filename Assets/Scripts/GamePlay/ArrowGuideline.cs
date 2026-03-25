@@ -1,10 +1,10 @@
 using UnityEngine;
 using Solo.MOST_IN_ONE;
 
-[RequireComponent(typeof(SnakeBlock))] // Ép script này phải nằm cùng nhà với SnakeBlock
+[RequireComponent(typeof(SnakeBlock))] 
 public class ArrowGuideline : MonoBehaviour
 {
-    [Header("Settings (Không cần kéo thả gì cả)")]
+    [Header("Settings")]
     [SerializeField] private float lineLength = 3000f;
     [SerializeField] private float lineWidth = 8f;
     [SerializeField] private float startOffset = 0f;
@@ -13,26 +13,35 @@ public class ArrowGuideline : MonoBehaviour
     private GameObject _guidelineRoot;
     private SnakeBlock _snakeBlock;
 
+    /// <summary>
+    /// Khởi tạo tham chiếu và gọi hàm sinh hình ảnh tia dóng lúc mới nạp.
+    /// </summary>
     private void Awake()
     {
         _snakeBlock = GetComponent<SnakeBlock>();
-        
-        // Tự động tạo hình ảnh Tia dóng bằng Code ngay khi sinh ra
         CreateGuidelineProcedurally();
-        
         SetLineActive(false);
     }
 
+    /// <summary>
+    /// Đăng ký lắng nghe sự kiện từ MessageManager khi Object được bật.
+    /// </summary>
     private void OnEnable()
     {
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnShowAllPaths, HandleShowAllPaths);
     }
 
+    /// <summary>
+    /// Hủy đăng ký lắng nghe sự kiện để chống lỗi tràn bộ nhớ khi Object bị tắt.
+    /// </summary>
     private void OnDisable()
     {
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnShowAllPaths, HandleShowAllPaths);
     }
 
+    /// <summary>
+    /// Xử lý tín hiệu bật/tắt hiển thị toàn bộ đường đi từ hệ thống.
+    /// </summary>
     private void HandleShowAllPaths(object data)
     {
         if (data is bool isShowing)
@@ -42,30 +51,31 @@ public class ArrowGuideline : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Tự động khởi tạo cấu trúc GameObject và SpriteRenderer cho tia dóng bằng code.
+    /// </summary>
     private void CreateGuidelineProcedurally()
     {
-        // 1. Tạo GameObject chứa trục xoay (Root)
         _guidelineRoot = new GameObject("Guideline_Root_Auto");
-        _guidelineRoot.transform.SetParent(transform); // Bám theo nốt Head
+        _guidelineRoot.transform.SetParent(transform); 
 
-        // 2. Tạo GameObject chứa Hình ảnh (Visual)
         GameObject visual = new GameObject("Guideline_Visual_Auto");
         visual.transform.SetParent(_guidelineRoot.transform);
 
-        // 3. Tự động thêm SpriteRenderer và "hô biến" ra một tấm ảnh màu trắng
         SpriteRenderer sr = visual.AddComponent<SpriteRenderer>();
-        Texture2D tex = Texture2D.whiteTexture; // Lấy ảnh trắng có sẵn trong lõi Unity
+        Texture2D tex = Texture2D.whiteTexture; 
         
-        // Đặt tâm Pivot ở dưới cùng (X = 0.5, Y = 0) để khi kéo dài nó chỉ mọc về 1 phía
         sr.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0f), 100f);
         sr.color = lineColor;
-        sr.sortingOrder = -1; // Ép chìm xuống dưới con rắn
+        sr.sortingOrder = -1; 
 
-        // 4. Định hình lại thành thanh tia laser
         visual.transform.localScale = new Vector3(lineWidth, lineLength, 1f);
         visual.transform.localPosition = Vector3.zero; 
     }
 
+    /// <summary>
+    /// Cập nhật liên tục vị trí của tia dóng vào cuối mỗi khung hình để chống giật lag.
+    /// </summary>
     private void LateUpdate()
     {
         if (_guidelineRoot != null && _guidelineRoot.activeSelf && _snakeBlock != null)
@@ -74,11 +84,13 @@ public class ArrowGuideline : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Tính toán và đồng bộ vị trí, góc xoay của tia dóng theo nốt đầu tiên của thân rắn.
+    /// </summary>
     private void UpdatePositionAndRotation()
     {
         if (_snakeBlock.bodySegments.Count == 0 || _snakeBlock.bodySegments[0] == null) return;
 
-        // Bám chặt vào Nốt Đầu Tiên (Head)
         Vector3 headPos = _snakeBlock.bodySegments[0].position;
         Vector3 moveDir = Vector3.up;
         float angle = 0f;
@@ -91,11 +103,13 @@ public class ArrowGuideline : MonoBehaviour
             case ArrowDir.Right: moveDir = Vector3.right; angle = -90f; break;
         }
 
-        // Đặt tia dóng nhích lên một chút cho khỏi đè vào đầu rắn
         _guidelineRoot.transform.position = headPos + (moveDir * startOffset);
         _guidelineRoot.transform.rotation = Quaternion.Euler(0, 0, angle);
     }
 
+    /// <summary>
+    /// Kích hoạt hoặc vô hiệu hóa trạng thái hiển thị của tia dóng.
+    /// </summary>
     public void SetLineActive(bool isActive)
     {
         if (_guidelineRoot != null) _guidelineRoot.SetActive(isActive);

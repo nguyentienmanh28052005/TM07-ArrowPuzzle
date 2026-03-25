@@ -16,7 +16,7 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private float maxMoveSpeed = 300f;   
     [SerializeField] private float acceleration = 160f;   
     [SerializeField] private float returnMoveSpeed = 25f;
-        private float _currentMoveSpeed;                      
+    private float _currentMoveSpeed;                      
 
     [Header("Corner & Spawn Settings")]
     [SerializeField] private float cornerRadius = 1f;
@@ -34,11 +34,8 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.35f;
 
-    // --- Job System Variables ---
     private NativeArray<Vector3> _nativeOriginalState;
     private NativeArray<Vector3> _nativeAllNodePositions;
-    
-    // BIẾN MỚI: Mảng quản lý đường ray tĩnh để vẽ hình siêu mượt
     private Vector3[] _managedOriginalState;
 
     private int _totalPoints;
@@ -63,20 +60,27 @@ public class SnakeBlock : MonoBehaviour
 
     private int _visiblePoints;
     private bool _isSpawning = false;
-    
-    
     private bool _hasDealtDamage = false;
 
+    /// <summary>
+    /// Khởi tạo các cấu hình mặc định cho LineRenderer.
+    /// </summary>
     private void Awake()
     {
         SetupLineRenderer();
     }
 
+    /// <summary>
+    /// Liên kết với LevelController khi bắt đầu vòng đời.
+    /// </summary>
     private void Start()
     {
         levelController = FindObjectOfType<LevelController>();
     }
 
+    /// <summary>
+    /// Giải phóng Native Arrays và hoàn thành Job System để chống rò rỉ bộ nhớ khi bị Destroy.
+    /// </summary>
     private void OnDestroy()
     {
         if (_isJobRunning) _jobHandle.Complete(); 
@@ -84,6 +88,9 @@ public class SnakeBlock : MonoBehaviour
         if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
     }
 
+    /// <summary>
+    /// Cài đặt thông số chi tiết (Width, Material, Color, Alignment) cho LineRenderer.
+    /// </summary>
     private void SetupLineRenderer()
     {
         lineRenderer = GetComponent<LineRenderer>();
@@ -102,11 +109,17 @@ public class SnakeBlock : MonoBehaviour
         _originalWidthMultiplier = lineRenderer.widthMultiplier;
     }
 
+    /// <summary>
+    /// Hàm công khai cho phép các hệ thống khác ép thay đổi màu sắc ngay lập tức.
+    /// </summary>
     public void SetColorImmediatePublic(Color color)
     {
         SetColorImmediate(color);
     }
 
+    /// <summary>
+    /// Tạo hiệu ứng thu phóng thân rắn khi người chơi chọn (Focus).
+    /// </summary>
     public void SetFocusEffect(bool isFocused, float scaleFactor, float duration)
     {
         if (lineRenderer != null)
@@ -135,12 +148,18 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Chuyển đổi mềm mại màu sắc của rắn dựa trên trạng thái Focus.
+    /// </summary>
     public void SetFocusColor(bool isFocusing, float duration)
     {
         Color targetColor = isFocusing ? snakeMoveColor : snakeColor;
         RunColorTween(targetColor, duration);
     }
 
+    /// <summary>
+    /// Đảm nhiệm việc chạy DOTween chuyển màu cho tất cả các thành phần trực quan.
+    /// </summary>
     private void RunColorTween(Color targetColor, float duration)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
@@ -150,6 +169,9 @@ public class SnakeBlock : MonoBehaviour
             .SetLink(gameObject);
     }
 
+    /// <summary>
+    /// Áp dụng ngay lập tức một màu sắc chỉ định, bỏ qua Tween.
+    /// </summary>
     private void SetColorImmediate(Color color)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
@@ -157,6 +179,9 @@ public class SnakeBlock : MonoBehaviour
         ApplyColorToAll(color);
     }
 
+    /// <summary>
+    /// Cập nhật màu sắc cho LineRenderer và tất cả các nốt Sprite liên quan.
+    /// </summary>
     private void ApplyColorToAll(Color color)
     {
         if (lineRenderer != null)
@@ -182,11 +207,17 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Được gọi bởi Input khi người chơi bấm hợp lệ vào nốt đầu để kích hoạt di chuyển.
+    /// </summary>
     public void OnHeadClicked()
     {
         if (!_isMoving && !_isSpawning) StartCoroutine(ProcessMovement());
     }
 
+    /// <summary>
+    /// Coroutine cốt lõi xử lý toàn bộ logic di chuyển, va chạm, và hoạt ảnh của rắn.
+    /// </summary>
     private IEnumerator ProcessMovement()
     {
         _isMoving = true;
@@ -200,62 +231,50 @@ public class SnakeBlock : MonoBehaviour
 
         int _lastProcessedGrid = 0;
 
-        // === BƯỚC 1: KHÁM ĐƯỜNG (PRE-FLIGHT CHECK) ===
-        // Quét một tia siêu dài (100 units) để xem đường ra khỏi map có trống không
         float initialPathCheck = CheckObstacleDistance(moveDir);
         bool isGhostMode = (initialPathCheck == float.MaxValue);
 
-        // Nếu đường hoàn toàn trống -> Bật chế độ Tàng hình vật lý
         if (isGhostMode)
         {
             ComboManager.Instance.AddCombo(); 
-            // Tắt toàn bộ Collider để các mũi tên khác có thể bay xuyên qua con rắn này
             foreach (var col in _myColliders)
             {
                 if (col != null) col.enabled = false;
             }
         }
-        // ==============================================
 
         while (true)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
 
-            // === BƯỚC 2: CHỈ XÉT VA CHẠM NẾU KHÔNG PHẢI GHOST MODE ===
             if (!isGhostMode)
             {
                 float distToObstacle = CheckObstacleDistance(moveDir);
                 float stepDist = safeDeltaTime * _currentMoveSpeed;
 
-                // Nếu chuẩn bị đâm tường trong frame này
                 if (distToObstacle < stepDist + 0.9f)
                 {
-                    // CẬP NHẬT: CHỈ TRỪ MÁU TRONG LẦN ĐÂM ĐẦU TIÊN
                     if (!_hasDealtDamage)
                     {
                         MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
-                        _hasDealtDamage = true; // Đánh dấu đã trừ máu
+                        _hasDealtDamage = true; 
                     }
                     ComboManager.Instance.StopCombo();
-                    // Phản hồi xúc giác & Âm thanh luôn bật để người chơi biết đã đâm
                     AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
                     SetColorImmediate(snakeTakeHitColor);
                     MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
 
                     yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
                     yield return StartCoroutine(ReturnToOrigin(moveDir));
-                    break; // Phải thoát vòng lặp sau khi bị dội về
+                    break; 
                 }
             }
-            // =========================================================
 
-            // === BƯỚC 3: DI CHUYỂN BÌNH THƯỜNG ===
             _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * safeDeltaTime);
             _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
             
             UpdateSnakePosition(_accumulatedShift, moveDir);
 
-            // === BƯỚC 4: VÉT LƯỚI (CATCH-UP ANIMATION) ===
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
             while (_lastProcessedGrid < currentGridProgress)
             {
@@ -267,7 +286,6 @@ public class SnakeBlock : MonoBehaviour
                 _lastProcessedGrid++;
             }
 
-            // === BƯỚC 5: KIỂM TRA RA KHỎI MAP ===
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
             {
                 Destroy(gameObject);
@@ -280,13 +298,15 @@ public class SnakeBlock : MonoBehaviour
                 outed = true;
             }
 
-            // Kết thúc khung hình, trả quyền cho luồng đồ họa
             yield return null;
         }
 
         _isMoving = false;
     }
 
+    /// <summary>
+    /// Bắn tia Raycast để tìm khoảng cách tới vật cản gần nhất trên hướng đi.
+    /// </summary>
     private float CheckObstacleDistance(Vector3 dir)
     {
         if (_totalPoints == 0 || !_isInitialized) return 0f;
@@ -299,9 +319,6 @@ public class SnakeBlock : MonoBehaviour
         }
 
         Vector3 startPos = _nativeAllNodePositions[0];
-        
-        // CẬP NHẬT: Tăng khoảng cách quét (Raycast length) từ 20f lên 100f 
-        // để đảm bảo tia sáng quét xuyên thấu ra tận rìa ngoài cùng của bản đồ
         RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 100f, obstacleLayer);
         
         float closestDist = float.MaxValue;
@@ -320,15 +337,15 @@ public class SnakeBlock : MonoBehaviour
         return found ? closestDist : float.MaxValue;
     }
 
+    /// <summary>
+    /// Coroutine xử lý va chạm sát tường khi không thể tiến thêm.
+    /// </summary>
     private IEnumerator HitObstacle(Vector3 dir, float distance)
     {
         float startShift = _accumulatedShift;
-        
-        // Tính quãng đường để đâm sát mặt vào tường
         float travelDist = Mathf.Max(0f, distance - 0.1f); 
         float targetShift = startShift + (travelDist * _nodesPerUnit);
         
-        // GIAI ĐOẠN ĐÂM VÀO: Sử dụng đúng tốc độ đang đi (_currentMoveSpeed)
         while (_accumulatedShift < targetShift)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
@@ -340,18 +357,17 @@ public class SnakeBlock : MonoBehaviour
             
             yield return null;
         }
-
-        // Đã xóa bỏ hoàn toàn giai đoạn bật lại (Recoil).
-        // Hàm sẽ kết thúc ngay tại đây và nhả quyền điều khiển thẳng cho ReturnToOrigin.
     }
 
+    /// <summary>
+    /// Đảo ngược tiến trình di chuyển, kéo rắn từ điểm va chạm dội ngược về vị trí xuất phát.
+    /// </summary>
     private IEnumerator ReturnToOrigin(Vector3 dir)
     {
         while (_accumulatedShift > 0f)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
             
-            // CẬP NHẬT: Sử dụng tốc độ lùi cố định (returnMoveSpeed)
             _accumulatedShift -= safeDeltaTime * returnMoveSpeed * _nodesPerUnit;
             
             if (_accumulatedShift < 0f) _accumulatedShift = 0f;
@@ -369,6 +385,9 @@ public class SnakeBlock : MonoBehaviour
         SyncMainSegments();
     }
 
+    /// <summary>
+    /// Tính toán tọa độ lưới (Grid) hiện tại của cái đuôi dựa trên tiến độ di chuyển.
+    /// </summary>
     private Vector2Int GetTailGridPosAtProgress(int gridsMoved)
     {
         int nodesMoved = gridsMoved * _nodesPerUnit;
@@ -389,6 +408,9 @@ public class SnakeBlock : MonoBehaviour
         return new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
     }
 
+    /// <summary>
+    /// Khởi tạo và cắt nội suy (Slicing) đường đi dựa trên các nốt cơ bản do Editor cung cấp.
+    /// </summary>
     public void Initialize(ArrowDir dir, List<Transform> mainSegments, int resolution, Color color)
     {
         snakeColor = color;
@@ -467,7 +489,6 @@ public class SnakeBlock : MonoBehaviour
             _segmentStartIndices.Add(0);
         }
 
-        // --- CẬP NHẬT MỚI: Sao chép mảng tĩnh để phục vụ vẽ LineRenderer ---
         _managedOriginalState = new Vector3[_totalPoints];
         _nativeOriginalState.CopyTo(_managedOriginalState);
 
@@ -485,12 +506,18 @@ public class SnakeBlock : MonoBehaviour
         StartCoroutine(PlaySpawnAnimationFromTail());
     }
 
+    /// <summary>
+    /// Vô hiệu hóa hoặc kích hoạt hiển thị của một nốt cụ thể.
+    /// </summary>
     private void SetSegmentVisible(Transform seg, bool visible)
     {
         var renderers = seg.GetComponentsInChildren<SpriteRenderer>();
         foreach (var sr in renderers) sr.enabled = visible;
     }
 
+    /// <summary>
+    /// Hiệu ứng tuôn trào các nốt dọc theo thân rắn từ đuôi lên đầu lúc khởi tạo.
+    /// </summary>
     private IEnumerator PlaySpawnAnimationFromTail()
     {
         _isSpawning = true;
@@ -531,6 +558,9 @@ public class SnakeBlock : MonoBehaviour
         _forceRedraw = true;
     }
 
+    /// <summary>
+    /// Lên lịch trình cho C# Job System để tính toán vị trí của hàng trăm nốt một cách song song.
+    /// </summary>
     private void UpdateSnakePosition(float shift, Vector3 moveDir)
     {
         if (!_isInitialized) return;
@@ -554,6 +584,9 @@ public class SnakeBlock : MonoBehaviour
         _isJobRunning = true;
     }
 
+    /// <summary>
+    /// Đồng bộ Job System và vẽ lại LineRenderer vào cuối mỗi khung hình.
+    /// </summary>
     private void LateUpdate()
     {
         if (_isJobRunning)
@@ -570,41 +603,18 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    // private float CheckObstacleDistance(Vector3 dir)
-    // {
-    //     if (_totalPoints == 0 || !_isInitialized) return 0f;
-
-    //     if (_isJobRunning)
-    //     {
-    //         _jobHandle.Complete();
-    //         _isJobRunning = false;
-    //         SyncMainSegments();
-    //     }
-
-    //     Vector3 startPos = _nativeAllNodePositions[0];
-    //     RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 20f, obstacleLayer);
-    //     float closestDist = float.MaxValue;
-    //     bool found = false;
-    //     foreach (var hit in hits)
-    //     {
-    //         if (hit.collider != null && !IsMyCollider(hit.collider))
-    //         {
-    //             if (hit.distance < closestDist)
-    //             {
-    //                 closestDist = hit.distance;
-    //                 found = true;
-    //             }
-    //         }
-    //     }
-    //     return found ? closestDist : float.MaxValue;
-    // }
-
+    /// <summary>
+    /// Kiểm tra xem một Collider có thuộc về cơ thể của chính con rắn này hay không.
+    /// </summary>
     private bool IsMyCollider(Collider2D col)
     {
         if (_myColliders == null) return false;
         return _myColliders.Contains(col);
     }
 
+    /// <summary>
+    /// Struct Job System tối ưu hóa khả năng tính toán quỹ đạo dựa trên chỉ số nội suy.
+    /// </summary>
     [BurstCompile]
     struct CalculateSnakePositionJob : IJobParallelFor
     {
@@ -643,6 +653,9 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Đồng bộ vị trí thực tế của các Transform (nốt gắn Component) với dữ liệu đã tính toán trong Job.
+    /// </summary>
     private void SyncMainSegments()
     {
         for (int k = 0; k < bodySegments.Count; k++)
@@ -661,15 +674,13 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    // =========================================================
-    // KHU VỰC CẬP NHẬT: THUẬT TOÁN "PATH SLICING" VẼ HÌNH TUYỆT ĐỐI
-    // =========================================================
-
+    /// <summary>
+    /// Tính toán các điểm vẽ cho LineRenderer dựa trên quỹ đạo tĩnh (Path Slicing).
+    /// </summary>
     private void UpdateLineRenderer()
     {
         if (lineRenderer == null || _totalPoints <= 0 || !_isInitialized) return;
 
-        // Tính toán vị trí "đầu" và "đuôi" theo chỉ số mảng
         float headTrackIdx = -_accumulatedShift;
         float tailTrackIdx = -_accumulatedShift + (_totalPoints - 1);
 
@@ -681,26 +692,22 @@ public class SnakeBlock : MonoBehaviour
 
         List<Vector3> renderPoints = new List<Vector3>();
 
-        // 1. Luôn chèn chính xác vị trí cái Đầu
         renderPoints.Add(GetPositionAtTrackIndex(headTrackIdx));
 
-        // 2. Chèn toàn bộ các điểm TĨNH nằm giữa phần Đầu và phần Đuôi
         int firstStatic = Mathf.CeilToInt(headTrackIdx);
         int lastStatic = Mathf.FloorToInt(tailTrackIdx);
 
         for (int i = firstStatic; i <= lastStatic; i++)
         {
-            // Tránh chèn trùng lặp nếu Đầu/Đuôi nằm chính xác trên điểm lưới
             if (i > headTrackIdx + 0.001f && i < tailTrackIdx - 0.001f)
             {
                 if (i >= 0 && i < _totalPoints)
                 {
-                    renderPoints.Add(_managedOriginalState[i]); // Lấy từ mảng tĩnh
+                    renderPoints.Add(_managedOriginalState[i]); 
                 }
             }
         }
 
-        // 3. Luôn chèn chính xác vị trí cái Đuôi
         if (tailTrackIdx > headTrackIdx + 0.001f)
         {
             renderPoints.Add(GetPositionAtTrackIndex(tailTrackIdx));
@@ -708,7 +715,6 @@ public class SnakeBlock : MonoBehaviour
 
         Vector3[] finalPoints = renderPoints.ToArray();
 
-        // Đưa qua hàm Smooth góc cua (Bây giờ nó sẽ mượt hoàn hảo vì các điểm góc đã bị đóng băng)
         if (finalPoints.Length > 2 && cornerRadius > 0f)
         {
             finalPoints = BuildSmoothedPositionsForRender(finalPoints);
@@ -718,7 +724,9 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.SetPositions(finalPoints);
     }
 
-    // Hàm phụ trợ lấy chính xác tọa độ trượt trên đường ray tĩnh
+    /// <summary>
+    /// Nội suy và trả về tọa độ chính xác của một điểm bất kỳ trên quỹ đạo.
+    /// </summary>
     private Vector3 GetPositionAtTrackIndex(float trackIndex)
     {
         if (trackIndex <= 0)
@@ -738,6 +746,9 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Phân tích quỹ đạo và tạo các đường cong mềm mại tại các nốt thắt (Góc vuông).
+    /// </summary>
     private Vector3[] BuildSmoothedPositionsForRender(Vector3[] positions)
     {
         if (positions.Length < 3) return positions;
@@ -795,6 +806,9 @@ public class SnakeBlock : MonoBehaviour
         return result.ToArray();
     }
 
+    /// <summary>
+    /// Đồng bộ góc xoay của phần hình ảnh đầu rắn để luôn chỉ đúng hướng chuẩn.
+    /// </summary>
     public void UpdateVisualRotation()
     {
         if (arrowVisual == null) return;
@@ -809,6 +823,9 @@ public class SnakeBlock : MonoBehaviour
         arrowVisual.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
+    /// <summary>
+    /// Chuyển đổi trạng thái enum ArrowDir thành Vector3 định hướng vật lý.
+    /// </summary>
     private Vector3 GetDirVector(ArrowDir dir)
     {
         switch (dir)

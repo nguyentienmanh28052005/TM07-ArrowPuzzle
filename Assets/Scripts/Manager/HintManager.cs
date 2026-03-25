@@ -18,7 +18,7 @@ public class HintManager : MonoBehaviour
     [SerializeField] private float hintDuration = 2f;
     
     private bool _isHinting = false;
-    private Sequence _currentHintSeq; // LƯU TRỮ HIỆU ỨNG ĐỂ NGẮT KHẨN CẤP
+    private Sequence _currentHintSeq; 
 
     private void Awake()
     {
@@ -30,6 +30,9 @@ public class HintManager : MonoBehaviour
     {
         if (_isHinting) return; 
         if (Time.timeScale == 0f) return; 
+        
+        // BỌC THÉP: Cấm bật Hint khi Cục tẩy đang chạy làm nhiệm vụ
+        if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         SnakeBlock targetToHint = FindBestMove();
 
@@ -80,7 +83,6 @@ public class HintManager : MonoBehaviour
         var guideline = snake.GetComponent<ArrowGuideline>();
         Color originalColor = snake.snakeColor;
 
-        // Dọn dẹp hiệu ứng cũ nếu có
         if (_currentHintSeq != null && _currentHintSeq.IsActive()) _currentHintSeq.Kill();
 
         _currentHintSeq = DOTween.Sequence();
@@ -108,9 +110,6 @@ public class HintManager : MonoBehaviour
         _currentHintSeq.SetLink(snake.gameObject);
     }
 
-    // =========================================================
-    // CÔNG TẮC NGẮT KHẨN CẤP (Gọi từ SnakeInput)
-    // =========================================================
     public void StopHintImmediate()
     {
         if (_currentHintSeq != null && _currentHintSeq.IsActive())

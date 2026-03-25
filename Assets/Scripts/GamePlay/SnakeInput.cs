@@ -21,6 +21,9 @@ public class SnakeInput : MonoBehaviour
     private Coroutine holdCoroutine;
     private ArrowGuideline _guidelineCache;
 
+    /// <summary>
+    /// Thiết lập tham chiếu ban đầu và vô hiệu hóa input nếu đang ở chế độ Level Editor.
+    /// </summary>
     private void Awake()
     {
         parentScript = GetComponentInParent<SnakeBlock>();
@@ -32,6 +35,9 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Cấu hình bộ đệm cho tia dóng từ script cha.
+    /// </summary>
     private void Start()
     {
         if (parentScript != null)
@@ -40,6 +46,9 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Kiểm tra liên tục các trạng thái tương tác chuột/cảm ứng mỗi khung hình.
+    /// </summary>
     private void Update()
     {
         if (Time.timeScale == 0f) return;
@@ -54,6 +63,9 @@ public class SnakeInput : MonoBehaviour
         if (Input.GetMouseButtonUp(0)) HandleInputUp();
     }
 
+    /// <summary>
+    /// Xác định xem ngón tay/chuột của người chơi có đang chạm vào một thành phần UI nào đó hay không.
+    /// </summary>
     private bool IsPointerOverUI()
     {
         if (EventSystem.current == null) return false;
@@ -70,10 +82,15 @@ public class SnakeInput : MonoBehaviour
         return EventSystem.current.IsPointerOverGameObject();
     }
 
+    /// <summary>
+    /// Xử lý logic khởi điểm khi người chơi nhấn xuống một mũi tên hợp lệ.
+    /// </summary>
     private void HandleInputDown()
     {
         if (CameraController.IsDragging) return;
         if (parentScript != null && parentScript.IsMoving) return;
+
+        if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         float dist = Vector2.Distance(transform.position, mousePos);
@@ -88,9 +105,6 @@ public class SnakeInput : MonoBehaviour
             return; 
         }
 
-        // =========================================================
-        // DẬP TẮT HINT NGAY KHI NGƯỜI CHƠI CHẠM VÀO MỘT CON RẮN BẤT KỲ
-        // =========================================================
         if (HintManager.Instance != null)
         {
             HintManager.Instance.StopHintImmediate();
@@ -110,6 +124,9 @@ public class SnakeInput : MonoBehaviour
         holdCoroutine = StartCoroutine(WaitAndScale());
     }
 
+    /// <summary>
+    /// Xử lý logic giải phóng khi người chơi nhấc ngón tay, kích hoạt tiến trình di chuyển nếu hợp lệ.
+    /// </summary>
     private void HandleInputUp()
     {
         if (!isPressed) return;
@@ -154,6 +171,9 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Kiểm soát trạng thái hiển thị của các hiệu ứng phụ (Tia dóng, Màu nổi bật) trong suốt quá trình giữ tay.
+    /// </summary>
     private void LateUpdate()
     {
         if (isPressed)
@@ -186,6 +206,9 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Phân giải điểm chạm để tìm ra Input gần nhất, chống việc click nhầm nhiều rắn đè lên nhau.
+    /// </summary>
     private bool IsClosestToClick(Vector2 clickPos)
     {
         Collider2D[] hits = Physics2D.OverlapCircleAll(clickPos, clickRadius);
@@ -198,6 +221,9 @@ public class SnakeInput : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Luồng xử lý thời gian đệm để xác nhận hành vi "Hold" (Giữ lâu) từ người chơi.
+    /// </summary>
     private System.Collections.IEnumerator WaitAndScale()
     {
         yield return new WaitForSeconds(holdThreshold);
@@ -214,12 +240,18 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Dọn dẹp Animation và mở khóa GamePlay khi Object bị tiêu hủy.
+    /// </summary>
     private void OnDestroy()
     {
         transform.DOKill();
         if (isPressed) CameraController.IsGameplayBlocking = false;
     }
 
+    /// <summary>
+    /// Hỗ trợ vẽ vòng tròn nhận diện click trên Scene View trong Editor.
+    /// </summary>
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
