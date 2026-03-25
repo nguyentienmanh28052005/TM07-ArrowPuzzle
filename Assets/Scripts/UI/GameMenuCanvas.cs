@@ -28,6 +28,10 @@ public class GameMenuCanvas : MonoBehaviour
     [Header("Level Generation")]
     [SerializeField] private List<GameObject> listLevelButtons;
 
+
+    [SerializeField] private TextMeshProUGUI textCoin;
+    [SerializeField] private TextMeshProUGUI textDiamond;
+
     private bool _hasStarted = false;
     private CanvasGroup _currentPanel; 
     #endregion
@@ -37,6 +41,7 @@ public class GameMenuCanvas : MonoBehaviour
     {
         _hasStarted = true;
         UpdateLevelUI(); 
+        UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
 
         HidePanelImmediate(panelShop);
         HidePanelImmediate(panelSetting);
@@ -49,8 +54,10 @@ public class GameMenuCanvas : MonoBehaviour
         if (_hasStarted)
         {
             UpdateLevelUI();
+            UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
         }
     }
+
     #endregion
 
     #region [ LOGIC TAB NAVIGATION & PANEL SWITCHER ]
@@ -155,6 +162,12 @@ public class GameMenuCanvas : MonoBehaviour
         {
             if (textLevel != null) textLevel.text = "Lỗi UI Tổng: " + e.Message;
         }
+    }
+
+    public void UpdateCurrencyUI(int coins, int diamonds)
+    {
+        if (textCoin != null) textCoin.text = coins.ToString();
+        if (textDiamond != null) textDiamond.text = diamonds.ToString();
     }
 
     private void UpdateLevelButtons()

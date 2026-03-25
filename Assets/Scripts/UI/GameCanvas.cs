@@ -1,4 +1,5 @@
-﻿using DG.Tweening;
+﻿using System.Net.Mime;
+using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -25,6 +26,8 @@ public class GameCanvas : MonoBehaviour
     [SerializeField] private CanvasGroup completePanel;
     [SerializeField] private Transform completeContent;
     [SerializeField] private ParticleSystem completeParticle;
+    [SerializeField] private TextMeshProUGUI coinText;
+    [SerializeField] private TextMeshProUGUI diamondText;
 
     [Header("Juice Settings")]
     [SerializeField] private float popupAnimDuration = 0.3f;

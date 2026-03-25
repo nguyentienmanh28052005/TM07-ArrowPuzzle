@@ -15,6 +15,9 @@ public enum ManhMessageType
     OnComplete,
     OnUnScrewTool,
     OnShowAllPaths,
+
+    OnCoinChanged,
+    OnDiamondChanged,
 }
 
 

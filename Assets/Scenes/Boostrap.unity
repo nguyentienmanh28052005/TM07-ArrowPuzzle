@@ -736,6 +736,64 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1672180460
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1672180462}
+  - component: {fileID: 1672180461}
+  - component: {fileID: 1672180463}
+  m_Layer: 0
+  m_Name: CurrencyManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1672180461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1672180460}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d84f2d698d4c26847b19b1d3385a8300, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _dontDestroyOnLoad: 1
+--- !u!4 &1672180462
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1672180460}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1346.3319, y: 2878.9495, z: -6.7758245}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1672180463
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1672180460}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bd2f8eaed3f15342b2432cb20836805, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &2027040294476988344
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -797,7 +855,7 @@ PrefabInstance:
     - target: {fileID: 3667331962432866190, guid: 6b72279db2bc98948aba768426b8938f,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -5
+      value: -4.9999695
       objectReference: {fileID: 0}
     - target: {fileID: 5073719301693592686, guid: 6b72279db2bc98948aba768426b8938f,
         type: 3}
@@ -858,6 +916,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: SceneController
+      objectReference: {fileID: 0}
+    - target: {fileID: 8835035804343635376, guid: 6b72279db2bc98948aba768426b8938f,
+        type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -943,3 +1006,4 @@ SceneRoots:
   - {fileID: 1631200889}
   - {fileID: 334846332}
   - {fileID: 1435478205}
+  - {fileID: 1672180462}

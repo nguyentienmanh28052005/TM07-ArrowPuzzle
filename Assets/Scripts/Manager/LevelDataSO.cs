@@ -1,11 +1,14 @@
 using System.Collections.Generic;
+using MemoryPack;
 using UnityEngine;
 
 /// <summary>
 /// Cấu trúc dữ liệu lưu trữ trạng thái của một con rắn đơn lẻ trên bàn cờ.
 /// </summary>
+/// 
 [System.Serializable]
-public class SnakeSaveData
+[MemoryPackable]
+public partial class SnakeSaveData
 {
     public ArrowDir direction;
     public Color arrowColor;

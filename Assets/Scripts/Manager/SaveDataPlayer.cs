@@ -5,10 +5,19 @@ using MemoryPack;
 using Cysharp.Threading.Tasks;
 using Pixelplacement;
 
+
+[MemoryPackable]
+public partial class InProgressLevelData
+{
+    public int LevelIndex { get; set; }
+    public List<SnakeSaveData> RemainingSnakes { get; set; } = new List<SnakeSaveData>();
+}
+
 [MemoryPackable]
 public partial class PlayerSaveData
 {
     public Dictionary<int, float> Items { get; set; } = new Dictionary<int, float>();
+    public InProgressLevelData SavedLevelState { get; set; } = null;
 
     public PlayerSaveData() { }
 }
@@ -134,5 +143,48 @@ public class SaveDataPlayer : Singleton<SaveDataPlayer>
         {
             SaveAllDataAndWriteToDisk();
         }
+    }
+
+    /// <summary>
+    /// Chụp ảnh bàn cờ hiện tại và lưu vào File Save.
+    /// Hàm này nên được gọi mỗi khi có một con rắn bay ra khỏi màn hình thành công.
+    /// </summary>
+    public void SaveCurrentBoardState()
+    {
+        InProgressLevelData progressData = new InProgressLevelData();
+        progressData.LevelIndex = GameManager.Instance.level;
+
+        // Quét toàn bộ rắn còn sống trên bàn cờ
+        SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
+        foreach (SnakeBlock sb in allSnakes)
+        {
+            if (sb.IsMoving || sb.bodySegments.Count == 0) continue; // Bỏ qua rắn đang bay hoặc sắp chết
+
+            SnakeSaveData data = new SnakeSaveData();
+            data.direction = sb.direction;
+            data.arrowColor = sb.snakeColor;
+
+            foreach (Transform seg in sb.bodySegments)
+            {
+                if (seg != null)
+                {
+                    data.segmentPositions.Add(new Vector2Int(Mathf.RoundToInt(seg.position.x), Mathf.RoundToInt(seg.position.y)));
+                }
+            }
+            progressData.RemainingSnakes.Add(data);
+        }
+
+        saveData.SavedLevelState = progressData;
+        SaveDataAsync().Forget(); // Ghi file ngầm
+        Debug.Log("Đã lưu trạng thái bàn cờ dở dang!");
+    }
+
+    /// <summary>
+    /// Xóa trạng thái chơi dở (Khi người chơi thua hoặc ấn nút Restart)
+    /// </summary>
+    public void ClearBoardState()
+    {
+        saveData.SavedLevelState = null;
+        SaveDataAsync().Forget();
     }
 }
