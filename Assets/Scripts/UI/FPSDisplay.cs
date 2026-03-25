@@ -11,11 +11,17 @@ public class FPSDisplay : MonoBehaviour
     private float[] frameDeltaTimeArray;
     public TextMeshProUGUI _Text;
 
+    /// <summary>
+    /// Khởi tạo mảng lưu trữ thời gian của 50 khung hình gần nhất.
+    /// </summary>
     private void Awake()
     {
         frameDeltaTimeArray = new float[50];
     }
 
+    /// <summary>
+    /// Ghi nhận thời gian khung hình và cập nhật UI liên tục.
+    /// </summary>
     private void Update()
     {
         frameDeltaTimeArray[lastFrameIndex] = Time.unscaledDeltaTime;
@@ -23,6 +29,9 @@ public class FPSDisplay : MonoBehaviour
         _Text.text = Mathf.RoundToInt(CalculateFPS()).ToString();
     }
 
+    /// <summary>
+    /// Tính toán chỉ số FPS trung bình dựa trên mảng lịch sử khung hình.
+    /// </summary>
     private float CalculateFPS()
     {
         float total = 0f;

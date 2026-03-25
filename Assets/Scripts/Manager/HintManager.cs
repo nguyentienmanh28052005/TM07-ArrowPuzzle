@@ -8,30 +8,30 @@ public class HintManager : MonoBehaviour
     public static HintManager Instance;
 
     [Header("Hint Settings")]
-    [Tooltip("Layer chứa các vật cản (Tường, Mũi tên khác)")]
     public LayerMask obstacleLayer;
-    
-    [Tooltip("Màu sắc khi mũi tên nhấp nháy gợi ý")]
     public Color hintGlowColor = Color.yellow;
-
-    [Tooltip("Thời gian tồn tại của một gợi ý (giây)")]
     [SerializeField] private float hintDuration = 2f;
     
     private bool _isHinting = false;
     private Sequence _currentHintSeq; 
 
+    /// <summary>
+    /// Khởi tạo Singleton.
+    /// </summary>
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
 
+    /// <summary>
+    /// Bắt đầu quá trình tìm kiếm và hiển thị gợi ý nước đi cho người chơi.
+    /// </summary>
     public void TriggerHint()
     {
         if (_isHinting) return; 
         if (Time.timeScale == 0f) return; 
         
-        // BỌC THÉP: Cấm bật Hint khi Cục tẩy đang chạy làm nhiệm vụ
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         SnakeBlock targetToHint = FindBestMove();
@@ -46,6 +46,9 @@ public class HintManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Thuật toán BoxCast quét toàn bộ bàn cờ để tìm ra mũi tên có đường thông thoáng nhất.
+    /// </summary>
     private SnakeBlock FindBestMove()
     {
         SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
@@ -76,6 +79,9 @@ public class HintManager : MonoBehaviour
         return null;
     }
 
+    /// <summary>
+    /// Quản lý chuỗi Tween bật tắt tia dóng và nhấp nháy màu vàng.
+    /// </summary>
     private void PlayHintAnimation(SnakeBlock snake)
     {
         _isHinting = true;
@@ -110,6 +116,9 @@ public class HintManager : MonoBehaviour
         _currentHintSeq.SetLink(snake.gameObject);
     }
 
+    /// <summary>
+    /// Ép buộc kết thúc ngay lập tức hiệu ứng Hint hiện tại (Gọi từ Input).
+    /// </summary>
     public void StopHintImmediate()
     {
         if (_currentHintSeq != null && _currentHintSeq.IsActive())
@@ -118,6 +127,9 @@ public class HintManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Phân biệt đối tượng va chạm có phải là cơ thể của chính con rắn đang xét hay không.
+    /// </summary>
     private bool IsColliderBelongToSnake(Collider2D col, SnakeBlock snake)
     {
         Collider2D[] myColliders = snake.GetComponentsInChildren<Collider2D>();
@@ -128,6 +140,9 @@ public class HintManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Chuyển đổi trạng thái Enum thành Vector di chuyển.
+    /// </summary>
     private Vector3 GetDirVector(ArrowDir dir)
     {
         switch (dir)

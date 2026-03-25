@@ -12,55 +12,44 @@ public class GameManager : Singleton<GameManager>
     public List<LevelDataSO> levelDataSOs;
     public int level = 1;
     public int currentMaxLevel = 3;
-    
-    // Cờ trạng thái chống xung đột animation
     public bool isGameOver = false; 
 
+    /// <summary>
+    /// Đẩy quá trình khởi tạo các thư viện nặng sang luồng bất đồng bộ để chống đứng hình.
+    /// </summary>
     void Awake()
     {
-        // Chuyển toàn bộ gánh nặng khởi tạo sang một luồng chạy ngầm (Coroutine)
-        // Việc này giúp Main Thread không bị nghẽn, màn hình game không bị giật (freeze)
         StartCoroutine(PrewarmAsyncRoutine());
     }
 
+    /// <summary>
+    /// Coroutine chịu trách nhiệm mồi (Warm-up) Engine Vật Lý, Burst Compiler và hệ thống Audio.
+    /// </summary>
     private IEnumerator PrewarmAsyncRoutine()
     {
-        // ==========================================
-        // KHUNG HÌNH 1: Hâm nóng UI & Animation (DOTween)
-        // ==========================================
         DOTween.Init(true, true, LogBehaviour.ErrorsOnly).SetCapacity(1000, 200); 
-        yield return null; // Nghỉ 1 frame, trả quyền cho CPU vẽ màn hình
+        yield return null; 
 
-        // ==========================================
-        // KHUNG HÌNH 2: Thông nòng Job System & Burst Compiler
-        // ==========================================
-        // Ép Burst Compiler dịch mã C# sang Assembly ngay lúc này thay vì chờ lúc đâm nhau
         NativeArray<int> dummyData = new NativeArray<int>(1, Allocator.TempJob);
         DummyJob dummyJob = new DummyJob { result = dummyData };
         dummyJob.Schedule(1, 1).Complete(); 
         dummyData.Dispose();
-        yield return null; // Nghỉ 1 frame
+        yield return null; 
 
-        // ==========================================
-        // KHUNG HÌNH 3: Thông nòng cỗ máy Vật lý (Physics2D)
-        // ==========================================
-        // Bắn một tia Raycast tàng hình cực ngắn để Engine Vật lý xây dựng lưới không gian (Spatial Tree)
         Physics2D.Raycast(Vector2.zero, Vector2.up, 0.1f);
-        yield return null; // Nghỉ 1 frame
+        yield return null; 
 
-        // ==========================================
-        // KHUNG HÌNH 4: Hâm nóng Audio Engine
-        // ==========================================
-        // Kích hoạt loa điện thoại với âm lượng 0
         if (AudioManager.Instance != null && AudioManager.Instance.sfxArrowHit != null)
         {
             AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0f); 
         }
     }
 
+    /// <summary>
+    /// Khôi phục trạng thái Level từ hệ thống lưu trữ.
+    /// </summary>
     void Start()
     {
-        // RESET CỜ LẠI TỪ ĐẦU KHI VÀO MÀN MỚI
         isGameOver = false; 
 
         if((int)SaveDataPlayer.Instance.Value(1) != 0)
@@ -74,6 +63,9 @@ public class GameManager : Singleton<GameManager>
         
     }
 
+    /// <summary>
+    /// Trích xuất dữ liệu bản đồ cấu hình cho Level hiện tại.
+    /// </summary>
     public LevelDataSO GetCurrentLevelData()
     {
         if (levelDataSOs == null || levelDataSOs.Count == 0) return null;
@@ -81,16 +73,16 @@ public class GameManager : Singleton<GameManager>
         return levelDataSOs[level-1];
     }
 
-    // ==========================================
-    // JOB GIẢ ĐỂ ĐÁNH THỨC CÁC LÕI CPU PHỤ
-    // ==========================================
+    /// <summary>
+    /// Struct Dummy nhằm đánh thức các lõi CPU xử lý đa luồng (Burst/Job) ngay từ đầu game.
+    /// </summary>
     [BurstCompile]
     private struct DummyJob : IJobParallelFor
     {
         public NativeArray<int> result;
         public void Execute(int index)
         {
-            result[index] = 1 + 1; // Một phép toán siêu nhẹ để mồi hệ thống
+            result[index] = 1 + 1; 
         }
     }
 }

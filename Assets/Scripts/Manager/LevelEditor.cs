@@ -31,12 +31,10 @@ public class LevelEditor : MonoBehaviour
     public Color currentColor = Color.white;
     public Image colorPreviewImage;
 
-    // Trạng thái của con rắn đang được vẽ dở
     private GameObject currentSnakeObj;
     private SnakeBlock currentSnakeScript;
     private List<Transform> currentSegments = new List<Transform>();
 
-    // Lịch sử dùng cho Global Undo
     private Stack<GameObject> finishedSnakesHistory = new Stack<GameObject>();
     #endregion
 
@@ -46,34 +44,29 @@ public class LevelEditor : MonoBehaviour
     }
 
     #region [ MAIN LOOP ]
+    /// <summary>
+    /// Vòng lặp chính quản lý phím tắt và tương tác chuột trên Editor.
+    /// </summary>
     private void Update()
     {
-        // 1. Lắng nghe phím tắt (Keyboard Shortcuts)
         if (Input.GetKeyDown(KeyCode.Space)) UI_FinishSnake();
         if (Input.GetKeyDown(KeyCode.R)) RotateDirection();
         if (Input.GetKeyDown(KeyCode.Z)) UndoLastSegment();
 
-        // 2. Liên tục cập nhật Con Trỏ Ảo (Ghost Cursor)
         UpdatePreviewCursor();
 
-        // 3. Chống click xuyên UI
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
-        // 4. Xử lý logic Chuột (Mouse Input)
-        if (Input.GetMouseButtonDown(0)) // Click lần đầu
+        if (Input.GetMouseButtonDown(0)) 
         {
             if (currentTool == EditorToolType.Draw) HandleLeftClick();
             else if (currentTool == EditorToolType.Erase) HandleEraseClick();
             else if (currentTool == EditorToolType.Paint) HandlePaintClick();
         }
-        else if (Input.GetMouseButton(0)) // Giữ và kéo
+        else if (Input.GetMouseButton(0)) 
         {
             if (currentTool == EditorToolType.Draw) HandleLeftDrag();
             else if (currentTool == EditorToolType.Erase) HandleEraseClick();
-        }
-        else if (Input.GetMouseButtonDown(1)) // Click chuột phải
-        {
-            //HandleRightClick();
         }
     }
     #endregion
@@ -112,6 +105,9 @@ public class LevelEditor : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Hoàn tất việc vẽ con rắn hiện tại và đưa vào ngăn xếp Undo.
+    /// </summary>
     public void UI_FinishSnake()
     {
         if (currentSnakeObj == null) return;
@@ -119,10 +115,8 @@ public class LevelEditor : MonoBehaviour
         currentSnakeScript.bodySegments = new List<Transform>(currentSegments);
         currentSnakeScript.obstacleLayer = LayerMask.GetMask("Block");
 
-        // Đẩy vào ngăn xếp lịch sử để hỗ trợ Undo
         finishedSnakesHistory.Push(currentSnakeObj);
 
-        // Reset trạng thái vẽ
         currentSnakeObj = null;
         currentSnakeScript = null;
         currentSegments.Clear();
@@ -142,13 +136,13 @@ public class LevelEditor : MonoBehaviour
     #endregion
 
     #region [ MOUSE INTERACTIONS ]
-
     private bool IsPositionOccupied(Vector2Int pos)
     {
         Vector2 checkPos = new Vector2(pos.x, pos.y);
         Collider2D hit = Physics2D.OverlapPoint(checkPos, LayerMask.GetMask("Block"));
         return hit != null;
     }
+
     private void HandleLeftClick()
     {
         Vector2Int gridPos = GetMouseGridPosition();
@@ -159,14 +153,12 @@ public class LevelEditor : MonoBehaviour
             return;
         }
 
-        // Nếu chưa có rắn thì tạo Đầu rắn (Head)
         if (currentSnakeObj == null) 
         {
             CreateHead(gridPos);
         }
-        else // Nếu đang vẽ dở thì tạo Thân rắn (Body)
+        else 
         {
-            // === KHÔI PHỤC VALIDATION CHO THAO TÁC CLICK ===
             Transform lastSeg = currentSegments[currentSegments.Count - 1];
             Vector2Int lastPos = new Vector2Int(Mathf.RoundToInt(lastSeg.position.x), Mathf.RoundToInt(lastSeg.position.y));
             
@@ -175,9 +167,8 @@ public class LevelEditor : MonoBehaviour
             if (manhattanDist != 1)
             {
                 Debug.LogWarning("Phải đặt sát cạnh đốt trước! Không thể đi chéo hoặc nhảy cóc.");
-                return; // Chặn đứng lệnh tạo thân rắn
+                return; 
             }
-            // ===============================================
 
             CreateBodySegment(gridPos);
         }
@@ -191,9 +182,8 @@ public class LevelEditor : MonoBehaviour
         Transform lastSeg = currentSegments[currentSegments.Count - 1];
         Vector2Int lastPos = new Vector2Int(Mathf.RoundToInt(lastSeg.position.x), Mathf.RoundToInt(lastSeg.position.y));
 
-        if (gridPos == lastPos) return; // Chuột chưa qua ô mới
+        if (gridPos == lastPos) return; 
 
-        // Chỉ cho phép vẽ khi khoảng cách Manhattan đúng bằng 1 (Không đi chéo)
         int manhattanDist = Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y);
         
         if (manhattanDist == 1 && !IsPositionOccupied(gridPos))
@@ -239,18 +229,6 @@ public class LevelEditor : MonoBehaviour
                 SpriteRenderer[] renderers = sb.GetComponentsInChildren<SpriteRenderer>();
                 foreach (SpriteRenderer sr in renderers) sr.color = currentColor;
             }
-        }
-    }
-
-    private void HandleRightClick()
-    {
-        // Phím phải chuột hiện tại có thể dùng để Cancel vẽ giữa chừng
-        if (currentSnakeObj != null)
-        {
-            Destroy(currentSnakeObj);
-            currentSnakeObj = null;
-            currentSnakeScript = null;
-            currentSegments.Clear();
         }
     }
     #endregion
@@ -302,9 +280,11 @@ public class LevelEditor : MonoBehaviour
         UpdateSnakeLinePreview();
     }
 
+    /// <summary>
+    /// Hủy bước vẽ cuối cùng. Nếu đang không vẽ, hủy toàn bộ con rắn trước đó.
+    /// </summary>
     public void UndoLastSegment()
     {
-        // 1. Nếu đang vẽ dở -> Tua lại 1 đốt
         if (currentSnakeObj != null && currentSegments.Count > 0)
         {
             int lastIndex = currentSegments.Count - 1;
@@ -313,7 +293,7 @@ public class LevelEditor : MonoBehaviour
             currentSegments.RemoveAt(lastIndex);
             if (lastSeg != null) Destroy(lastSeg.gameObject);
 
-            if (currentSegments.Count == 0) // Xóa trúng cái Đầu rắn
+            if (currentSegments.Count == 0) 
             {
                 Destroy(currentSnakeObj);
                 currentSnakeObj = null;
@@ -321,10 +301,9 @@ public class LevelEditor : MonoBehaviour
             }
             else
             {
-                UpdateSnakeLinePreview(); // Vẽ lại đường nối bị co lại
+                UpdateSnakeLinePreview(); 
             }
         }
-        // 2. Nếu đang không vẽ gì -> Hủy toàn bộ con rắn vừa vẽ xong
         else if (finishedSnakesHistory.Count > 0)
         {
             GameObject lastFinishedSnake = finishedSnakesHistory.Pop();
@@ -354,6 +333,9 @@ public class LevelEditor : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Hiển thị con trỏ ảo trên lưới để người dùng biết vị trí chuẩn bị tương tác.
+    /// </summary>
     private void UpdatePreviewCursor()
     {
         if (previewCursor == null) return;
@@ -365,7 +347,7 @@ public class LevelEditor : MonoBehaviour
         }
 
         Vector2Int gridPos = GetMouseGridPosition();
-        previewCursor.transform.position = new Vector3(gridPos.x, gridPos.y, -1f); // Ép trục Z = -1 để không bị chìm
+        previewCursor.transform.position = new Vector3(gridPos.x, gridPos.y, -1f); 
 
         if (currentTool == EditorToolType.Draw)
         {
@@ -416,6 +398,9 @@ public class LevelEditor : MonoBehaviour
     public void UI_SaveLevel() { SaveLevel(); }
     public void UI_LoadLevel() { LoadLevelToEdit(); }
 
+    /// <summary>
+    /// Lưu toàn bộ dữ liệu bàn cờ hiện tại xuống file ScriptableObject.
+    /// </summary>
     [ContextMenu("Save Level")]
     private void SaveLevel()
     {
@@ -455,6 +440,9 @@ public class LevelEditor : MonoBehaviour
         Debug.Log("Đã lưu Level thành công!");
     }
 
+    /// <summary>
+    /// Nạp dữ liệu từ file ScriptableObject lên Editor để tiếp tục chỉnh sửa.
+    /// </summary>
     [ContextMenu("Load Level To Edit")]
     private void LoadLevelToEdit()
     {
@@ -464,13 +452,12 @@ public class LevelEditor : MonoBehaviour
             return;
         }
 
-        // Xóa map cũ
         for (int i = levelContainer.childCount - 1; i >= 0; i--)
         {
             DestroyImmediate(levelContainer.GetChild(i).gameObject);
         }
 
-        finishedSnakesHistory.Clear(); // Xóa lịch sử Undo cũ
+        finishedSnakesHistory.Clear(); 
 
         foreach (var data in currentData.snakes)
         {
@@ -496,19 +483,21 @@ public class LevelEditor : MonoBehaviour
             sb.Initialize(data.direction, loadedSegments, 9, data.arrowColor);
             sb.UpdateVisualRotation();
 
-            finishedSnakesHistory.Push(snakeObj); // Nạp lại vào lịch sử Undo
+            finishedSnakesHistory.Push(snakeObj); 
         }
         Debug.Log("Đã tải Level.");
     }
     #endregion
 
     #region [ EDITOR GIZMOS & HANDLES ]
+    /// <summary>
+    /// Vẽ các đường nối trợ thị giác trong giao diện Editor.
+    /// </summary>
     private void OnDrawGizmos()
     {
 #if UNITY_EDITOR
         float lineThickness = 10f; 
 
-        // 1. Rắn đang vẽ
         if (currentSegments != null && currentSegments.Count > 1)
         {
             Handles.color = Color.red;
@@ -523,7 +512,6 @@ public class LevelEditor : MonoBehaviour
             }
         }
 
-        // 2. Rắn đã vẽ xong
         if (levelContainer != null)
         {
             Handles.color = Color.yellow;

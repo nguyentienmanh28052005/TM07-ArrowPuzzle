@@ -20,13 +20,20 @@ public class LevelLoader : MonoBehaviour
 
     public bool editorMode = false;
 
+    /// <summary>
+    /// Tự động nạp dữ liệu Level từ GameManager nếu không nằm trong chế độ Editor.
+    /// </summary>
     private void Start()
     {
         if (!editorMode && GameManager.Instance != null)
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
+        
         LoadGame();
     }
 
+    /// <summary>
+    /// Xóa sạch bàn cờ cũ và khởi tạo lại toàn bộ Entity dựa trên LevelDataSO.
+    /// </summary>
     [ContextMenu("Reload Level")]
     public void LoadGame()
     {

@@ -6,6 +6,9 @@ public class LevelController : MonoBehaviour
 {
     [SerializeField] private int countArrowInGame;
 
+    /// <summary>
+    /// Khởi tạo tổng số mũi tên có trên bàn cờ dựa vào Data SO.
+    /// </summary>
     void Awake()
     {
         if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
@@ -14,6 +17,9 @@ public class LevelController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Trừ dần số lượng mũi tên. Nếu hết, kích hoạt chuỗi sự kiện chuyển màn Win Game.
+    /// </summary>
     public void SetCountArrowInGame()
     {
         countArrowInGame--;
@@ -43,6 +49,9 @@ public class LevelController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Coroutine hiển thị UI chiến thắng và tải Scene mới sau độ trễ.
+    /// </summary>
     public IEnumerator SequenceWinGame(float waitTime)
     {
         yield return new WaitForSeconds(waitTime);

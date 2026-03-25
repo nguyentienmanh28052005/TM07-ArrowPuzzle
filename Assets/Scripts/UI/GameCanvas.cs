@@ -7,40 +7,40 @@ using UnityEngine.UI;
 
 public class GameCanvas : MonoBehaviour
 {
-    // CẤU TRÚC STATE MACHINE: Ngăn chặn mở nhiều bảng cùng lúc
     public enum PopupState { None, Pause, Complete, GameOver }
     private PopupState _currentPopup = PopupState.None;
 
+    #region [ REFERENCES & SETTINGS ]
     [Header("Core UI")]
     [SerializeField] private GameObject gameContainer;
     [SerializeField] private Transform healthContainer;
     [SerializeField] private TextMeshProUGUI feedbackText;
-    [SerializeField] private CanvasGroup overlayBg; // Đổi sang CanvasGroup để quản lý mượt hơn
+    [SerializeField] private CanvasGroup overlayBg;
 
     [Header("Pause Pop-up")]
-    [SerializeField] private CanvasGroup pausePanel; // BẮT BUỘC có Component CanvasGroup
-    [SerializeField] private Transform pauseContent; // Khung gỗ chứa nút (Thay cho pauseImage cũ)
+    [SerializeField] private CanvasGroup pausePanel;
+    [SerializeField] private Transform pauseContent;
 
     [Header("Complete Pop-up")]
-    [SerializeField] private CanvasGroup completePanel; // BẮT BUỘC có Component CanvasGroup
-    [SerializeField] private Transform completeContent; // Khung gỗ chứa nút
-    [SerializeField] private ParticleSystem completeParticle; // Khuyên dùng thẳng kiểu ParticleSystem
+    [SerializeField] private CanvasGroup completePanel;
+    [SerializeField] private Transform completeContent;
+    [SerializeField] private ParticleSystem completeParticle;
 
     [Header("Juice Settings")]
     [SerializeField] private float popupAnimDuration = 0.3f;
     [SerializeField] private float overlayAlpha = 0.75f;
 
     private bool _isShowing = false;
-
     private List<GameObject> hearts;
     private int countHeart;
     private Vector3 _pauseOriginalScale;
     private Vector3 _completeOriginalScale;
-    private bool _isTransitioning = false; // Cờ khóa chống spam click lúc đang chuyển cảnh
+    private bool _isTransitioning = false;
+    #endregion
 
+    #region [ INITIALIZATION & LIFECYCLE ]
     private void Awake()
     {
-        // Lưu tỷ lệ gốc để scale an toàn trên mọi độ phân giải (iPad, Phone)
         if (pauseContent != null) _pauseOriginalScale = pauseContent.localScale;
         if (completeContent != null) _completeOriginalScale = completeContent.localScale;
     }
@@ -66,7 +66,6 @@ public class GameCanvas : MonoBehaviour
 
     private void InitializePopups()
     {
-        // Ẩn toàn bộ UI an toàn ở khung hình đầu tiên
         if (feedbackText != null) { feedbackText.alpha = 0f; feedbackText.gameObject.SetActive(false); }
         HidePanelImmediate(overlayBg);
         HidePanelImmediate(pausePanel);
@@ -86,9 +85,6 @@ public class GameCanvas : MonoBehaviour
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnComplete, ShowCompletePopup);
     }
 
-    // ==========================================
-    // ANDROID HARDWARE BACK BUTTON SUPPORT
-    // ==========================================
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape) && !_isTransitioning)
@@ -97,25 +93,26 @@ public class GameCanvas : MonoBehaviour
             else if (_currentPopup == PopupState.None) ShowPause();
         }
     }
+    #endregion
 
-    // ==========================================
-    // POP-UP LOGIC: PAUSE
-    // ==========================================
+    #region [ POP-UP MANAGEMENT ]
+    /// <summary>
+    /// Kích hoạt bảng Tạm Dừng và đóng băng trò chơi.
+    /// </summary>
     public void ShowPause()
     {
-        // Guard Clause: Chỉ mở nếu không có bảng nào khác đang mở
         if (_currentPopup != PopupState.None || _isTransitioning) return;
         
         _currentPopup = PopupState.Pause;
-        Time.timeScale = 0f; // Đóng băng Gameplay
+        Time.timeScale = 0f; 
         
         ShowOverlay(true);
         OpenPopupTween(pausePanel, pauseContent, _pauseOriginalScale);
-
-        // Haptic & Audio Hook
-        // AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxPopupOpen);
     }
 
+    /// <summary>
+    /// Đóng bảng Tạm Dừng và tiếp tục trò chơi.
+    /// </summary>
     public void ClosePause()
     {
         if (_currentPopup != PopupState.Pause || _isTransitioning) return;
@@ -124,13 +121,13 @@ public class GameCanvas : MonoBehaviour
         {
             _currentPopup = PopupState.None;
             ShowOverlay(false);
-            Time.timeScale = 1f; // Xả đông khi bảng đã đóng hoàn toàn
+            Time.timeScale = 1f; 
         });
     }
 
-    // ==========================================
-    // POP-UP LOGIC: COMPLETE
-    // ==========================================
+    /// <summary>
+    /// Kích hoạt bảng Hoàn Thành Màn Chơi kèm hiệu ứng hạt.
+    /// </summary>
     public void ShowCompletePopup(object data)
     {
         if (_currentPopup != PopupState.None || _isTransitioning) return;
@@ -142,17 +139,16 @@ public class GameCanvas : MonoBehaviour
         if (completeParticle != null)
         {
             completeParticle.gameObject.SetActive(true);
-            completeParticle.Play(true); // Ép Particle chạy
+            completeParticle.Play(true);
         }
     }
+    #endregion
 
-    // ==========================================
-    // GENERIC POP-UP ANIMATION ENGINE (TÁI SỬ DỤNG CAO)
-    // ==========================================
+    #region [ ANIMATION ENGINE ]
     private void OpenPopupTween(CanvasGroup panel, Transform content, Vector3 targetScale)
     {
         panel.gameObject.SetActive(true);
-        panel.blocksRaycasts = true; // Chặn bấm xuyên
+        panel.blocksRaycasts = true; 
         panel.alpha = 0f;
         
         content.DOKill();
@@ -169,7 +165,7 @@ public class GameCanvas : MonoBehaviour
 
     private void ClosePopupTween(CanvasGroup panel, Transform content, System.Action onComplete)
     {
-        panel.blocksRaycasts = false; // Ngắt tương tác ngay lập tức để chống spam click
+        panel.blocksRaycasts = false; 
 
         content.DOKill();
         Sequence seq = DOTween.Sequence();
@@ -185,10 +181,9 @@ public class GameCanvas : MonoBehaviour
             onComplete?.Invoke();   
         });
     }
+    #endregion
 
-    // ==========================================
-    // SCENE TRANSITIONS (BẤT ĐỒNG BỘ & AN TOÀN)
-    // ==========================================
+    #region [ SCENE TRANSITIONS ]
     public void RestartGame()
     {
         if (_isTransitioning) return;
@@ -204,9 +199,8 @@ public class GameCanvas : MonoBehaviour
     private IEnumerator TransitionToScene(string sceneName)
     {
         _isTransitioning = true;
-        Time.timeScale = 1f; // Bắt buộc xả đông
+        Time.timeScale = 1f; 
 
-        // Làm đen màn hình hoàn toàn trước khi load
         if (overlayBg != null)
         {
             overlayBg.gameObject.SetActive(true);
@@ -216,10 +210,9 @@ public class GameCanvas : MonoBehaviour
 
         SceneController.Instance.LoadScene(sceneName, false, false);
     }
+    #endregion
 
-    // ==========================================
-    // UTILITY LOGIC
-    // ==========================================
+    #region [ UTILITY LOGIC ]
     private void ShowOverlay(bool isShow)
     {
         if (overlayBg == null) return;
@@ -245,10 +238,12 @@ public class GameCanvas : MonoBehaviour
         panel.blocksRaycasts = false;
         panel.gameObject.SetActive(false);
     }
+    #endregion
 
-    // ==========================================
-    // HEART & FEEDBACK TEXT LOGIC
-    // ==========================================
+    #region [ HEART & FEEDBACK TEXT ]
+    /// <summary>
+    /// Đánh giá và hiển thị thông báo chiến thắng dựa trên số lượng tim còn lại.
+    /// </summary>
     public void ShowWinText()
     {
         string message = countHeart >= 3 ? "Perfect!" : (countHeart == 2 ? "Great!" : "Good!");
@@ -267,12 +262,15 @@ public class GameCanvas : MonoBehaviour
             Sequence seq = DOTween.Sequence();
             seq.Append(feedbackText.transform.DOScale(1f, 0.5f).SetEase(Ease.OutBack));
             seq.Join(feedbackText.DOFade(1f, 0.5f));
-            seq.AppendInterval(1f); // Dừng lại 1s để người chơi đọc
+            seq.AppendInterval(1f); 
             seq.Append(feedbackText.DOFade(0f, 0.3f));
             seq.Join(feedbackText.transform.DOScale(1.2f, 0.3f).SetEase(Ease.InQuad));
         }
     }
 
+    /// <summary>
+    /// Xử lý logic trừ tim, chạy hoạt ảnh vỡ tim và kích hoạt GameOver nếu hết máu.
+    /// </summary>
     public void DecreaseHeart(object data)
     {
         if (countHeart <= 0 || _currentPopup != PopupState.None) return;
@@ -283,7 +281,7 @@ public class GameCanvas : MonoBehaviour
 
         if (countHeart <= 0)
         {
-            _currentPopup = PopupState.GameOver; // Khóa UI
+            _currentPopup = PopupState.GameOver; 
             if (gameContainer != null) gameContainer.SetActive(false);             
             StartCoroutine(SequenceGameOver());
         }
@@ -293,8 +291,8 @@ public class GameCanvas : MonoBehaviour
     {
         yield return new WaitForSeconds(0.5f);
         ShowText("Game Over", Color.red);
-        yield return new WaitForSeconds(2f); // Đợi chữ mờ đi
-        OutLevel(); // Chuyển cảnh an toàn bằng Coroutine mới viết
+        yield return new WaitForSeconds(2f); 
+        OutLevel(); 
     }
 
     private void PlayHeartLossEffect(GameObject heart)
@@ -327,5 +325,5 @@ public class GameCanvas : MonoBehaviour
         _isShowing = !_isShowing;
         MessageManager.Instance.SendMessage(ManhMessageType.OnShowAllPaths, _isShowing);
     }
-
+    #endregion
 }

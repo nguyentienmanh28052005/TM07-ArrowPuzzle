@@ -7,13 +7,14 @@ using UnityEngine.UI;
 
 public class GameMenuCanvas : MonoBehaviour
 {
+    #region [ REFERENCES & SETTINGS ]
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI textLevel;
 
     [Header("UI Panels (CanvasGroup)")]
-    [SerializeField] private CanvasGroup panelHome;     // Thay thế cho panelMainMenu cũ
+    [SerializeField] private CanvasGroup panelHome;     
     [SerializeField] private CanvasGroup panelShop;
-    [SerializeField] private CanvasGroup panelSetting;  // Thay thế cho panelSetting cũ
+    [SerializeField] private CanvasGroup panelSetting;  
     [SerializeField] private float panelFadeDuration = 0.2f;
 
     [Header("Slider Tab Navigation")]
@@ -28,14 +29,15 @@ public class GameMenuCanvas : MonoBehaviour
     [SerializeField] private List<GameObject> listLevelButtons;
 
     private bool _hasStarted = false;
-    private CanvasGroup _currentPanel; // Lưu trữ bảng đang hiển thị
+    private CanvasGroup _currentPanel; 
+    #endregion
 
+    #region [ LIFECYCLE ]
     private void Start()
     {
         _hasStarted = true;
         UpdateLevelUI(); 
 
-        // Khởi tạo: Giấu các bảng phụ, chỉ hiện bảng chính (Home)
         HidePanelImmediate(panelShop);
         HidePanelImmediate(panelSetting);
         ShowPanelImmediate(panelHome);
@@ -49,50 +51,47 @@ public class GameMenuCanvas : MonoBehaviour
             UpdateLevelUI();
         }
     }
+    #endregion
 
-    // ==========================================
-    // LOGIC TAB NAVIGATION & PANEL SWITCHER
-    // ==========================================
-    
-    // Gắn 3 hàm này vào sự kiện OnClick() của 3 nút tương ứng trên Inspector
+    #region [ LOGIC TAB NAVIGATION & PANEL SWITCHER ]
     public void OnClickTabHome() => SwitchTabLogic(btnHome, panelHome);
     public void OnClickTabShop() => SwitchTabLogic(btnShop, panelShop);
     public void OnClickTabSetting() => SwitchTabLogic(btnSetting, panelSetting);
 
+    /// <summary>
+    /// Xử lý logic chuyển đổi UI Panel với hiệu ứng Fade và ngăn chặn click spam.
+    /// </summary>
     private void SwitchTabLogic(GameObject targetButton, CanvasGroup targetPanel)
     {
-        // 1. Nếu người chơi bấm lại vào Tab đang mở thì bỏ qua
         if (_currentPanel == targetPanel) return;
 
-        // 2. Di chuyển Slider và kích hoạt nhún nhảy Icon
         MoveSliderToButton(targetButton);
 
-        // 3. Hiệu ứng mờ dần (Fade Out) cho bảng cũ
         if (_currentPanel != null)
         {
             CanvasGroup oldPanel = _currentPanel; 
             
-            // Khóa tương tác ngay lập tức để chống spam click lúc đang mờ
             oldPanel.interactable = false; 
             oldPanel.blocksRaycasts = false;
             
             oldPanel.DOKill();
             oldPanel.DOFade(0f, panelFadeDuration).OnComplete(() => {
-                oldPanel.gameObject.SetActive(false); // Tắt hẳn sau khi mờ xong
+                oldPanel.gameObject.SetActive(false); 
             });
         }
 
-        // 4. Hiệu ứng rõ dần (Fade In) cho bảng mới
         _currentPanel = targetPanel;
         _currentPanel.gameObject.SetActive(true);
         _currentPanel.DOKill();
         _currentPanel.DOFade(1f, panelFadeDuration).OnComplete(() => {
-            // Sáng rõ 100% rồi mới mở khóa tương tác
             _currentPanel.interactable = true;
             _currentPanel.blocksRaycasts = true;
         });
     }
 
+    /// <summary>
+    /// Dịch chuyển thanh trượt (Slider) đến vị trí của Tab tương ứng.
+    /// </summary>
     public void MoveSliderToButton(GameObject targetButton)
     {
         if (slider == null || targetButton == null) return;
@@ -102,7 +101,7 @@ public class GameMenuCanvas : MonoBehaviour
 
         if (sliderRect != null && targetRect != null)
         {
-            sliderRect.DOKill(true); // Dịch chuyển tức thời đến đích cũ nếu bị chuyển hướng đột ngột
+            sliderRect.DOKill(true); 
             
             float targetX = targetRect.anchoredPosition.x;
             sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(sliderEaseType);
@@ -111,7 +110,6 @@ public class GameMenuCanvas : MonoBehaviour
         }
     }
 
-    // Hàm phụ trợ ẩn hiện nhanh không qua animation (Dùng cho lúc mới khởi động game)
     private void HidePanelImmediate(CanvasGroup panel)
     {
         if (panel == null) return;
@@ -129,10 +127,9 @@ public class GameMenuCanvas : MonoBehaviour
         panel.interactable = true;
         panel.blocksRaycasts = true;
     }
+    #endregion
 
-    // ==========================================
-    // CÁC LOGIC KHÁC CỦA BẠN (GIỮ NGUYÊN)
-    // ==========================================
+    #region [ LEVEL GENERATION LOGIC ]
     public void ResetGame()
     {
         GameManager.Instance.level = 1;
@@ -144,6 +141,9 @@ public class GameMenuCanvas : MonoBehaviour
         SceneController.Instance.LoadScene("GameScene", false, false);
     }
 
+    /// <summary>
+    /// Làm mới giao diện chỉ số Level và trạng thái khóa/mở khóa của các nút Level.
+    /// </summary>
     public void UpdateLevelUI()
     {
         try
@@ -227,4 +227,5 @@ public class GameMenuCanvas : MonoBehaviour
             UpdateLevelUI(); 
         }
     }
+    #endregion
 }

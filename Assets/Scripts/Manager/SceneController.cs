@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using Pixelplacement;
@@ -14,27 +13,27 @@ public class SceneController : Singleton<SceneController>
 {
     private bool isLoading = false;
     private bool isLoadingBarRunning = false;
-    private AsyncOperation asyncLoad;
     
-    [Header("Some components")]
+    [Header("UI Components")]
     [SerializeField] private Slider progressBar;
     [SerializeField] private GameObject loadCanvas;
     
-   
     public SceneInstance currentScene;
     public string currentSceneName = "Boostrap";
-    
-    private float originWidth, originHeight;
     public List<string> sceneLoadingHistory = new List<string>(); 
     
+    /// <summary>
+    /// Thiết lập Scene khởi điểm ngay khi Game vừa bật lên.
+    /// </summary>
     public void Awake()
     {
         isLoadingBarRunning = true;
-        
-        Debug.Log("Enter the sceneController");
         LoadScene("GameMenu", false, false);
     }
 
+    /// <summary>
+    /// Thực thi hiệu ứng thanh tiến trình (Progress Bar) mô phỏng thời gian tải.
+    /// </summary>
     private void DoLoadingBar(float loadTime, UnityEngine.Events.UnityAction onLoadCompleted)
     {
         isLoadingBarRunning = true;
@@ -50,13 +49,12 @@ public class SceneController : Singleton<SceneController>
         }, true);
     }
     
-    
+    /// <summary>
+    /// Lệnh công khai để chuyển đổi giữa các màn chơi một cách an toàn.
+    /// </summary>
     public void LoadScene(string sceneName, bool currentIsAddressable = true, bool nextIsAddressable = true)
     {
-        if (isLoading)
-        {
-            return;
-        }
+        if (isLoading) return;
         
         isLoading = true;
         StopAllCoroutines();
@@ -64,65 +62,60 @@ public class SceneController : Singleton<SceneController>
         StartCoroutine(LoadSceneProgress(sceneName, currentIsAddressable, nextIsAddressable));
     }
 
+    /// <summary>
+    /// Coroutine cốt lõi xử lý việc dỡ bỏ Scene cũ, hiển thị Loading và nạp Scene mới qua Addressables.
+    /// </summary>
     private IEnumerator LoadSceneProgress(string sceneName, bool currentIsAddressable = true, bool nextIsAddressable = true)
-{
-    float duration = 1f;
-    isLoadingBarRunning = true;
-    loadCanvas.SetActive(true);
-
-    DoLoadingBar(duration, () => { isLoadingBarRunning = false; });
-
-    var loadLoadingSceneTask = Addressables.LoadSceneAsync("Buffer", LoadSceneMode.Additive);
-    yield return loadLoadingSceneTask;
-
-    if (currentIsAddressable)
     {
-        AsyncOperationHandle<SceneInstance> unloadCurrentSceneTask = Addressables.UnloadSceneAsync(currentScene);
-        yield return unloadCurrentSceneTask;
-    }
-    else
-    {
-        AsyncOperation unloadCurrentSceneTask = SceneManager.UnloadSceneAsync(SceneManager.GetActiveScene().name);
-        yield return unloadCurrentSceneTask;
-    }
+        float duration = 1f;
+        isLoadingBarRunning = true;
+        loadCanvas.SetActive(true);
 
-    yield return new WaitForSeconds(0.05f);
+        DoLoadingBar(duration, () => { isLoadingBarRunning = false; });
 
-    if (nextIsAddressable)
-    {
-        AsyncOperationHandle<SceneInstance> asyncNextSceneTask = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
-        yield return asyncNextSceneTask;
+        var loadLoadingSceneTask = Addressables.LoadSceneAsync("Buffer", LoadSceneMode.Additive);
+        yield return loadLoadingSceneTask;
 
-        while (isLoadingBarRunning)
+        if (currentIsAddressable)
         {
-            yield return null;
+            AsyncOperationHandle<SceneInstance> unloadCurrentSceneTask = Addressables.UnloadSceneAsync(currentScene);
+            yield return unloadCurrentSceneTask;
+        }
+        else
+        {
+            AsyncOperation unloadCurrentSceneTask = SceneManager.UnloadSceneAsync(SceneManager.GetActiveScene().name);
+            yield return unloadCurrentSceneTask;
         }
 
-        asyncNextSceneTask.Result.ActivateAsync();
-        currentScene = asyncNextSceneTask.Result;
-    }
-    else
-    {
-        AsyncOperation asyncNextSceneTask = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-        asyncNextSceneTask.allowSceneActivation = false;
+        yield return new WaitForSeconds(0.05f);
 
-        while (isLoadingBarRunning)
+        if (nextIsAddressable)
         {
-            yield return null;
+            AsyncOperationHandle<SceneInstance> asyncNextSceneTask = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
+            yield return asyncNextSceneTask;
+
+            while (isLoadingBarRunning) yield return null;
+
+            asyncNextSceneTask.Result.ActivateAsync();
+            currentScene = asyncNextSceneTask.Result;
+        }
+        else
+        {
+            AsyncOperation asyncNextSceneTask = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            asyncNextSceneTask.allowSceneActivation = false;
+
+            while (isLoadingBarRunning) yield return null;
+
+            asyncNextSceneTask.allowSceneActivation = true;
+            while (!asyncNextSceneTask.isDone) yield return null;
+            
+            currentSceneName = SceneManager.GetActiveScene().name;
         }
 
-        asyncNextSceneTask.allowSceneActivation = true;
-        while (!asyncNextSceneTask.isDone)
-        {
-            yield return null;
-        }
-        currentSceneName = SceneManager.GetActiveScene().name;
+        Addressables.UnloadSceneAsync(loadLoadingSceneTask.Result);
+        yield return null;
+
+        isLoading = false;
+        loadCanvas.SetActive(false);
     }
-
-    Addressables.UnloadSceneAsync(loadLoadingSceneTask.Result);
-    yield return null;
-
-    isLoading = false;
-    loadCanvas.SetActive(false);
-}
 }

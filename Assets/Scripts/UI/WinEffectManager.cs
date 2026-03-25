@@ -13,13 +13,14 @@ public class WinEffectManager : MonoBehaviour
     public float animationDuration = 0.4f;
     public float scaleMultiplier = 1.5f;
 
+    /// <summary>
+    /// Kích hoạt chuỗi hiệu ứng gợn sóng chiến thắng quét qua toàn bộ các điểm trên lưới.
+    /// Trả về tổng thời gian dài nhất của chuỗi hoạt ảnh để hệ thống chờ đợi.
+    /// </summary>
     [ContextMenu("Test Win Effect")]
     public float PlayWinEffect()
     {
-        if (gameContainer == null)
-        {
-            return 0f;
-        }
+        if (gameContainer == null) return 0f;
 
         GridDot[] allDots = gameContainer.GetComponentsInChildren<GridDot>();
 

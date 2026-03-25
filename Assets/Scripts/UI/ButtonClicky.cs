@@ -27,41 +27,45 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
     private bool _isPressed = false;
     private bool _isHovered = false;
 
+    /// <summary>
+    /// Lưu trữ tỷ lệ gốc và cập nhật trạng thái hiển thị lần đầu.
+    /// </summary>
     private void Awake()
     {
         _image = GetComponent<Image>();
         _originalScale = transform.localScale;
-        
-        // ĐÃ XÓA dòng ép lấy sprite mặc định ở đây để tôn trọng quyết định để trống của bạn
-        
         UpdateVisualState();
     }
 
+    /// <summary>
+    /// Kích hoạt hoặc vô hiệu hóa nút bấm từ các script bên ngoài.
+    /// </summary>
     public void SetInteractable(bool state)
     {
         interactable = state;
         UpdateVisualState();
     }
 
-    // ==========================================
-    // CƠ CHẾ ẨN HIỆN & ĐỔ MÀU (CẬP NHẬT MỚI)
-    // ==========================================
+    /// <summary>
+    /// Xử lý logic ẩn/hiện hoặc đổ màu xám cho Sprite dựa trên trạng thái nút.
+    /// </summary>
     private void SetSpriteDisplay(Sprite spriteToDisplay, bool isDisabledState = false)
     {
         if (spriteToDisplay == null)
         {
-            // KHÔNG CÓ HÌNH -> Tàng hình hoàn toàn (Alpha = 0)
             _image.sprite = null;
             _image.color = new Color(1f, 1f, 1f, 0f); 
         }
         else
         {
-            // CÓ HÌNH -> Hiện hình (Alpha = 1) và đổ màu xám nếu nút bị khóa
             _image.sprite = spriteToDisplay;
             _image.color = isDisabledState ? Color.gray : Color.white;
         }
     }
 
+    /// <summary>
+    /// Cập nhật toàn bộ hình ảnh của nút dựa vào trạng thái Interactable hiện tại.
+    /// </summary>
     private void UpdateVisualState()
     {
         if (!interactable)
@@ -69,7 +73,6 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
             transform.DOKill();
             transform.localScale = _originalScale;
             
-            // Fallback: Ưu tiên dùng DisabledSprite, nếu để trống thì lấy DefaultSprite làm xám
             Sprite targetSprite = _disabledSprite != null ? _disabledSprite : _defaultSprite;
             SetSpriteDisplay(targetSprite, true);
         }
@@ -105,7 +108,6 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         if (!interactable) return;
         _isPressed = true;
         
-        // Fallback: Ưu tiên dùng PressedSprite, nếu để trống thì giữ nguyên DefaultSprite
         Sprite targetSprite = _pressedSprite != null ? _pressedSprite : _defaultSprite;
         SetSpriteDisplay(targetSprite, false);
         

@@ -9,12 +9,13 @@ public class LevelButton : MonoBehaviour, IPointerClickHandler
     public int level;
     public double posY;
 
-
+    /// <summary>
+    /// Chuyển đổi Scene sang màn hình chơi game khi nút Level hợp lệ được nhấn.
+    /// </summary>
     public void OnPointerClick(PointerEventData eventData)
     {
         if (gameObject.GetComponent<Button>().interactable)
         {
-            //GameManager.Instance.level = level;
             SceneController.Instance.LoadScene("GameScene", false, false);
         }
     }
