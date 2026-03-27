@@ -20,6 +20,9 @@ public class ComboManager : Singleton<ComboManager>
     [SerializeField] private float comboTimeout = 2f; 
     [SerializeField] private int minComboToShow = 3; 
     private float _lastHitTime;
+    
+    // CỜ BỌC THÉP: Theo dõi trạng thái đã đạt Full Combo chưa
+    private bool _isFullComboActive = false; 
 
     [Header("Visual References")]
     [SerializeField] private TextMeshProUGUI comboText;
@@ -33,8 +36,7 @@ public class ComboManager : Singleton<ComboManager>
     [SerializeField] private float baseShakeDuration = 0.15f;
     [SerializeField] private float maxHitStopDuration = 0.1f;
 
-    [Header("Rainbow Settings")]
-    [SerializeField] private bool useRainbowAtMaxTier = true;
+    [Header("Rainbow Settings (Only for Full Combo)")]
     [SerializeField] private float rainbowSpeed = 2f;
 
     /// <summary>
@@ -50,11 +52,12 @@ public class ComboManager : Singleton<ComboManager>
     }
 
     /// <summary>
-    /// Quản lý hiệu ứng chuyển màu cầu vồng theo thời gian thực ở mức Combo tối đa.
+    /// Quản lý hiệu ứng chuyển màu cầu vồng liên tục nếu đạt Full Combo.
     /// </summary>
     void Update()
     {
-        if (useRainbowAtMaxTier && currentCombo >= 25 && comboText.alpha > 0)
+        // CHỈ chạy cầu vồng khi cờ Full Combo được bật và Text đang hiển thị
+        if (_isFullComboActive && comboText.alpha > 0)
         {
             float hue = Mathf.Repeat(Time.time * rainbowSpeed, 1f);
             Color rainbowColor = Color.HSVToRGB(hue, 0.8f, 1f); 
@@ -90,6 +93,7 @@ public class ComboManager : Singleton<ComboManager>
         if (currentCombo == 0) return;
 
         currentCombo = 0;
+        _isFullComboActive = false; // TẮT CỜ CẦU VỒNG
 
         if (comboText != null)
         {
@@ -101,35 +105,61 @@ public class ComboManager : Singleton<ComboManager>
     }
 
     /// <summary>
+    /// Tính toán tổng số mũi tên có trong Level hiện tại để làm mốc Full Combo.
+    /// </summary>
+    private int GetMaxComboForCurrentLevel()
+    {
+        if (GameManager.Instance != null && GameManager.Instance.GetCurrentLevelData() != null)
+        {
+            return GameManager.Instance.GetCurrentLevelData().snakes.Count;
+        }
+        return 999; 
+    }
+
+    /// <summary>
     /// Tổng hợp và thực thi tất cả các hiệu ứng "Juicy" để thưởng thị giác cho người chơi.
     /// </summary>
     private void PlayJuicyFeedback()
     {
         if (comboText == null) return;
 
-        comboText.text = $"Combo x{currentCombo}!";
-        
-        Color targetColor = Color.white; 
-        float sizeMult = 1f;
+        // 1. Kiểm tra trạng thái
+        int maxCombo = GetMaxComboForCurrentLevel();
+        _isFullComboActive = (currentCombo >= maxCombo); // Bật/Tắt cờ Full Combo
 
-        if (colorTierSettings != null && colorTierSettings.Count > 0)
+        float sizeMult = 1f;
+        Color targetColor = Color.white;
+
+        if (_isFullComboActive)
         {
-            foreach (var setting in colorTierSettings)
+            comboText.text = "FULL COMBO!";
+            sizeMult += 0.5f; 
+            // KHÔNG CẦN SET COLOR Ở ĐÂY VÌ HÀM UPDATE SẼ CHIẾM QUYỀN VÀ PHỦ CẦU VỒNG LÊN
+        }
+        else
+        {
+            comboText.text = $"Combo x{currentCombo}!";
+            
+            // 2. Chỉ tính màu Tier bình thường nếu CHƯA Full Combo
+            if (colorTierSettings != null && colorTierSettings.Count > 0)
             {
-                if (currentCombo >= setting.minComboThreshold)
+                foreach (var setting in colorTierSettings)
                 {
-                    targetColor = setting.comboColor;
-                    sizeMult = setting.fontSizeMultiplier;
-                }
-                else
-                {
-                    break; 
+                    if (currentCombo >= setting.minComboThreshold)
+                    {
+                        targetColor = setting.comboColor;
+                        sizeMult = setting.fontSizeMultiplier;
+                    }
+                    else
+                    {
+                        break; 
+                    }
                 }
             }
+            comboText.color = targetColor;
         }
 
-        comboText.color = targetColor;
-
+        // 3. Thực thi hiệu ứng Animation
         float randomTilt = Random.Range(-maxRotationTilt, maxRotationTilt);
         float tiltFactor = Mathf.Clamp(1f + (currentCombo * 0.05f), 1f, 2f);
         
@@ -140,9 +170,17 @@ public class ComboManager : Singleton<ComboManager>
         comboText.transform.localScale = Vector3.one * sizeMult;
         
         float punchForce = Mathf.Clamp(0.2f + (currentCombo * 0.1f), 0.2f, 0.8f);
-        comboText.transform.DOPunchScale(Vector3.one * punchForce, 0.3f, 5, 1);
         
-        comboText.DOFade(0f, 0.5f).SetDelay(1f);
+        if (_isFullComboActive)
+        {
+            comboText.transform.DOPunchScale(Vector3.one * punchForce * 1.5f, 0.5f, 8, 1);
+            comboText.DOFade(0f, 0.5f).SetDelay(2f);
+        }
+        else
+        {
+            comboText.transform.DOPunchScale(Vector3.one * punchForce, 0.3f, 5, 1);
+            comboText.DOFade(0f, 0.5f).SetDelay(1f);
+        }
     }
 
     /// <summary>

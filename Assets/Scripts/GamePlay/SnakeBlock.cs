@@ -262,8 +262,8 @@ public class SnakeBlock : MonoBehaviour
                     ComboManager.Instance.StopCombo();
                     AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
                     SetColorImmediate(snakeTakeHitColor);
-                    MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
-
+                    //MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
+                    SettingManager.Instance.PlayHaptic(Solo.MOST_IN_ONE.MOST_HapticFeedback.HapticTypes.MediumImpact);
                     yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
                     yield return StartCoroutine(ReturnToOrigin(moveDir));
                     break; 

@@ -2506,8 +2506,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameContainer: {fileID: 1087363344}
-  health: {fileID: 1658697086}
-  text: {fileID: 80970429}
+  healthContainer: {fileID: 0}
+  feedbackText: {fileID: 0}
+  overlayBg: {fileID: 0}
+  pausePanel: {fileID: 0}
+  pauseContent: {fileID: 0}
+  completePanel: {fileID: 0}
+  completeContent: {fileID: 0}
+  completeParticle: {fileID: 0}
+  coinText: {fileID: 0}
+  diamondText: {fileID: 0}
+  rewardCoinIcon: {fileID: 0}
+  rewardDiamondIcon: {fileID: 0}
+  starFills: []
+  flyingCoinPrefab: {fileID: 0}
+  flyingDiamondPrefab: {fileID: 0}
+  maxFlyingItems: 12
+  popupAnimDuration: 0.3
+  overlayAlpha: 0.75
+  currentCoinText: {fileID: 0}
+  currentDiamondText: {fileID: 0}
+  currentCoinIcon: {fileID: 0}
+  currentDiamondIcon: {fileID: 0}
 --- !u!1 &340958840
 GameObject:
   m_ObjectHideFlags: 0
@@ -4637,6 +4657,8 @@ MonoBehaviour:
   maxZoom: 60
   zoomSmoothTime: 0.1
   autoFitPadding: 3
+  defaultGameplayZoom: 40
+  overviewWaitTime: 1
   useLimits: 1
   minPosition: {x: -20, y: -20}
   maxPosition: {x: 20, y: 20}

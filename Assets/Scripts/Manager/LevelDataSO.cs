@@ -23,5 +23,8 @@ public class LevelDataSO : ScriptableObject
 {
     public GameMode gameMode;
     public LevelDifficulty levelDifficulty;
+    [Header("Rewards")]
+    public float rewardCoins;
+    public float rewardDiamonds;
     public List<SnakeSaveData> snakes = new List<SnakeSaveData>();
 }

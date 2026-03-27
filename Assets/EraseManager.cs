@@ -106,6 +106,8 @@ public class EraseManager : MonoBehaviour
             
             // 3. MỞ KHÓA TOÀN CỤC: Tẩy xong, cho phép Hint và Click hoạt động lại
             IsExecutingErase = false;
+
+            CameraController.IsGameplayBlocking = false;
         });
     }
 }

@@ -87,6 +87,12 @@ public class SnakeInput : MonoBehaviour
     /// </summary>
     private void HandleInputDown()
     {
+        // ==========================================
+        // CHỐT CHẶN TỬ THẦN (CẬP NHẬT MỚI): 
+        // Từ chối mọi thao tác bấm nếu Camera đang bận (Chạy Intro, Outro, v.v.)
+        // ==========================================
+        if (CameraController.IsGameplayBlocking) return;
+
         if (CameraController.IsDragging) return;
         if (parentScript != null && parentScript.IsMoving) return;
 
@@ -113,6 +119,7 @@ public class SnakeInput : MonoBehaviour
         isPressed = true;
         isHolding = false; 
         
+        // Khi 1 con rắn được bấm hợp lệ, nó lập tức bật khiên IsGameplayBlocking lên
         CameraController.IsGameplayBlocking = true;
 
         if (parentScript != null)
@@ -133,6 +140,8 @@ public class SnakeInput : MonoBehaviour
 
         isPressed = false;
         isHolding = false;
+        
+        // Trả lại quyền điều khiển Camera khi nhấc ngón tay
         CameraController.IsGameplayBlocking = false;
 
         if (holdCoroutine != null) StopCoroutine(holdCoroutine);
@@ -158,9 +167,9 @@ public class SnakeInput : MonoBehaviour
                 AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
                 parentScript.OnHeadClicked();
                 
-                if (useHaptics) 
+                if (useHaptics && SettingManager.Instance != null) 
                 {
-                    MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.Selection);
+                    SettingManager.Instance.PlayHaptic(Solo.MOST_IN_ONE.MOST_HapticFeedback.HapticTypes.Selection);
                 }
             }
         }

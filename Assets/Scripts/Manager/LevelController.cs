@@ -6,9 +6,6 @@ public class LevelController : MonoBehaviour
 {
     [SerializeField] private int countArrowInGame;
 
-    /// <summary>
-    /// Khởi tạo tổng số mũi tên có trên bàn cờ dựa vào Data SO.
-    /// </summary>
     void Awake()
     {
         if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
@@ -17,15 +14,42 @@ public class LevelController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Trừ dần số lượng mũi tên. Nếu hết, kích hoạt chuỗi sự kiện chuyển màn Win Game.
-    /// </summary>
     public void SetCountArrowInGame()
     {
         countArrowInGame--;
         if (countArrowInGame <= 0)
         {
             Debug.Log("Level Complete");
+
+            LevelDataSO currentLevelData = null;
+            bool isFullCombo = false;
+
+            if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
+            {
+                currentLevelData = GameManager.Instance.levelDataSOs[GameManager.Instance.level - 1];
+                
+                // ==========================================
+                // KIỂM TRA ĐIỀU KIỆN FULL COMBO
+                // ==========================================
+                if (ComboManager.Instance != null)
+                {
+                    // Nếu số combo hiện tại >= tổng số mũi tên ban đầu -> Người chơi đã đánh 1 mạch không lỗi
+                    isFullCombo = (ComboManager.Instance.currentCombo >= currentLevelData.snakes.Count);
+                }
+
+                if (CurrencyManager.Instance != null)
+                {
+                    // Tiền xu luôn được nhận
+                    CurrencyManager.Instance.AddCoins(currentLevelData.rewardCoins);
+                    
+                    // LỆNH GIỚI NGHIÊM: Kim cương chỉ được nhận khi Full Combo
+                    if (isFullCombo)
+                    {
+                        CurrencyManager.Instance.AddDiamonds(currentLevelData.rewardDiamonds);
+                    }
+                }
+            }
+
             if (GameManager.Instance != null && GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
             {
                 GameManager.Instance.level++;
@@ -45,28 +69,21 @@ public class LevelController : MonoBehaviour
                 effectDuration = winEffect.PlayWinEffect();
             }
 
-            StartCoroutine(SequenceWinGame(effectDuration));
+            StartCoroutine(SequenceWinGame(effectDuration, currentLevelData, isFullCombo));
         }
     }
 
-    /// <summary>
-    /// Coroutine hiển thị UI chiến thắng và tải Scene mới sau độ trễ.
-    /// </summary>
-    public IEnumerator SequenceWinGame(float waitTime)
+    // Đã thêm cờ isFullCombo vào Coroutine
+    public IEnumerator SequenceWinGame(float waitTime, LevelDataSO completedLevelData, bool isFullCombo)
     {
         yield return new WaitForSeconds(waitTime);
 
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
-        if (canvas != null)
+        if (canvas != null && completedLevelData != null)
         {
-            canvas.ShowWinText();
-        }
-
-        yield return new WaitForSeconds(2f);
-
-        if (SceneController.Instance != null)
-        {
-            SceneController.Instance.LoadScene("GameScene", false, false);
+            // Đóng gói Data SO và Cờ Full Combo vào một mảng object để gửi đi chung 1 chuyến xe
+            object[] rewardData = new object[] { completedLevelData, isFullCombo };
+            MessageManager.Instance.SendMessage(ManhMessageType.OnComplete, rewardData);
         }
     }
 }

@@ -18,6 +18,29 @@ public class AudioManager : Singleton<AudioManager>
 
     private float _musicVolume = 1f;
     private float _sfxVolume = 1f;
+    private bool _isSfxMuted = false;
+
+    // =====================================
+    // TÍNH NĂNG MỚI: BẬT/TẮT MUTE AN TOÀN
+    // =====================================
+    public bool IsMusicMuted
+    {
+        get => _musicSource.mute;
+        set => _musicSource.mute = value;
+    }
+
+    public bool IsSfxMuted
+    {
+        get => _isSfxMuted;
+        set
+        {
+            _isSfxMuted = value;
+            foreach (var source in _audioSourcePool)
+            {
+                source.mute = value;
+            }
+        }
+    }
 
     public float MusicVolume
     {
@@ -42,18 +65,17 @@ public class AudioManager : Singleton<AudioManager>
         }
     }
 
-    /// <summary>
-    /// Khởi tạo âm lượng mặc định và xây dựng Object Pool cho các luồng âm thanh.
-    /// </summary>
-    private void Start()
-    {
-        _musicSource.volume = MusicVolume;
+    protected void Awake()
+    { // Gọi base.Awake() vì chúng ta đang kế thừa Singleton
         InitializeAudioSourcePool();
     }
 
-    /// <summary>
-    /// Tạo danh sách các AudioSource ẩn để tái sử dụng, tối ưu hóa bộ nhớ.
-    /// </summary>
+    // 2. Hàm Start giờ chỉ còn dùng để gán Volume
+    private void Start()
+    {
+        if (_musicSource != null) _musicSource.volume = MusicVolume;
+    }
+
     private void InitializeAudioSourcePool()
     {
         _audioSourcePool = new List<AudioSource>();
@@ -62,32 +84,24 @@ public class AudioManager : Singleton<AudioManager>
             AudioSource source = gameObject.AddComponent<AudioSource>();
             source.playOnAwake = false;
             source.volume = SFXVolume;
+            source.mute = _isSfxMuted; 
             _audioSourcePool.Add(source);
         }
     }
 
-    /// <summary>
-    /// Phát một hiệu ứng âm thanh (SFX) từ Pool với mức âm lượng và độ cao tùy chỉnh.
-    /// </summary>
     public void PlaySfx(AudioClip clip, float volume = 1f, float pitch = 1f)
     {
         AudioSource source = GetAvailableAudioSource();
-        source.volume = volume;
+        source.volume = volume; // Giờ đây thoải mái gán volume, vì nếu Mute = true thì nó vẫn không kêu!
         source.pitch = pitch;
         source.PlayOneShot(clip);
     }
    
-    /// <summary>
-    /// Phát nhạc nền với hiệu ứng chuyển tiếp mờ dần (Crossfade).
-    /// </summary>
     public void PlayMusic(AudioClip clip, bool isLoop = true)
     {
         StartCoroutine(FadeOutAndIn(_musicSource, clip, isLoop));
     }
 
-    /// <summary>
-    /// Tìm một AudioSource đang rảnh trong Pool, hoặc tạo mới nếu Pool đã đầy.
-    /// </summary>
     private AudioSource GetAvailableAudioSource()
     {
         foreach (var source in _audioSourcePool)
@@ -98,13 +112,11 @@ public class AudioManager : Singleton<AudioManager>
         AudioSource newSource = gameObject.AddComponent<AudioSource>();
         newSource.playOnAwake = false;
         newSource.volume = SFXVolume;
+        newSource.mute = _isSfxMuted; // An toàn tuyệt đối
         _audioSourcePool.Add(newSource);
         return newSource;
     }
 
-    /// <summary>
-    /// Xử lý logic hạ nhỏ nhạc cũ và tăng dần nhạc mới.
-    /// </summary>
     private IEnumerator FadeOutAndIn(AudioSource audioSource, AudioClip newClip, bool isLoop)
     {
         float currentTime = 0;
@@ -132,9 +144,6 @@ public class AudioManager : Singleton<AudioManager>
         _currentMusicClip = newClip;
     }
 
-    /// <summary>
-    /// Lấy ra bản nhạc nền đang phát hiện tại.
-    /// </summary>
     public AudioClip GetCurrentMusicClip()
     {
         return _currentMusicClip;

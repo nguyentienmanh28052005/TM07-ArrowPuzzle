@@ -12,33 +12,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_6
   m_EditorClassIdentifier: 
+  gameMode: 0
+  levelDifficulty: 0
+  rewardCoins: 300
+  rewardDiamonds: 20
   snakes:
   - direction: 0
+    arrowColor: {r: 0, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: -10, y: 10}
-    - {x: -10, y: 9}
-    - {x: -10, y: 8}
-    - {x: -10, y: 7}
-    - {x: -10, y: 6}
-    - {x: -10, y: 5}
-    - {x: -10, y: 4}
-    - {x: -10, y: 3}
-    - {x: -9, y: 3}
-    - {x: -8, y: 3}
-    - {x: -7, y: 3}
-    - {x: -6, y: 3}
-    - {x: -5, y: 3}
-    - {x: -4, y: 3}
-    - {x: -3, y: 3}
-  - direction: 0
-    segmentPositions:
-    - {x: 2, y: 11}
-    - {x: 2, y: 10}
-    - {x: 2, y: 9}
-    - {x: 2, y: 8}
-    - {x: 2, y: 7}
-    - {x: 2, y: 6}
-    - {x: 3, y: 6}
-    - {x: 4, y: 6}
-    - {x: 5, y: 6}
-    - {x: 6, y: 6}
+    - {x: -6, y: -6}
+    - {x: -6, y: -7}
+    - {x: -6, y: -8}
+    - {x: -6, y: -9}
+    - {x: -6, y: -10}
+    - {x: -6, y: -11}
+    - {x: -6, y: -12}
+    - {x: -6, y: -13}
+    - {x: -6, y: -14}
+    - {x: -6, y: -15}
+    - {x: -6, y: -16}
+    - {x: -5, y: -16}
+    - {x: -4, y: -16}
+    - {x: -3, y: -16}
+    - {x: -2, y: -16}
+    - {x: -1, y: -16}
+    - {x: 0, y: -16}
+    - {x: 1, y: -16}
