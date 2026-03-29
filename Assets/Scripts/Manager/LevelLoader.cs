@@ -20,9 +20,6 @@ public class LevelLoader : MonoBehaviour
 
     public bool editorMode = false;
 
-    /// <summary>
-    /// Tự động nạp dữ liệu Level từ GameManager nếu không nằm trong chế độ Editor.
-    /// </summary>
     private void Start()
     {
         if (!editorMode && GameManager.Instance != null)
@@ -31,9 +28,6 @@ public class LevelLoader : MonoBehaviour
         LoadGame();
     }
 
-    /// <summary>
-    /// Xóa sạch bàn cờ cũ và khởi tạo lại toàn bộ Entity dựa trên LevelDataSO.
-    /// </summary>
     [ContextMenu("Reload Level")]
     public void LoadGame()
     {
@@ -56,8 +50,9 @@ public class LevelLoader : MonoBehaviour
             if (gameContainer != null) snakeObj.transform.parent = gameContainer;
 
             SnakeBlock snakeScript = snakeObj.AddComponent<SnakeBlock>();
-            snakeScript.obstacleLayer = LayerMask.GetMask("Block");
-
+            
+            // KHÔNG CẦN CHỈ ĐỊNH LỚP VẬT CẢN (OBSTACLE LAYER) NỮA VÌ ĐÃ SANG GRID
+            
             snakeObj.AddComponent<ArrowGuideline>();
 
             List<Transform> mainSegments = new List<Transform>();
@@ -98,6 +93,11 @@ public class LevelLoader : MonoBehaviour
 
             int resolution = subNodesCount + 1;
             snakeScript.Initialize(snakeData.direction, mainSegments, resolution, snakeData.arrowColor);
+
+            // ==========================================
+            // BÁO CÁO VỚI BỘ NÃO (GRID MANAGER)
+            // ==========================================
+            if (GridManager.Instance != null) GridManager.Instance.RegisterSnake(snakeScript);
         }
 
         Debug.Log("Load Game Success.");

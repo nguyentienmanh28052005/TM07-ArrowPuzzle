@@ -92,7 +92,7 @@ public class EraseManager : MonoBehaviour
         eraseSeq.Join(DOVirtual.Float(1f, 0.3f, totalEraseTime, (alpha) => {
             Color fadedColor = targetSnake.snakeColor;
             fadedColor.a = alpha;
-            targetSnake.SetColorImmediatePublic(fadedColor);
+            targetSnake.SetColorImmediate(fadedColor);
         }));
 
         // Kết thúc

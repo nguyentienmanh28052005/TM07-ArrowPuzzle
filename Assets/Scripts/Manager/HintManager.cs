@@ -8,31 +8,24 @@ public class HintManager : MonoBehaviour
     public static HintManager Instance;
 
     [Header("Hint Settings")]
-    public LayerMask obstacleLayer;
     public Color hintGlowColor = Color.yellow;
     [SerializeField] private float hintDuration = 2f;
     
     private bool _isHinting = false;
     private Sequence _currentHintSeq; 
 
-    /// <summary>
-    /// Khởi tạo Singleton.
-    /// </summary>
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
 
-    /// <summary>
-    /// Bắt đầu quá trình tìm kiếm và hiển thị gợi ý nước đi cho người chơi.
-    /// </summary>
     public void TriggerHint()
     {
-        if (_isHinting) return; 
-        if (Time.timeScale == 0f) return; 
+        if (_isHinting || Time.timeScale == 0f) return; 
         
-        if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
+        // Nếu có các tool cản trở click, hãy mở khóa các dòng if này:
+        // if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         SnakeBlock targetToHint = FindBestMove();
 
@@ -42,12 +35,12 @@ public class HintManager : MonoBehaviour
         }
         else
         {
-            Debug.Log("Không tìm thấy nước đi hợp lệ. Bàn cờ kẹt cứng!");
+            Debug.Log("<color=red>HINT: Không tìm thấy nước đi hợp lệ. Bàn cờ kẹt cứng!</color>");
         }
     }
 
     /// <summary>
-    /// Thuật toán BoxCast quét toàn bộ bàn cờ để tìm ra mũi tên có đường thông thoáng nhất.
+    /// Thuật toán tìm đường hoàn toàn mới sử dụng Grid Logic thay vì BoxCast Vật lý.
     /// </summary>
     private SnakeBlock FindBestMove()
     {
@@ -57,68 +50,73 @@ public class HintManager : MonoBehaviour
         {
             if (snake == null || snake.IsMoving || snake.bodySegments.Count == 0) continue;
 
-            Vector3 headPos = snake.bodySegments[0].position;
             Vector3 moveDir = GetDirVector(snake.direction);
-
-            Vector2 boxSize = new Vector2(0.8f, 0.8f);
-            RaycastHit2D[] hits = Physics2D.BoxCastAll(headPos, boxSize, 0f, moveDir, 100f, obstacleLayer);
+            Vector2Int headPos = new Vector2Int(Mathf.RoundToInt(snake.bodySegments[0].position.x), Mathf.RoundToInt(snake.bodySegments[0].position.y));
+            Vector2Int step = new Vector2Int(Mathf.RoundToInt(moveDir.x), Mathf.RoundToInt(moveDir.y));
 
             bool isBlocked = false;
-            
-            foreach (var hit in hits)
+
+            // Quét tối đa 50 ô trên Grid (Logic giống hệ thống di chuyển của rắn)
+            for (int d = 1; d < 50; d++)
             {
-                if (hit.collider != null && !IsColliderBelongToSnake(hit.collider, snake))
+                Vector2Int checkPos = headPos + (step * d);
+                
+                // Tràn viền map nghĩa là lối thoát thông thoáng
+                if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) 
+                {
+                    break;
+                }
+
+                SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(checkPos);
+                
+                if (obstacle != null && obstacle != snake)
                 {
                     isBlocked = true; 
-                    break;
+                    break; // Gặp vật cản -> Bỏ qua con rắn này
                 }
             }
 
+            // Nếu vòng for chạy xong mà không bị block -> Con rắn này có thể thoát!
             if (!isBlocked) return snake;
         }
+        
         return null;
     }
 
-    /// <summary>
-    /// Quản lý chuỗi Tween bật tắt tia dóng và nhấp nháy màu vàng.
-    /// </summary>
     private void PlayHintAnimation(SnakeBlock snake)
     {
         _isHinting = true;
         
-        var guideline = snake.GetComponent<ArrowGuideline>();
+        // Tùy thuộc vào việc bạn còn dùng ArrowGuideline hay không
+        // var guideline = snake.GetComponent<ArrowGuideline>();
+        
         Color originalColor = snake.snakeColor;
 
         if (_currentHintSeq != null && _currentHintSeq.IsActive()) _currentHintSeq.Kill();
 
         _currentHintSeq = DOTween.Sequence();
         
-        _currentHintSeq.AppendCallback(() => {
-            if (guideline != null) guideline.SetLineActive(true);
-        });
+        // _currentHintSeq.AppendCallback(() => { if (guideline != null) guideline.SetLineActive(true); });
 
-        _currentHintSeq.Append(DOVirtual.Color(originalColor, hintGlowColor, 0.2f, (c) => snake.SetColorImmediatePublic(c)).SetEase(Ease.InOutSine));
-        _currentHintSeq.Append(DOVirtual.Color(hintGlowColor, originalColor, 0.2f, (c) => snake.SetColorImmediatePublic(c)).SetEase(Ease.InOutSine));
+        // Tween đổi màu nịnh mắt
+        _currentHintSeq.Append(DOVirtual.Color(originalColor, hintGlowColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
+        _currentHintSeq.Append(DOVirtual.Color(hintGlowColor, originalColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
         
         int loopCount = Mathf.RoundToInt(hintDuration / 0.4f);
         _currentHintSeq.SetLoops(loopCount);
         
         _currentHintSeq.OnKill(() => {
             _isHinting = false; 
-
             if (snake != null)
             {
-                if (guideline != null) guideline.SetLineActive(false);
-                snake.SetColorImmediatePublic(originalColor);
+                // if (guideline != null) guideline.SetLineActive(false);
+                snake.SetColorImmediate(originalColor);
             }
         });
         
         _currentHintSeq.SetLink(snake.gameObject);
     }
 
-    /// <summary>
-    /// Ép buộc kết thúc ngay lập tức hiệu ứng Hint hiện tại (Gọi từ Input).
-    /// </summary>
     public void StopHintImmediate()
     {
         if (_currentHintSeq != null && _currentHintSeq.IsActive())
@@ -127,22 +125,6 @@ public class HintManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Phân biệt đối tượng va chạm có phải là cơ thể của chính con rắn đang xét hay không.
-    /// </summary>
-    private bool IsColliderBelongToSnake(Collider2D col, SnakeBlock snake)
-    {
-        Collider2D[] myColliders = snake.GetComponentsInChildren<Collider2D>();
-        foreach (var c in myColliders)
-        {
-            if (c == col) return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Chuyển đổi trạng thái Enum thành Vector di chuyển.
-    /// </summary>
     private Vector3 GetDirVector(ArrowDir dir)
     {
         switch (dir)

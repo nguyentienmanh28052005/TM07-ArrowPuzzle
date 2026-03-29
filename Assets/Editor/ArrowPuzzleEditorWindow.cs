@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 
+public enum EditorToolType { Draw, Erase, Paint }
+
 public class ArrowPuzzleEditorWindow : EditorWindow
 {
     // ==========================================
@@ -176,7 +178,7 @@ public class ArrowPuzzleEditorWindow : EditorWindow
     }
 
     // ==========================================
-    // LOGIC VẼ VÀ KIỂM TRA (GIỮ NGUYÊN)
+    // LOGIC VẼ VÀ KIỂM TRA
     // ==========================================
     private void OnSceneGUI(SceneView sceneView)
     {
@@ -249,7 +251,8 @@ public class ArrowPuzzleEditorWindow : EditorWindow
 
         currentSnakeScript = currentSnakeObj.AddComponent<SnakeBlock>();
         currentSnakeScript.direction = currentDir;
-        currentSnakeScript.obstacleLayer = LayerMask.GetMask("Block");
+        
+        // ĐÃ XÓA DÒNG OBSTACLE LAYER VẬT LÝ Ở ĐÂY
 
         GameObject headObj = (GameObject)PrefabUtility.InstantiatePrefab(headPrefab, currentSnakeObj.transform);
         headObj.transform.position = new Vector3(pos.x, pos.y, 0);
@@ -374,6 +377,9 @@ public class ArrowPuzzleEditorWindow : EditorWindow
         SceneView.RepaintAll();
     }
 
+    // ==========================================
+    // SAVE & LOAD
+    // ==========================================
     private void SaveLevel()
     {
         if (currentData == null) { Debug.LogError("Chưa gắn LevelDataSO!"); return; }
@@ -418,7 +424,8 @@ public class ArrowPuzzleEditorWindow : EditorWindow
             SnakeBlock sb = snakeObj.AddComponent<SnakeBlock>();
             sb.direction = data.direction;
             sb.snakeColor = data.arrowColor;
-            sb.obstacleLayer = LayerMask.GetMask("Block");
+            
+            // ĐÃ XÓA DÒNG OBSTACLE LAYER VẬT LÝ Ở ĐÂY NỮA
 
             List<Transform> loadedSegments = new List<Transform>();
             for (int i = 0; i < data.segmentPositions.Count; i++)

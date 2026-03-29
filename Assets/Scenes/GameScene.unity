@@ -348,8 +348,15 @@ MonoBehaviour:
   currentTool: 0
   textCurrentTool: {fileID: 0}
   currentDir: 0
-  currentColor: {r: 1, g: 1, b: 1, a: 1}
+  currentColor:
+    r: 1
+    g: 1
+    b: 1
+    a: 1
   colorPreviewImage: {fileID: 0}
+  currentSnakeObj: {fileID: 0}
+  currentSnakeScript: {fileID: 0}
+  currentSegments: []
 --- !u!4 &96034496
 Transform:
   m_ObjectHideFlags: 0
@@ -469,6 +476,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 785138499}
+  - {fileID: 1676128845}
   - {fileID: 1723590090}
   - {fileID: 1874894858}
   - {fileID: 156539596}
@@ -1216,7 +1224,6 @@ GameObject:
   - component: {fileID: 322357659}
   - component: {fileID: 322357658}
   - component: {fileID: 322357657}
-  - component: {fileID: 322357661}
   m_Layer: 5
   m_Name: 'GameCanvas '
   m_TagString: Untagged
@@ -1299,7 +1306,6 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1676128845}
   - {fileID: 417079462}
   - {fileID: 1941960671}
   m_Father: {fileID: 0}
@@ -1309,41 +1315,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!114 &322357661
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 322357655}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a45318a34d0ae9f43b5277b22fc39e10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gameContainer: {fileID: 1087363344}
-  healthContainer: {fileID: 1658697086}
-  feedbackText: {fileID: 0}
-  overlayBg: {fileID: 0}
-  pausePanel: {fileID: 0}
-  pauseContent: {fileID: 0}
-  completePanel: {fileID: 0}
-  completeContent: {fileID: 0}
-  completeParticle: {fileID: 0}
-  coinText: {fileID: 0}
-  diamondText: {fileID: 0}
-  rewardCoinIcon: {fileID: 0}
-  rewardDiamondIcon: {fileID: 0}
-  starFills: []
-  flyingCoinPrefab: {fileID: 0}
-  flyingDiamondPrefab: {fileID: 0}
-  maxFlyingItems: 12
-  popupAnimDuration: 0.3
-  overlayAlpha: 0.75
-  currentCoinText: {fileID: 0}
-  currentDiamondText: {fileID: 0}
-  currentCoinIcon: {fileID: 0}
-  currentDiamondIcon: {fileID: 0}
 --- !u!1 &338127552
 GameObject:
   m_ObjectHideFlags: 0
@@ -1720,7 +1691,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &417079462
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2346,7 +2317,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 322357661}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: GameCanvas, Assembly-CSharp
         m_MethodName: OutLevel
         m_Mode: 1
@@ -2549,6 +2520,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 555946658}
   m_CullTransparentMesh: 1
+--- !u!1 &581545993
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 581545995}
+  - component: {fileID: 581545994}
+  m_Layer: 0
+  m_Name: GridManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &581545994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 581545993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c465beab31e049b4987926dbcb5cd1bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &581545995
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 581545993}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.1875112, y: -6.1186013, z: -0.18672638}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &584568688
 GameObject:
   m_ObjectHideFlags: 0
@@ -3268,7 +3283,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 322357661}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: GameCanvas, Assembly-CSharp
         m_MethodName: RestartGame
         m_Mode: 1
@@ -4089,9 +4104,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a3bc4171b447cb34aae8fe2efa749ebb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obstacleLayer:
-    serializedVersion: 2
-    m_Bits: 64
   hintGlowColor: {r: 1, g: 1, b: 1, a: 1}
   hintDuration: 2
 --- !u!4 &1015260090
@@ -7670,17 +7682,17 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1676128844}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 322357660}
+  m_Father: {fileID: 146243974}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -145, y: 116}
-  m_SizeDelta: {x: 432.62, y: 159.8501}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: -105}
+  m_SizeDelta: {x: 353.2135, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1676128846
 MonoBehaviour:
@@ -9027,7 +9039,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1941960671
 RectTransform:
   m_ObjectHideFlags: 0
@@ -9712,3 +9724,4 @@ SceneRoots:
   - {fileID: 1887095941}
   - {fileID: 1015260090}
   - {fileID: 531628446}
+  - {fileID: 581545995}

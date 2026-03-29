@@ -2,27 +2,23 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
-using Unity.Collections;
-using Unity.Jobs;
-using Unity.Burst;
 using Solo.MOST_IN_ONE;
 
 [RequireComponent(typeof(LineRenderer))]
 public class SnakeBlock : MonoBehaviour
 {
-    [Header("Movement Settings (New)")]
+    [Header("Movement Settings")]
     public ArrowDir direction;
     [SerializeField] private float startMoveSpeed = 0f;  
     [SerializeField] private float maxMoveSpeed = 300f;   
     [SerializeField] private float acceleration = 160f;   
-    [SerializeField] private float returnMoveSpeed = 25f;
+    [SerializeField] private float returnMoveSpeed = 32f;
     private float _currentMoveSpeed;                      
 
     [Header("Corner & Spawn Settings")]
     [SerializeField] private float cornerRadius = 1f;
     [SerializeField] private int cornerSmoothSteps = 10;
     [SerializeField] private float spawnSpeed = 100f;
-    public LayerMask obstacleLayer;
 
     [Header("Main Segments")]
     public List<Transform> bodySegments = new List<Transform>();
@@ -34,16 +30,16 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.35f;
 
-    private NativeArray<Vector3> _nativeOriginalState;
-    private NativeArray<Vector3> _nativeAllNodePositions;
-    private Vector3[] _managedOriginalState;
+    // THAY THẾ JOB SYSTEM BẰNG ARRAY THƯỜNG
+    private Vector3[] _originalState;
+    private Vector3[] _currentPositions;
 
     private int _totalPoints;
     private int _nodesPerUnit;
     private bool _isMoving = false;
     public bool IsMoving => _isMoving;
+    
     private LineRenderer lineRenderer;
-    private List<Collider2D> _myColliders = new List<Collider2D>();
     private float _accumulatedShift = 0f;
     private List<int> _segmentStartIndices = new List<int>();
     private LevelController levelController;
@@ -55,42 +51,28 @@ public class SnakeBlock : MonoBehaviour
     private bool _forceRedraw = false;
     private bool _isInitialized = false;
 
-    private JobHandle _jobHandle;
-    private bool _isJobRunning = false;
-
-    private int _visiblePoints;
+    private float _visiblePoints;
     private bool _isSpawning = false;
     private bool _hasDealtDamage = false;
 
-    /// <summary>
-    /// Khởi tạo các cấu hình mặc định cho LineRenderer.
-    /// </summary>
+    // QUẢN LÝ GRID LƯỚI ĐỘNG
+    private HashSet<Vector2Int> _occupiedCells = new HashSet<Vector2Int>();
+
     private void Awake()
     {
         SetupLineRenderer();
     }
 
-    /// <summary>
-    /// Liên kết với LevelController khi bắt đầu vòng đời.
-    /// </summary>
     private void Start()
     {
         levelController = FindObjectOfType<LevelController>();
     }
 
-    /// <summary>
-    /// Giải phóng Native Arrays và hoàn thành Job System để chống rò rỉ bộ nhớ khi bị Destroy.
-    /// </summary>
     private void OnDestroy()
     {
-        if (_isJobRunning) _jobHandle.Complete(); 
-        if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
-        if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
+        ClearFromGrid();
     }
 
-    /// <summary>
-    /// Cài đặt thông số chi tiết (Width, Material, Color, Alignment) cho LineRenderer.
-    /// </summary>
     private void SetupLineRenderer()
     {
         lineRenderer = GetComponent<LineRenderer>();
@@ -109,17 +91,11 @@ public class SnakeBlock : MonoBehaviour
         _originalWidthMultiplier = lineRenderer.widthMultiplier;
     }
 
-    /// <summary>
-    /// Hàm công khai cho phép các hệ thống khác ép thay đổi màu sắc ngay lập tức.
-    /// </summary>
     public void SetColorImmediatePublic(Color color)
     {
         SetColorImmediate(color);
     }
 
-    /// <summary>
-    /// Tạo hiệu ứng thu phóng thân rắn khi người chơi chọn (Focus).
-    /// </summary>
     public void SetFocusEffect(bool isFocused, float scaleFactor, float duration)
     {
         if (lineRenderer != null)
@@ -148,40 +124,27 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Chuyển đổi mềm mại màu sắc của rắn dựa trên trạng thái Focus.
-    /// </summary>
     public void SetFocusColor(bool isFocusing, float duration)
     {
         Color targetColor = isFocusing ? snakeMoveColor : snakeColor;
         RunColorTween(targetColor, duration);
     }
 
-    /// <summary>
-    /// Đảm nhiệm việc chạy DOTween chuyển màu cho tất cả các thành phần trực quan.
-    /// </summary>
     private void RunColorTween(Color targetColor, float duration)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
-
         _colorTweener = DOTween.To(() => _currentLineColor, x => _currentLineColor = x, targetColor, duration)
             .OnUpdate(() => ApplyColorToAll(_currentLineColor))
             .SetLink(gameObject);
     }
 
-    /// <summary>
-    /// Áp dụng ngay lập tức một màu sắc chỉ định, bỏ qua Tween.
-    /// </summary>
-    private void SetColorImmediate(Color color)
+    public void SetColorImmediate(Color color)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
         _currentLineColor = color;
         ApplyColorToAll(color);
     }
 
-    /// <summary>
-    /// Cập nhật màu sắc cho LineRenderer và tất cả các nốt Sprite liên quan.
-    /// </summary>
     private void ApplyColorToAll(Color color)
     {
         if (lineRenderer != null)
@@ -189,13 +152,11 @@ public class SnakeBlock : MonoBehaviour
             lineRenderer.startColor = color;
             lineRenderer.endColor = color;
         }
-
         if (arrowVisual != null)
         {
             var sr = arrowVisual.GetComponentInChildren<SpriteRenderer>();
             if (sr) sr.color = color;
         }
-
         foreach (var seg in bodySegments)
         {
             if (seg == null) continue;
@@ -207,210 +168,236 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Được gọi bởi Input khi người chơi bấm hợp lệ vào nốt đầu để kích hoạt di chuyển.
-    /// </summary>
-    public void OnHeadClicked()
+    public bool OnHeadClicked()
     {
-        if (!_isMoving && !_isSpawning) StartCoroutine(ProcessMovement());
+        if (!_isMoving && !_isSpawning) 
+        {
+            StartCoroutine(ProcessMovement());
+            return true;
+        }
+        return false;
     }
 
-    /// <summary>
-    /// Coroutine cốt lõi xử lý toàn bộ logic di chuyển, va chạm, và hoạt ảnh của rắn.
-    /// </summary>
+    // ==========================================
+    // LOGIC ĐỒNG BỘ LƯỚI ĐỘNG (GRID LOGIC MỚI)
+    // ==========================================
     private IEnumerator ProcessMovement()
     {
         _isMoving = true;
         SetFocusColor(false, 0.5f);
+        lineRenderer.sortingOrder = 20;
 
-        _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
-
+        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         _accumulatedShift = 0f;
         Vector3 moveDir = GetDirVector(direction);
         _currentMoveSpeed = startMoveSpeed;
-
+        
         int _lastProcessedGrid = 0;
 
-        float initialPathCheck = CheckObstacleDistance(moveDir);
-        bool isGhostMode = (initialPathCheck == float.MaxValue);
+        float distToObstacle = CheckObstacleDistance(moveDir);
+        bool isGhostMode = (distToObstacle == float.MaxValue);
+        float targetMaxShift = distToObstacle * _nodesPerUnit;
 
         if (isGhostMode)
         {
-            ComboManager.Instance.AddCombo(); 
-            foreach (var col in _myColliders)
-            {
-                if (col != null) col.enabled = false;
-            }
+            ClearFromGrid(); 
+            if (ComboManager.Instance != null) ComboManager.Instance.AddCombo();
+            _currentMoveSpeed *= 1.3f; 
         }
 
         while (true)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
+            float nextShiftAmount = safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
 
-            if (!isGhostMode)
+            if (!isGhostMode && (_accumulatedShift + nextShiftAmount >= targetMaxShift))
             {
-                float distToObstacle = CheckObstacleDistance(moveDir);
-                float stepDist = safeDeltaTime * _currentMoveSpeed;
-
-                if (distToObstacle < stepDist + 0.9f)
-                {
-                    if (!_hasDealtDamage)
-                    {
-                        MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage);
-                        _hasDealtDamage = true; 
-                    }
-                    ComboManager.Instance.StopCombo();
-                    AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
-                    SetColorImmediate(snakeTakeHitColor);
-                    //MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
-                    SettingManager.Instance.PlayHaptic(Solo.MOST_IN_ONE.MOST_HapticFeedback.HapticTypes.MediumImpact);
-                    yield return StartCoroutine(HitObstacle(moveDir, distToObstacle));
-                    yield return StartCoroutine(ReturnToOrigin(moveDir));
-                    break; 
-                }
+                yield return StartCoroutine(HandleCollision(moveDir, distToObstacle, _lastProcessedGrid));
+                break; 
             }
 
             _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * safeDeltaTime);
-            _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
+            _accumulatedShift += nextShiftAmount;
             
             UpdateSnakePosition(_accumulatedShift, moveDir);
 
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
             while (_lastProcessedGrid < currentGridProgress)
             {
+                if (!isGhostMode) UpdateGridOccupancy(); 
+                
                 Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
                 if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
                 {
                     dotToAnimate.PlayLeaveEffect();
                 }
+                
                 _lastProcessedGrid++;
             }
 
+            // Mốc 1: Phá hủy
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
             {
                 Destroy(gameObject);
                 yield break;
             }
 
+            // Mốc 2: Tính điểm
             if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 1600f && !outed)
             {
                 if (levelController != null) levelController.SetCountArrowInGame();
                 outed = true;
             }
-
+            
             yield return null;
         }
 
         _isMoving = false;
+        lineRenderer.sortingOrder = 10;
     }
 
-    /// <summary>
-    /// Bắn tia Raycast để tìm khoảng cách tới vật cản gần nhất trên hướng đi.
-    /// </summary>
-    private float CheckObstacleDistance(Vector3 dir)
+    private IEnumerator HandleCollision(Vector3 dir, float dist, int lastProcessedGrid)
     {
-        if (_totalPoints == 0 || !_isInitialized) return 0f;
+        float targetShift = dist * _nodesPerUnit;
+        int _lastBounceGrid = lastProcessedGrid;
 
-        if (_isJobRunning)
-        {
-            _jobHandle.Complete();
-            _isJobRunning = false;
-            SyncMainSegments();
-        }
-
-        Vector3 startPos = _nativeAllNodePositions[0];
-        RaycastHit2D[] hits = Physics2D.RaycastAll(startPos, dir, 100f, obstacleLayer);
-        
-        float closestDist = float.MaxValue;
-        bool found = false;
-        foreach (var hit in hits)
-        {
-            if (hit.collider != null && !IsMyCollider(hit.collider))
-            {
-                if (hit.distance < closestDist)
-                {
-                    closestDist = hit.distance;
-                    found = true;
-                }
-            }
-        }
-        return found ? closestDist : float.MaxValue;
-    }
-
-    /// <summary>
-    /// Coroutine xử lý va chạm sát tường khi không thể tiến thêm.
-    /// </summary>
-    private IEnumerator HitObstacle(Vector3 dir, float distance)
-    {
-        float startShift = _accumulatedShift;
-        float travelDist = Mathf.Max(0f, distance - 0.1f); 
-        float targetShift = startShift + (travelDist * _nodesPerUnit);
-        
+        // 1. HitObstacle Logic
         while (_accumulatedShift < targetShift)
         {
-            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            
-            _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
-            
-            if (_accumulatedShift > targetShift) _accumulatedShift = targetShift;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, 500f * Time.deltaTime);
             UpdateSnakePosition(_accumulatedShift, dir);
             
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            if (currentGridProgress > _lastBounceGrid) 
+            {
+                UpdateGridOccupancy();
+                _lastBounceGrid = currentGridProgress;
+            }
             yield return null;
         }
-    }
 
-    /// <summary>
-    /// Đảo ngược tiến trình di chuyển, kéo rắn từ điểm va chạm dội ngược về vị trí xuất phát.
-    /// </summary>
-    private IEnumerator ReturnToOrigin(Vector3 dir)
-    {
+        // Gameplay Effects
+        if (!_hasDealtDamage) 
+        { 
+            if (MessageManager.Instance != null) MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage); 
+            _hasDealtDamage = true; 
+        }
+        if (ComboManager.Instance != null) ComboManager.Instance.StopCombo();
+        if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
+        SetColorImmediate(snakeTakeHitColor);
+        //MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
+        SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);   
+        
+        // 2. ReturnToOrigin Logic
         while (_accumulatedShift > 0f)
         {
-            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            
-            _accumulatedShift -= safeDeltaTime * returnMoveSpeed * _nodesPerUnit;
-            
-            if (_accumulatedShift < 0f) _accumulatedShift = 0f;
-            
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, 0, returnMoveSpeed * _nodesPerUnit * Time.deltaTime);
             UpdateSnakePosition(_accumulatedShift, dir);
+            
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            if (currentGridProgress < _lastBounceGrid) 
+            {
+                UpdateGridOccupancy();
+                _lastBounceGrid = currentGridProgress;
+            }
             yield return null;
         }
 
-        if (_isJobRunning)
-        {
-            _jobHandle.Complete();
-            _isJobRunning = false;
-        }
-        _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
+        // Chốt
+        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         SyncMainSegments();
+        UpdateGridOccupancy(); 
     }
 
-    /// <summary>
-    /// Tính toán tọa độ lưới (Grid) hiện tại của cái đuôi dựa trên tiến độ di chuyển.
-    /// </summary>
-    private Vector2Int GetTailGridPosAtProgress(int gridsMoved)
+    // ==========================================
+    // HỆ THỐNG QUẢN LÝ "HỘ KHẨU"
+    // ==========================================
+    
+    private void ClearFromGrid()
     {
-        int nodesMoved = gridsMoved * _nodesPerUnit;
-        int trackIndex = (_totalPoints - 1) - nodesMoved;
+        if (GridManager.Instance == null || GridManager.Instance.GridMap == null) return;
         
-        Vector3 pos;
-        if (trackIndex >= 0 && trackIndex < _totalPoints)
+        foreach (var cell in _occupiedCells)
         {
-            pos = _nativeOriginalState[trackIndex];
+            if (GridManager.Instance.GridMap.TryGetValue(cell, out SnakeBlock block) && block == this)
+            {
+                GridManager.Instance.GridMap.Remove(cell);
+            }
         }
+        _occupiedCells.Clear();
+    }
+
+    private void UpdateGridOccupancy()
+    {
+        if (GridManager.Instance == null || GridManager.Instance.GridMap == null || !_isInitialized) return;
+        
+        ClearFromGrid();
+
+        float headIdx = -_accumulatedShift;
+        for (int i = 0; i < _totalPoints; i++)
+        {
+            float trackIdx = headIdx + i;
+            Vector2Int cell = GetGridPosFromTrackIndex(trackIdx);
+            _occupiedCells.Add(cell);
+        }
+
+        foreach(var cell in _occupiedCells) 
+        {
+            GridManager.Instance.GridMap[cell] = this;
+        }
+    }
+
+    private Vector2Int GetGridPosFromTrackIndex(float trackIndex)
+    {
+        Vector3 pos;
+        if (trackIndex <= 0)
+        {
+            float distFromHead = Mathf.Abs(trackIndex) / _nodesPerUnit;
+            pos = _originalState[0] + GetDirVector(direction) * distFromHead;
+        }
+        else if (trackIndex >= _totalPoints - 1) pos = _originalState[_totalPoints - 1];
         else
         {
-            int overstepNodes = -trackIndex;
-            float overstepUnits = (float)overstepNodes / _nodesPerUnit;
-            pos = _nativeOriginalState[0] + GetDirVector(direction) * overstepUnits;
+            int idx = Mathf.FloorToInt(trackIndex);
+            float t = trackIndex - idx;
+            pos = Vector3.Lerp(_originalState[idx], _originalState[idx + 1], t);
         }
-        
         return new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
     }
 
-    /// <summary>
-    /// Khởi tạo và cắt nội suy (Slicing) đường đi dựa trên các nốt cơ bản do Editor cung cấp.
-    /// </summary>
+    private float CheckObstacleDistance(Vector3 dir)
+    {
+        if (!_isInitialized || _currentPositions == null || GridManager.Instance == null) return float.MaxValue;
+
+        Vector2Int headPos = new Vector2Int(Mathf.RoundToInt(_currentPositions[0].x), Mathf.RoundToInt(_currentPositions[0].y));
+        Vector2Int step = new Vector2Int(Mathf.RoundToInt(dir.x), Mathf.RoundToInt(dir.y));
+
+        for (int d = 1; d < 50; d++)
+        {
+            Vector2Int checkPos = headPos + (step * d);
+            if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) return float.MaxValue;
+
+            SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(checkPos);
+            if (obstacle != null && obstacle != this) 
+            {
+                return d - 1; 
+            }
+        }
+        return float.MaxValue;
+    }
+
+    private Vector2Int GetTailGridPosAtProgress(int gridsMoved) 
+    {
+        float shiftAtThatTime = gridsMoved * _nodesPerUnit;
+        float tailTrackIdx = -shiftAtThatTime + (_totalPoints - 1);
+        Vector3 exactTailPos = GetPositionAtTrackIndex(tailTrackIdx);
+        return new Vector2Int(Mathf.RoundToInt(exactTailPos.x), Mathf.RoundToInt(exactTailPos.y));
+    }
+
+    // ==========================================
+    // KHỞI TẠO VÀ TÍNH TOÁN HÌNH ẢNH
+    // ==========================================
+
     public void Initialize(ArrowDir dir, List<Transform> mainSegments, int resolution, Color color)
     {
         snakeColor = color;
@@ -423,13 +410,6 @@ public class SnakeBlock : MonoBehaviour
         {
             if (seg != null) _originalSegmentScales.Add(seg.localScale);
             else _originalSegmentScales.Add(Vector3.one);
-        }
-
-        _myColliders.Clear();
-        _myColliders.AddRange(GetComponentsInChildren<Collider2D>());
-        foreach (var t in mainSegments)
-        {
-            if (t) _myColliders.AddRange(t.GetComponentsInChildren<Collider2D>());
         }
 
         if (bodySegments.Count > 0 && bodySegments[0] != null && arrowVisual == null)
@@ -453,11 +433,8 @@ public class SnakeBlock : MonoBehaviour
             _segmentStartIndices.Add(currentTotalPoints); 
             _totalPoints = currentTotalPoints + 1;
 
-            if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
-            if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
-
-            _nativeOriginalState = new NativeArray<Vector3>(_totalPoints, Allocator.Persistent);
-            _nativeAllNodePositions = new NativeArray<Vector3>(_totalPoints, Allocator.Persistent);
+            _originalState = new Vector3[_totalPoints];
+            _currentPositions = new Vector3[_totalPoints];
 
             int arrayIndex = 0;
             for (int i = 0; i < segmentsCount; i++)
@@ -468,29 +445,21 @@ public class SnakeBlock : MonoBehaviour
                 for (int j = 0; j < count; j++)
                 {
                     float t = (float)j / count;
-                    _nativeOriginalState[arrayIndex] = Vector3.Lerp(start, end, t);
+                    _originalState[arrayIndex] = Vector3.Lerp(start, end, t);
                     arrayIndex++;
                 }
             }
-            _nativeOriginalState[arrayIndex] = bodySegments[segmentsCount].position;
-
-            _nativeAllNodePositions.CopyFrom(_nativeOriginalState);
+            _originalState[arrayIndex] = bodySegments[segmentsCount].position;
+            System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         }
         else if (bodySegments.Count == 1)
         {
             _totalPoints = 1;
-            if (_nativeOriginalState.IsCreated) _nativeOriginalState.Dispose();
-            if (_nativeAllNodePositions.IsCreated) _nativeAllNodePositions.Dispose();
-
-            _nativeOriginalState = new NativeArray<Vector3>(new Vector3[] { bodySegments[0].position }, Allocator.Persistent);
-            _nativeAllNodePositions = new NativeArray<Vector3>(new Vector3[] { bodySegments[0].position }, Allocator.Persistent);
-
+            _originalState = new Vector3[] { bodySegments[0].position };
+            _currentPositions = new Vector3[] { bodySegments[0].position };
             _segmentStartIndices.Clear();
             _segmentStartIndices.Add(0);
         }
-
-        _managedOriginalState = new Vector3[_totalPoints];
-        _nativeOriginalState.CopyTo(_managedOriginalState);
 
         _isInitialized = true;
         _visiblePoints = 0;
@@ -503,26 +472,21 @@ public class SnakeBlock : MonoBehaviour
             if (bodySegments[i] != null) SetSegmentVisible(bodySegments[i], false);
         }
 
+        UpdateGridOccupancy(); // Ghi danh vào Grid ngay khi sinh ra
+
         StartCoroutine(PlaySpawnAnimationFromTail());
     }
 
-    /// <summary>
-    /// Vô hiệu hóa hoặc kích hoạt hiển thị của một nốt cụ thể.
-    /// </summary>
     private void SetSegmentVisible(Transform seg, bool visible)
     {
         var renderers = seg.GetComponentsInChildren<SpriteRenderer>();
         foreach (var sr in renderers) sr.enabled = visible;
     }
 
-    /// <summary>
-    /// Hiệu ứng tuôn trào các nốt dọc theo thân rắn từ đuôi lên đầu lúc khởi tạo.
-    /// </summary>
     private IEnumerator PlaySpawnAnimationFromTail()
     {
         _isSpawning = true;
         _visiblePoints = Mathf.Min(2, _totalPoints);
-
         yield return null;
 
         float progress = _visiblePoints;
@@ -530,14 +494,6 @@ public class SnakeBlock : MonoBehaviour
         {
             progress += Time.deltaTime * spawnSpeed;
             _visiblePoints = Mathf.Min(Mathf.FloorToInt(progress), _totalPoints);
-
-            int currentStartIndex = _totalPoints - _visiblePoints;
-
-            for (int k = 1; k < bodySegments.Count; k++)
-            {
-                if (bodySegments[k] == null) continue;
-                if (currentStartIndex <= _segmentStartIndices[k]) { }
-            }
             yield return null;
         }
 
@@ -545,9 +501,7 @@ public class SnakeBlock : MonoBehaviour
         {
             Transform head = bodySegments[0];
             SetSegmentVisible(head, true);
-
             Vector3 originalScale = _originalSegmentScales.Count > 0 ? _originalSegmentScales[0] : Vector3.one;
-
             head.DOKill();
             head.localScale = Vector3.zero;
             head.DOScale(originalScale, 0.4f).SetEase(Ease.OutBack).SetLink(head.gameObject); 
@@ -558,44 +512,48 @@ public class SnakeBlock : MonoBehaviour
         _forceRedraw = true;
     }
 
-    /// <summary>
-    /// Lên lịch trình cho C# Job System để tính toán vị trí của hàng trăm nốt một cách song song.
-    /// </summary>
     private void UpdateSnakePosition(float shift, Vector3 moveDir)
     {
         if (!_isInitialized) return;
-
-        if (_isJobRunning)
+        for (int i = 0; i < _totalPoints; i++)
         {
-            _jobHandle.Complete();
-            _isJobRunning = false;
+            float trackIdx = -shift + i;
+            if (trackIdx < 0) 
+            {
+                float distFromHead = Mathf.Abs(trackIdx) / _nodesPerUnit;
+                _currentPositions[i] = _originalState[0] + moveDir * distFromHead;
+            }
+            else
+            {
+                int idx = Mathf.FloorToInt(trackIdx);
+                if (idx >= _totalPoints - 1) _currentPositions[i] = _originalState[_totalPoints - 1];
+                else 
+                {
+                    float t = trackIdx - idx;
+                    _currentPositions[i] = Vector3.Lerp(_originalState[idx], _originalState[idx + 1], t);
+                }
+            }
         }
-
-        CalculateSnakePositionJob job = new CalculateSnakePositionJob
-        {
-            shift = shift,
-            moveDir = moveDir,
-            nodesPerUnit = _nodesPerUnit,
-            originalState = _nativeOriginalState,
-            currentPositions = _nativeAllNodePositions
-        };
-
-        _jobHandle = job.Schedule(_totalPoints, 64);
-        _isJobRunning = true;
+        SyncMainSegments();
     }
 
-    /// <summary>
-    /// Đồng bộ Job System và vẽ lại LineRenderer vào cuối mỗi khung hình.
-    /// </summary>
+    private void SyncMainSegments()
+    {
+        for (int k = 0; k < bodySegments.Count; k++)
+        {
+            if (bodySegments[k] != null && k < _segmentStartIndices.Count)
+            {
+                int virtualIndex = _segmentStartIndices[k];
+                if (virtualIndex < _totalPoints)
+                {
+                    bodySegments[k].position = _currentPositions[virtualIndex];
+                }
+            }
+        }
+    }
+
     private void LateUpdate()
     {
-        if (_isJobRunning)
-        {
-            _jobHandle.Complete();
-            _isJobRunning = false;
-            SyncMainSegments(); 
-        }
-
         if (_isMoving || _forceRedraw || _isSpawning)
         {
             UpdateLineRenderer();
@@ -603,80 +561,6 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Kiểm tra xem một Collider có thuộc về cơ thể của chính con rắn này hay không.
-    /// </summary>
-    private bool IsMyCollider(Collider2D col)
-    {
-        if (_myColliders == null) return false;
-        return _myColliders.Contains(col);
-    }
-
-    /// <summary>
-    /// Struct Job System tối ưu hóa khả năng tính toán quỹ đạo dựa trên chỉ số nội suy.
-    /// </summary>
-    [BurstCompile]
-    struct CalculateSnakePositionJob : IJobParallelFor
-    {
-        public float shift;
-        public Vector3 moveDir;
-        public int nodesPerUnit;
-        [ReadOnly] public NativeArray<Vector3> originalState;
-        [WriteOnly] public NativeArray<Vector3> currentPositions;
-
-        public void Execute(int i)
-        {
-            float trackIndex = -shift + i;
-            if (trackIndex < 0)
-            {
-                float distFromHead = Mathf.Abs(trackIndex) / nodesPerUnit;
-                currentPositions[i] = originalState[0] + moveDir * distFromHead;
-            }
-            else
-            {
-                int count = originalState.Length;
-                if (count == 0)
-                {
-                    currentPositions[i] = Vector3.zero;
-                    return;
-                }
-
-                if (trackIndex <= 0) currentPositions[i] = originalState[0];
-                else if (trackIndex >= count - 1) currentPositions[i] = originalState[count - 1];
-                else
-                {
-                    int idx = (int)trackIndex;
-                    float t = trackIndex - idx;
-                    currentPositions[i] = Vector3.Lerp(originalState[idx], originalState[idx + 1], t);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Đồng bộ vị trí thực tế của các Transform (nốt gắn Component) với dữ liệu đã tính toán trong Job.
-    /// </summary>
-    private void SyncMainSegments()
-    {
-        for (int k = 0; k < bodySegments.Count; k++)
-        {
-            if (bodySegments[k] != null)
-            {
-                if (k < _segmentStartIndices.Count)
-                {
-                    int virtualIndex = _segmentStartIndices[k];
-                    if (virtualIndex < _totalPoints)
-                    {
-                        bodySegments[k].position = _nativeAllNodePositions[virtualIndex];
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Tính toán các điểm vẽ cho LineRenderer dựa trên quỹ đạo tĩnh (Path Slicing).
-    /// </summary>
     private void UpdateLineRenderer()
     {
         if (lineRenderer == null || _totalPoints <= 0 || !_isInitialized) return;
@@ -691,7 +575,6 @@ public class SnakeBlock : MonoBehaviour
         }
 
         List<Vector3> renderPoints = new List<Vector3>();
-
         renderPoints.Add(GetPositionAtTrackIndex(headTrackIdx));
 
         int firstStatic = Mathf.CeilToInt(headTrackIdx);
@@ -701,10 +584,7 @@ public class SnakeBlock : MonoBehaviour
         {
             if (i > headTrackIdx + 0.001f && i < tailTrackIdx - 0.001f)
             {
-                if (i >= 0 && i < _totalPoints)
-                {
-                    renderPoints.Add(_managedOriginalState[i]); 
-                }
+                if (i >= 0 && i < _totalPoints) renderPoints.Add(_originalState[i]); 
             }
         }
 
@@ -724,31 +604,22 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.SetPositions(finalPoints);
     }
 
-    /// <summary>
-    /// Nội suy và trả về tọa độ chính xác của một điểm bất kỳ trên quỹ đạo.
-    /// </summary>
     private Vector3 GetPositionAtTrackIndex(float trackIndex)
     {
         if (trackIndex <= 0)
         {
             float distFromHead = Mathf.Abs(trackIndex) / _nodesPerUnit;
-            return _managedOriginalState[0] + GetDirVector(direction) * distFromHead;
+            return _originalState[0] + GetDirVector(direction) * distFromHead;
         }
-        else if (trackIndex >= _totalPoints - 1)
-        {
-            return _managedOriginalState[_totalPoints - 1];
-        }
+        else if (trackIndex >= _totalPoints - 1) return _originalState[_totalPoints - 1];
         else
         {
             int idx = Mathf.FloorToInt(trackIndex);
             float t = trackIndex - idx;
-            return Vector3.Lerp(_managedOriginalState[idx], _managedOriginalState[idx + 1], t);
+            return Vector3.Lerp(_originalState[idx], _originalState[idx + 1], t);
         }
     }
 
-    /// <summary>
-    /// Phân tích quỹ đạo và tạo các đường cong mềm mại tại các nốt thắt (Góc vuông).
-    /// </summary>
     private Vector3[] BuildSmoothedPositionsForRender(Vector3[] positions)
     {
         if (positions.Length < 3) return positions;
@@ -806,9 +677,6 @@ public class SnakeBlock : MonoBehaviour
         return result.ToArray();
     }
 
-    /// <summary>
-    /// Đồng bộ góc xoay của phần hình ảnh đầu rắn để luôn chỉ đúng hướng chuẩn.
-    /// </summary>
     public void UpdateVisualRotation()
     {
         if (arrowVisual == null) return;
@@ -823,9 +691,6 @@ public class SnakeBlock : MonoBehaviour
         arrowVisual.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
-    /// <summary>
-    /// Chuyển đổi trạng thái enum ArrowDir thành Vector3 định hướng vật lý.
-    /// </summary>
     private Vector3 GetDirVector(ArrowDir dir)
     {
         switch (dir)

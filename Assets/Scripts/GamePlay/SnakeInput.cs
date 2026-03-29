@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems; 
 using DG.Tweening;
+using System.Collections.Generic;
 using Solo.MOST_IN_ONE;
 
 public class SnakeInput : MonoBehaviour
@@ -21,40 +22,38 @@ public class SnakeInput : MonoBehaviour
     private Coroutine holdCoroutine;
     private ArrowGuideline _guidelineCache;
 
-    /// <summary>
-    /// Thiết lập tham chiếu ban đầu và vô hiệu hóa input nếu đang ở chế độ Level Editor.
-    /// </summary>
+    // ĐỘT PHÁ: Quản lý toàn bộ Input trong Scene mà không cần Collider
+    public static List<SnakeInput> AllInputs = new List<SnakeInput>();
+
+    private void OnEnable()
+    {
+        if (!AllInputs.Contains(this)) AllInputs.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        if (AllInputs.Contains(this)) AllInputs.Remove(this);
+    }
+
     private void Awake()
     {
         parentScript = GetComponentInParent<SnakeBlock>();
-
-        if (FindObjectOfType<LevelEditor>() != null)
-        {
-            this.enabled = false;
-            return;
-        }
     }
 
-    /// <summary>
-    /// Cấu hình bộ đệm cho tia dóng từ script cha.
-    /// </summary>
     private void Start()
     {
-        if (parentScript != null)
+        if (parentScript != null) 
         {
             _guidelineCache = parentScript.GetComponent<ArrowGuideline>();
         }
     }
 
-    /// <summary>
-    /// Kiểm tra liên tục các trạng thái tương tác chuột/cảm ứng mỗi khung hình.
-    /// </summary>
     private void Update()
     {
         if (Time.timeScale == 0f) return;
 
-        if (IsPointerOverUI())
-        {
+        if (IsPointerOverUI()) 
+        { 
             if (isPressed) HandleInputUp(); 
             return; 
         }
@@ -63,9 +62,6 @@ public class SnakeInput : MonoBehaviour
         if (Input.GetMouseButtonUp(0)) HandleInputUp();
     }
 
-    /// <summary>
-    /// Xác định xem ngón tay/chuột của người chơi có đang chạm vào một thành phần UI nào đó hay không.
-    /// </summary>
     private bool IsPointerOverUI()
     {
         if (EventSystem.current == null) return false;
@@ -82,28 +78,23 @@ public class SnakeInput : MonoBehaviour
         return EventSystem.current.IsPointerOverGameObject();
     }
 
-    /// <summary>
-    /// Xử lý logic khởi điểm khi người chơi nhấn xuống một mũi tên hợp lệ.
-    /// </summary>
     private void HandleInputDown()
     {
-        // ==========================================
-        // CHỐT CHẶN TỬ THẦN (CẬP NHẬT MỚI): 
-        // Từ chối mọi thao tác bấm nếu Camera đang bận (Chạy Intro, Outro, v.v.)
-        // ==========================================
         if (CameraController.IsGameplayBlocking) return;
-
         if (CameraController.IsDragging) return;
         if (parentScript != null && parentScript.IsMoving) return;
-
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        float dist = Vector2.Distance(transform.position, mousePos);
+        float myDist = Vector2.Distance(transform.position, mousePos);
 
-        if (dist > clickRadius) return;
-        if (!IsClosestToClick(mousePos)) return;
+        // 1. Kiểm tra xem chuột có nằm trong vùng Click của mình không
+        if (myDist > clickRadius) return;
+        
+        // 2. SO SÁNH TOÁN HỌC: Xác định xem mình có phải là kẻ GẦN CHUỘT NHẤT không?
+        if (!IsClosestToClick(mousePos, myDist)) return;
 
+        // Nếu đang bật chế độ Tẩy (Erase)
         if (EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive)
         {
             CameraController.IsGameplayBlocking = true;
@@ -111,6 +102,7 @@ public class SnakeInput : MonoBehaviour
             return; 
         }
 
+        // Tắt Hint nếu đang bật
         if (HintManager.Instance != null)
         {
             HintManager.Instance.StopHintImmediate();
@@ -118,8 +110,6 @@ public class SnakeInput : MonoBehaviour
 
         isPressed = true;
         isHolding = false; 
-        
-        // Khi 1 con rắn được bấm hợp lệ, nó lập tức bật khiên IsGameplayBlocking lên
         CameraController.IsGameplayBlocking = true;
 
         if (parentScript != null)
@@ -131,17 +121,12 @@ public class SnakeInput : MonoBehaviour
         holdCoroutine = StartCoroutine(WaitAndScale());
     }
 
-    /// <summary>
-    /// Xử lý logic giải phóng khi người chơi nhấc ngón tay, kích hoạt tiến trình di chuyển nếu hợp lệ.
-    /// </summary>
     private void HandleInputUp()
     {
         if (!isPressed) return;
 
         isPressed = false;
         isHolding = false;
-        
-        // Trả lại quyền điều khiển Camera khi nhấc ngón tay
         CameraController.IsGameplayBlocking = false;
 
         if (holdCoroutine != null) StopCoroutine(holdCoroutine);
@@ -156,33 +141,32 @@ public class SnakeInput : MonoBehaviour
             _guidelineCache.SetLineActive(false);
         }
 
-        bool willMove = false;
-
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        
         if (Vector2.Distance(transform.position, mousePos) <= clickRadius)
         {
-            willMove = true;
             if (parentScript != null)
             {
-                AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
-                parentScript.OnHeadClicked();
-                
-                if (useHaptics && SettingManager.Instance != null) 
+                bool success = parentScript.OnHeadClicked();
+                if (success)
                 {
-                    SettingManager.Instance.PlayHaptic(Solo.MOST_IN_ONE.MOST_HapticFeedback.HapticTypes.Selection);
+                    if (AudioManager.Instance != null) 
+                    {
+                        AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
+                    }
+                    if (useHaptics && SettingManager.Instance != null) 
+                    {
+                        SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.Selection);
+                    }
                 }
             }
         }
-
-        if (parentScript != null && !willMove)
+        else
         {
-            parentScript.SetFocusColor(false, duration);
+            if (parentScript != null) parentScript.SetFocusColor(false, duration);
         }
     }
 
-    /// <summary>
-    /// Kiểm soát trạng thái hiển thị của các hiệu ứng phụ (Tia dóng, Màu nổi bật) trong suốt quá trình giữ tay.
-    /// </summary>
     private void LateUpdate()
     {
         if (isPressed)
@@ -195,51 +179,55 @@ public class SnakeInput : MonoBehaviour
             if (!isInside)
             {
                 if (_guidelineCache != null) _guidelineCache.SetLineActive(false);
-                if (parentScript != null)
-                {
-                    parentScript.SetFocusColor(false, duration);
-                }
+                if (parentScript != null) parentScript.SetFocusColor(false, duration);
             }
             else
             {
-                if (isHolding) 
-                {
-                    if (_guidelineCache != null) _guidelineCache.SetLineActive(true);
-                }
-                
-                if (parentScript != null)
-                {
-                    parentScript.SetFocusColor(true, duration);
-                }
+                if (isHolding && _guidelineCache != null) _guidelineCache.SetLineActive(true);
+                if (parentScript != null) parentScript.SetFocusColor(true, duration);
             }
         }
     }
 
-    /// <summary>
-    /// Phân giải điểm chạm để tìm ra Input gần nhất, chống việc click nhầm nhiều rắn đè lên nhau.
-    /// </summary>
-    private bool IsClosestToClick(Vector2 clickPos)
+    // ==========================================
+    // THUẬT TOÁN TÌM KẺ GẦN NHẤT (O(N) SIÊU NHẸ)
+    // ==========================================
+    private bool IsClosestToClick(Vector2 mousePos, float myDist)
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(clickPos, clickRadius);
-        float myDistance = Vector2.Distance(transform.position, clickPos);
-        foreach (var hit in hits)
+        foreach (var other in AllInputs)
         {
-            SnakeInput other = hit.GetComponent<SnakeInput>();
-            if (other != null && other != this && Vector2.Distance(other.transform.position, clickPos) < myDistance) return false;
+            if (other != null && other != this && other.gameObject.activeInHierarchy)
+            {
+                float otherDist = Vector2.Distance(other.transform.position, mousePos);
+                
+                // Nếu con rắn khác cũng nằm trong tầm click của nó
+                if (otherDist <= other.clickRadius)
+                {
+                    // Nếu nó gần chuột hơn mình -> Mình nhường quyền Click cho nó
+                    if (otherDist < myDist) 
+                    {
+                        return false; 
+                    }
+                    
+                    // Xử lý xung đột: Nếu 2 con rắn nằm đè lên nhau trùng khớp 100% tọa độ
+                    // Dùng InstanceID để ưu tiên chọn 1 đứa duy nhất, tránh bấm 1 phát chạy cả 2 con
+                    if (Mathf.Abs(otherDist - myDist) < 0.0001f && other.GetInstanceID() < this.GetInstanceID())
+                    {
+                        return false;
+                    }
+                }
+            }
         }
+        
         return true;
     }
 
-    /// <summary>
-    /// Luồng xử lý thời gian đệm để xác nhận hành vi "Hold" (Giữ lâu) từ người chơi.
-    /// </summary>
     private System.Collections.IEnumerator WaitAndScale()
     {
         yield return new WaitForSeconds(holdThreshold);
         if (isPressed && parentScript != null)
         {
             isHolding = true; 
-
             parentScript.SetFocusEffect(true, scaleFactor, duration);
             
             if (_guidelineCache != null)
@@ -249,18 +237,12 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Dọn dẹp Animation và mở khóa GamePlay khi Object bị tiêu hủy.
-    /// </summary>
     private void OnDestroy()
     {
         transform.DOKill();
         if (isPressed) CameraController.IsGameplayBlocking = false;
     }
 
-    /// <summary>
-    /// Hỗ trợ vẽ vòng tròn nhận diện click trên Scene View trong Editor.
-    /// </summary>
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
