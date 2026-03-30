@@ -7,12 +7,18 @@ using Solo.MOST_IN_ONE;
 [RequireComponent(typeof(LineRenderer))]
 public class SnakeBlock : MonoBehaviour
 {
-    [Header("Movement Settings")]
+    [Header("Movement: BLOCKED (Bị chặn)")]
     public ArrowDir direction;
     [SerializeField] private float startMoveSpeed = 0f;  
     [SerializeField] private float maxMoveSpeed = 300f;   
-    [SerializeField] private float acceleration = 160f;   
-    [SerializeField] private float returnMoveSpeed = 32f;
+    [SerializeField] private float acceleration = 100f;   
+    [SerializeField] private float returnMoveSpeed = 30f;
+
+    [Header("Movement: EXIT (Đường thông thoáng)")]
+    [SerializeField] private float exitStartSpeed = 20f;
+    [SerializeField] private float exitMaxSpeed = 400f;  
+    [SerializeField] private float exitAcceleration = 180f;
+
     private float _currentMoveSpeed;                      
 
     [Header("Corner & Spawn Settings")]
@@ -30,7 +36,6 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.35f;
 
-    // THAY THẾ JOB SYSTEM BẰNG ARRAY THƯỜNG
     private Vector3[] _originalState;
     private Vector3[] _currentPositions;
 
@@ -55,7 +60,6 @@ public class SnakeBlock : MonoBehaviour
     private bool _isSpawning = false;
     private bool _hasDealtDamage = false;
 
-    // QUẢN LÝ GRID LƯỚI ĐỘNG
     private HashSet<Vector2Int> _occupiedCells = new HashSet<Vector2Int>();
 
     private void Awake()
@@ -172,16 +176,16 @@ public class SnakeBlock : MonoBehaviour
     {
         if (!_isMoving && !_isSpawning) 
         {
-            StartCoroutine(ProcessMovement());
+            StartCoroutine(ProcessMovementMaster());
             return true;
         }
         return false;
     }
 
     // ==========================================
-    // LOGIC ĐỒNG BỘ LƯỚI ĐỘNG (GRID LOGIC MỚI)
+    // LOGIC ĐIỀU HƯỚNG TỔNG (MASTER MOVEMENT)
     // ==========================================
-    private IEnumerator ProcessMovement()
+    private IEnumerator ProcessMovementMaster()
     {
         _isMoving = true;
         SetFocusColor(false, 0.5f);
@@ -190,70 +194,121 @@ public class SnakeBlock : MonoBehaviour
         System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         _accumulatedShift = 0f;
         Vector3 moveDir = GetDirVector(direction);
-        _currentMoveSpeed = startMoveSpeed;
         
-        int _lastProcessedGrid = 0;
-
+        // TRINH SÁT LƯỚI ĐỂ CHỌN KỊCH BẢN DI CHUYỂN
         float distToObstacle = CheckObstacleDistance(moveDir);
         bool isGhostMode = (distToObstacle == float.MaxValue);
-        float targetMaxShift = distToObstacle * _nodesPerUnit;
 
         if (isGhostMode)
         {
-            ClearFromGrid(); 
-            if (ComboManager.Instance != null) ComboManager.Instance.AddCombo();
-            _currentMoveSpeed *= 1.3f; 
+            // TH 1: ĐƯỜNG TRỐNG -> Chạy kịch bản Exit
+            yield return StartCoroutine(ProcessExitMovement(moveDir));
+        }
+        else
+        {
+            // TH 2: BỊ CHẶN -> Chạy kịch bản Blocked
+            float targetMaxShift = distToObstacle * _nodesPerUnit;
+            yield return StartCoroutine(ProcessBlockedMovement(moveDir, targetMaxShift, distToObstacle));
         }
 
+        _isMoving = false;
+        lineRenderer.sortingOrder = 10;
+    }
+
+    // ==========================================
+    // KỊCH BẢN 1: THOÁT RA KHỎI MAP (BAY XUYÊN THẤU)
+    // ==========================================
+    private IEnumerator ProcessExitMovement(Vector3 moveDir)
+    {
+        // 1. Nhường đường ngay lập tức cho các con khác
+        ClearFromGrid(); 
+        if (ComboManager.Instance != null) ComboManager.Instance.AddCombo();
+        
+        _currentMoveSpeed = exitStartSpeed;
+        int _lastProcessedGrid = 0;
+
+        while (true)
+        {
+            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
+            
+            // 2. Ép gia tốc cực mạnh theo setting EXIT
+            _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, exitMaxSpeed, exitAcceleration * safeDeltaTime);
+            _accumulatedShift += safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
+            
+            UpdateSnakePosition(_accumulatedShift, moveDir);
+
+            // 3. Tắt hạt bụi (Dot) nhưng KHÔNG chiếm Grid nữa
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            while (_lastProcessedGrid < currentGridProgress)
+            {
+                Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
+                if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
+                {
+                    dotToAnimate.PlayLeaveEffect();
+                }
+                _lastProcessedGrid++;
+            }
+
+            // 4. Mốc tính điểm và Hủy diệt
+            if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 1600f && !outed)
+            {
+                if (levelController != null) levelController.SetCountArrowInGame();
+                outed = true;
+            }
+
+            if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
+            {
+                Destroy(gameObject);
+                yield break;
+            }
+            
+            yield return null;
+        }
+    }
+
+    // ==========================================
+    // KỊCH BẢN 2: BỊ CHẶN LẠI VÀ DỘI NGƯỢC
+    // ==========================================
+    private IEnumerator ProcessBlockedMovement(Vector3 moveDir, float targetMaxShift, float distToObstacle)
+    {
+        _currentMoveSpeed = startMoveSpeed;
+        int _lastProcessedGrid = 0;
+
+        // 1. Chạy tới điểm va chạm
         while (true)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
             float nextShiftAmount = safeDeltaTime * _currentMoveSpeed * _nodesPerUnit;
 
-            if (!isGhostMode && (_accumulatedShift + nextShiftAmount >= targetMaxShift))
+            // KIỂM TRA ĐIỂM DỪNG
+            if (_accumulatedShift + nextShiftAmount >= targetMaxShift)
             {
                 yield return StartCoroutine(HandleCollision(moveDir, distToObstacle, _lastProcessedGrid));
                 break; 
             }
 
+            // 2. Dùng gia tốc của hệ thống BLOCKED
             _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * safeDeltaTime);
             _accumulatedShift += nextShiftAmount;
             
             UpdateSnakePosition(_accumulatedShift, moveDir);
 
+            // 3. Liên tục dời "Hộ khẩu" Grid theo từng bước tiến
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
             while (_lastProcessedGrid < currentGridProgress)
             {
-                if (!isGhostMode) UpdateGridOccupancy(); 
+                UpdateGridOccupancy(); 
                 
                 Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
                 if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
                 {
                     dotToAnimate.PlayLeaveEffect();
                 }
-                
                 _lastProcessedGrid++;
-            }
-
-            // Mốc 1: Phá hủy
-            if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 22500f)
-            {
-                Destroy(gameObject);
-                yield break;
-            }
-
-            // Mốc 2: Tính điểm
-            if (bodySegments.Count > 0 && bodySegments[0].position.sqrMagnitude > 1600f && !outed)
-            {
-                if (levelController != null) levelController.SetCountArrowInGame();
-                outed = true;
             }
             
             yield return null;
         }
-
-        _isMoving = false;
-        lineRenderer.sortingOrder = 10;
     }
 
     private IEnumerator HandleCollision(Vector3 dir, float dist, int lastProcessedGrid)
@@ -261,10 +316,13 @@ public class SnakeBlock : MonoBehaviour
         float targetShift = dist * _nodesPerUnit;
         int _lastBounceGrid = lastProcessedGrid;
 
-        // 1. HitObstacle Logic
+        // 1. CHẠY TỚI MÉP TƯỜNG (Giữ nguyên vận tốc hiện tại, không rướn ảo)
         while (_accumulatedShift < targetShift)
         {
-            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, 500f * Time.deltaTime);
+            // Bỏ số 500f đi, sử dụng đúng vận tốc di chuyển đã cài đặt
+            float forwardStep = _currentMoveSpeed * _nodesPerUnit * Time.deltaTime;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, forwardStep);
+            
             UpdateSnakePosition(_accumulatedShift, dir);
             
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
@@ -276,22 +334,28 @@ public class SnakeBlock : MonoBehaviour
             yield return null;
         }
 
-        // Gameplay Effects
+        // Gameplay Effects (Giữ nguyên logic trừ máu và âm thanh)
         if (!_hasDealtDamage) 
         { 
             if (MessageManager.Instance != null) MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage); 
             _hasDealtDamage = true; 
         }
+        
         if (ComboManager.Instance != null) ComboManager.Instance.StopCombo();
         if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
         SetColorImmediate(snakeTakeHitColor);
-        //MOST_HapticFeedback.Generate(MOST_HapticFeedback.HapticTypes.MediumImpact);
-        SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);   
         
-        // 2. ReturnToOrigin Logic
+        if (SettingManager.Instance != null) 
+        {
+            SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);   
+        }
+        
+        // 2. LÙI VỀ (Sử dụng tuyệt đối vận tốc returnMoveSpeed)
         while (_accumulatedShift > 0f)
         {
-            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, 0, returnMoveSpeed * _nodesPerUnit * Time.deltaTime);
+            float returnStep = returnMoveSpeed * _nodesPerUnit * Time.deltaTime;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, 0f, returnStep);
+            
             UpdateSnakePosition(_accumulatedShift, dir);
             
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
@@ -303,7 +367,7 @@ public class SnakeBlock : MonoBehaviour
             yield return null;
         }
 
-        // Chốt
+        // 3. CHỐT TỌA ĐỘ VÀ SỔ CÁI
         System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         SyncMainSegments();
         UpdateGridOccupancy(); 
@@ -472,7 +536,7 @@ public class SnakeBlock : MonoBehaviour
             if (bodySegments[i] != null) SetSegmentVisible(bodySegments[i], false);
         }
 
-        UpdateGridOccupancy(); // Ghi danh vào Grid ngay khi sinh ra
+        UpdateGridOccupancy(); 
 
         StartCoroutine(PlaySpawnAnimationFromTail());
     }

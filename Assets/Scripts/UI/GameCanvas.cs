@@ -1,4 +1,5 @@
 ﻿using DG.Tweening;
+using Solo.MOST_IN_ONE;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -29,10 +30,11 @@ public class GameCanvas : MonoBehaviour
     [SerializeField] private TextMeshProUGUI diamondText;
     [SerializeField] private RectTransform rewardCoinIcon;
     [SerializeField] private RectTransform rewardDiamondIcon;
-
-    [Header("Win Stars (Ruột Sao)")]
-    [Tooltip("Kéo 3 object Hình ảnh Ruột Sao vào đây theo thứ tự trái sang phải")]
     [SerializeField] private RectTransform[] starFills;
+
+    [Header("Game Over Pop-up")]
+    [SerializeField] private CanvasGroup gameOverPanel;
+    [SerializeField] private Transform gameOverContent;
 
     [Header("Currency Burst Effect")]
     [SerializeField] private GameObject flyingCoinPrefab;     
@@ -54,9 +56,9 @@ public class GameCanvas : MonoBehaviour
     private int countHeart;
     private Vector3 _pauseOriginalScale;
     private Vector3 _completeOriginalScale;
+    private Vector3 _gameOverOriginalScale; // Thêm biến lưu scale gốc của Game Over
     private bool _isTransitioning = false;
     
-    // BIẾN MỚI: Cần lưu lại tọa độ gốc của các ngôi sao để đập xuống cho trúng đích
     private Vector2[] _starOriginalPositions;
     #endregion
 
@@ -65,8 +67,9 @@ public class GameCanvas : MonoBehaviour
     {
         if (pauseContent != null) _pauseOriginalScale = pauseContent.localScale;
         if (completeContent != null) _completeOriginalScale = completeContent.localScale;
+        // BẮT BUỘC: Lưu lại scale gốc để Popup Lose bung ra không bị biến dạng
+        if (gameOverContent != null) _gameOverOriginalScale = gameOverContent.localScale; 
 
-        // Lưu trữ tọa độ chuẩn của Ruột Sao ngay lúc đầu
         if (starFills != null)
         {
             _starOriginalPositions = new Vector2[starFills.Length];
@@ -103,8 +106,8 @@ public class GameCanvas : MonoBehaviour
         HidePanelImmediate(overlayBg);
         HidePanelImmediate(pausePanel);
         HidePanelImmediate(completePanel);
+        HidePanelImmediate(gameOverPanel); // Đảm bảo tàng hình lúc mới vào game
 
-        // Đảm bảo 3 ngôi sao luôn tàng hình lúc mới vào game
         if (starFills != null)
         {
             foreach (var star in starFills)
@@ -169,7 +172,6 @@ public class GameCanvas : MonoBehaviour
         int earnedCoins = 0;
         int earnedDiamonds = 0;
 
-        // 1. GIẢI NÉN GÓI HÀNG (Bao gồm Data và trạng thái Full Combo)
         if (data is object[] rewardData && rewardData.Length >= 2)
         {
             LevelDataSO levelData = rewardData[0] as LevelDataSO;
@@ -178,15 +180,13 @@ public class GameCanvas : MonoBehaviour
             if (levelData != null)
             {
                 earnedCoins = (int)levelData.rewardCoins;
-                
-                // NẾU KHÔNG FULL COMBO -> THƯỞNG 0 KIM CƯƠNG
                 earnedDiamonds = isFullCombo ? (int)levelData.rewardDiamonds : 0;
 
                 if (coinText != null) coinText.text = $"x{earnedCoins}";
                 if (diamondText != null) diamondText.text = $"x{earnedDiamonds}";
             }
         }
-        else if (data is LevelDataSO levelDataFallback) // Mã dự phòng an toàn (Fallback)
+        else if (data is LevelDataSO levelDataFallback)
         {
             earnedCoins = (int)levelDataFallback.rewardCoins;
             earnedDiamonds = (int)levelDataFallback.rewardDiamonds;
@@ -195,7 +195,6 @@ public class GameCanvas : MonoBehaviour
             if (diamondText != null) diamondText.text = $"x{earnedDiamonds}";
         }
 
-        // 2. Tính toán tiền gốc (Dựa trên ví thật trừ đi số tiền VỪA NHẬN)
         float oldCoins = CurrencyManager.Instance.Coins - earnedCoins;
         float oldDiamonds = CurrencyManager.Instance.Diamonds - earnedDiamonds;
 
@@ -212,13 +211,28 @@ public class GameCanvas : MonoBehaviour
             completeParticle.Play(true);
         }
 
-        // 3. Khởi chạy chuỗi kịch bản đạo diễn
         PlayWinSequenceEffect(earnedCoins, earnedDiamonds, oldCoins, oldDiamonds);
+    }
+
+    // ĐÃ HOÀN THIỆN: Logic Bung Popup Game Over chuẩn form
+    public void ShowLosePopup(object data)
+    {
+        if (_currentPopup != PopupState.None || _isTransitioning) return;
+
+        _currentPopup = PopupState.GameOver;
+        
+        // Rung nhẹ màn hình một phát để tăng độ cay cú khi thua (Game Feel)
+        if (SettingManager.Instance != null) 
+        {
+            SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
+        }
+
+        ShowOverlay(true);
+        OpenPopupTween(gameOverPanel, gameOverContent, _gameOverOriginalScale);
     }
     #endregion
 
     #region [ WIN SEQUENCE & CURRENCY BURST ]
-    
     private Vector3 GetTrueWorldCenter(RectTransform rect)
     {
         if (rect == null) return Vector3.zero;
@@ -229,7 +243,6 @@ public class GameCanvas : MonoBehaviour
 
     private void PlayWinSequenceEffect(int earnedCoins, int earnedDiamonds, float oldCoins, float oldDiamonds)
     {
-        // 1. SETUP TƯ THẾ BAN ĐẦU: To gấp 5 lần và mờ tịt
         foreach (var star in starFills)
         {
             if (star != null) 
@@ -248,11 +261,8 @@ public class GameCanvas : MonoBehaviour
 
         Sequence seq = DOTween.Sequence();
         seq.SetUpdate(true); 
-
-        // Chờ 0.4s cho Popup bung ra hoàn toàn
         seq.AppendInterval(0.4f);
 
-        // 2. KỊCH BẢN ĐẠO DIỄN: SCREEN SPACE SLAM (Impact Cứng Cáp)
         for (int i = 0; i < countHeart; i++)
         {
             if (i >= starFills.Length) break; 
@@ -261,31 +271,25 @@ public class GameCanvas : MonoBehaviour
 
             Image img = star.GetComponent<Image>();
 
-            // A. Lao tới: Thu nhỏ về 1 và hiện rõ
             seq.Append(star.DOScale(Vector3.one, 0.2f).SetEase(Ease.InExpo));
             if (img != null)
             {
                 seq.Join(img.DOFade(1f, 0.2f).SetEase(Ease.InExpo));
             }
 
-            // B. Va chạm vật lý: KHÔNG BÓP MÉO NỮA
             seq.AppendCallback(() => {
-                // ĐÃ SỬA: Thay vì nảy méo mó (Squash), ta cho nảy đều 4 góc (Uniform) cực nhẹ để tạo phản lực
                 star.DOKill();
                 star.localScale = Vector3.one;
                 star.DOPunchScale(Vector3.one * 0.15f, 0.2f, 5, 1).SetUpdate(true);
                 
-                // Giữ nguyên độ rung của Bảng Gỗ để cảm nhận được "Sức nặng" của ngôi sao
                 completeContent.DOKill(false);
                 completeContent.DOPunchPosition(new Vector3(0, -15f, 0), 0.2f, 10, 1).SetUpdate(true);
             });
 
-            // C. Nhịp nghỉ ngắn trước khi thả ngôi sao tiếp theo
             if (i < countHeart - 1)
                 seq.AppendInterval(0.15f);
         }
 
-        // 3. Khi Sao đập xong hết -> Bắn tiền văng tung tóe
         seq.OnComplete(() => {
             if (flyingCoinPrefab != null && rewardCoinIcon != null && currentCoinIcon != null && earnedCoins > 0)
             {
@@ -495,7 +499,7 @@ public class GameCanvas : MonoBehaviour
 
         if (countHeart <= 0)
         {
-            _currentPopup = PopupState.GameOver; 
+            // Bỏ dòng _currentPopup = PopupState.GameOver ở đây vì ShowLosePopup sẽ tự gán
             if (gameContainer != null) gameContainer.SetActive(false);             
             StartCoroutine(SequenceGameOver());
         }
@@ -506,7 +510,9 @@ public class GameCanvas : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
         ShowText("Game Over", Color.red);
         yield return new WaitForSeconds(2f); 
-        OutLevel(); 
+        
+        // ĐÃ SỬA: Gọi ShowLosePopup để hiện UI đàng hoàng thay vì OutLevel() thẳng tay
+        ShowLosePopup(null); 
     }
 
     private void PlayHeartLossEffect(GameObject heart)

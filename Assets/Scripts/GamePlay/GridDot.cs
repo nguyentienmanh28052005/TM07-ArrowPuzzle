@@ -80,7 +80,7 @@ public class GridDot : MonoBehaviour
     /// <summary>
     /// Kích hoạt hiệu ứng đàn hồi (Yoyo) khi có một con rắn trượt ngang qua nốt này.
     /// </summary>
-    public void PlayLeaveEffect(float scaleAmount = 2.5f, float totalDuration = 0.5f)
+    public void PlayLeaveEffect(float scaleAmount = 2f, float totalDuration = 0.4f)
     {
         if ((GameManager.Instance != null && GameManager.Instance.isGameOver) || _isWinning) return;
 
