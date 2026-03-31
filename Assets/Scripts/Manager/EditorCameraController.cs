@@ -1,33 +1,24 @@
-﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using DG.Tweening; 
 
 [RequireComponent(typeof(Camera))]
-public class CameraController : MonoBehaviour
+public class EditorCameraController : MonoBehaviour
 {
-    public static bool IsGameplayBlocking = false;
-    
-    // ĐÃ SỬA LỖI CS0117: Đổi lại thành IsCameraGestureActive để khớp với SnakeInput
+    // Giữ lại biến này phòng trường hợp bạn muốn Editor Tool (như vẽ rắn) 
+    // không bị vẽ nhầm khi đang dùng chuột phải/2 ngón tay kéo Camera
     public static bool IsCameraGestureActive = false; 
-    public static event System.Action OnIntroFinished;
 
-    [Header("Zoom Settings (Gameplay)")]
+    [Header("Zoom Settings (Editor)")]
     public float zoomSpeedPC = 5f;
     public float zoomSpeedMobile = 0.01f;
-    public float minZoom = 5f;
-    public float maxZoom = 30f; 
+    public float minZoom = 2f;
+    public float maxZoom = 50f; 
     public float zoomSmoothTime = 0.1f;
 
-    [Header("Auto Fit & Intro Settings (Cinematic)")]
-    public float autoFitPadding = 8f;
-    public float defaultGameplayZoom = 40f; 
-    public float overviewWaitTime = 1f;
-
     [Header("Pan Settings")]
-    public bool useLimits = true;
-    public Vector2 minPosition;
-    public Vector2 maxPosition;
+    public bool useLimits = false; // Editor thường không cần giới hạn để tự do vẽ
+    public Vector2 minPosition = new Vector2(-50, -50);
+    public Vector2 maxPosition = new Vector2(50, 50);
     public float dragThreshold = 5f;
 
     [Header("Inertia Settings")]
@@ -37,110 +28,19 @@ public class CameraController : MonoBehaviour
     private Camera cam;
     private float targetZoom;
     private float zoomVelocity; 
-    private float gameZoom; 
     
-    private Vector3 initialPosition; 
     private Vector3 panVelocity;
     private Vector3 lastPanScreenPos;
-    
-    private bool isEndGame = false;
     private bool wasZoomingLastFrame = false;
 
     private void Start()
     {
         cam = GetComponent<Camera>();
-    }
-
-    public void StartIntro()
-    {
-        StartCoroutine(CameraIntroSequence());
-    }
-
-    private IEnumerator CameraIntroSequence()
-    {
-        IsGameplayBlocking = true; 
-
-        SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
-        if (allSnakes.Length == 0)
-        {
-            IsGameplayBlocking = false;
-            yield break;
-        }
-
-        float minX = float.MaxValue;
-        float maxX = float.MinValue;
-        float minY = float.MaxValue;
-        float maxY = float.MinValue;
-        bool hasNodes = false;
-
-        foreach (var snake in allSnakes)
-        {
-            if (snake.bodySegments == null) continue;
-            foreach (Transform seg in snake.bodySegments)
-            {
-                if (seg != null)
-                {
-                    Vector3 pos = seg.position;
-                    if (pos.x < minX) minX = pos.x;
-                    if (pos.x > maxX) maxX = pos.x;
-                    if (pos.y < minY) minY = pos.y;
-                    if (pos.y > maxY) maxY = pos.y;
-                    hasNodes = true;
-                }
-            }
-        }
-
-        if (!hasNodes) 
-        {
-            IsGameplayBlocking = false;
-            yield break;
-        }
-
-        float width = maxX - minX;
-        float height = maxY - minY;
-        initialPosition = new Vector3(minX + width / 2f, minY + height / 2f, transform.position.z);
-
-        float sizeByHeight = height / 2f;
-        float sizeByWidth = (width / 2f) / cam.aspect;
-        
-        gameZoom = Mathf.Max(sizeByHeight, sizeByWidth) + autoFitPadding;
-        maxZoom = Mathf.Max(maxZoom, gameZoom + 5f);
-
-        transform.position = initialPosition;
-        cam.orthographicSize = maxZoom; 
-        
-        cam.DOKill();
-        cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
-        yield return new WaitForSeconds(1.5f);
-
-        yield return new WaitForSeconds(overviewWaitTime);
-
-        cam.DOOrthoSize(defaultGameplayZoom, 1.2f).SetEase(Ease.InOutQuad);
-        yield return new WaitForSeconds(1.2f);
-
-        targetZoom = defaultGameplayZoom;
-        cam.orthographicSize = defaultGameplayZoom; 
-        zoomVelocity = 0f;
-
-        IsGameplayBlocking = false;
-        OnIntroFinished?.Invoke();
+        targetZoom = cam.orthographicSize; // Lấy luôn size mặc định của cam trong Scene
     }
 
     void LateUpdate() 
     {
-        if (IsGameplayBlocking)
-        {
-            IsCameraGestureActive = false;
-            return; 
-        }
-
-        if (isEndGame)
-        {
-            IsCameraGestureActive = false;
-            HandleEndGame();
-            return;
-        }
-
         HandleInput();
         ApplyMovementAndZoom();
     }
@@ -159,6 +59,7 @@ public class CameraController : MonoBehaviour
             targetZoom -= scroll * zoomSpeedPC;
         }
 
+        // Chuột phải (1) dùng để Kéo (Pan) Camera trong Editor
         if (Input.GetMouseButtonDown(1))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -187,7 +88,7 @@ public class CameraController : MonoBehaviour
         if (Input.touchCount >= 2)
         {
             wasZoomingLastFrame = true;
-            IsCameraGestureActive = true;
+            IsCameraGestureActive = true; 
 
             Touch t0 = Input.GetTouch(0);
             Touch t1 = Input.GetTouch(1);
@@ -199,8 +100,6 @@ public class CameraController : MonoBehaviour
             float curMag = (t0.position - t1.position).magnitude;
 
             targetZoom -= (curMag - prevMag) * zoomSpeedMobile;
-            
-            lastPanScreenPos = (t0.position + t1.position) * 0.5f;
         }
         else if (Input.touchCount == 1)
         {
@@ -210,13 +109,14 @@ public class CameraController : MonoBehaviour
             {
                 lastPanScreenPos = touch.position;
                 wasZoomingLastFrame = false;
+                IsCameraGestureActive = true; 
                 return;
             }
 
             if (touch.phase == TouchPhase.Began)
             {
                 lastPanScreenPos = touch.position;
-                IsCameraGestureActive = false;
+                IsCameraGestureActive = false; 
             }
             else if (touch.phase == TouchPhase.Moved)
             {
@@ -230,6 +130,7 @@ public class CameraController : MonoBehaviour
         else
         {
             wasZoomingLastFrame = false;
+            IsCameraGestureActive = false;
         }
     }
 
@@ -244,7 +145,7 @@ public class CameraController : MonoBehaviour
             }
         }
 
-        if (IsCameraGestureActive)
+        if (IsCameraGestureActive && !wasZoomingLastFrame && Input.touchCount == 1)
         {
             Vector3 worldDelta = cam.ScreenToWorldPoint(lastPanScreenPos) - cam.ScreenToWorldPoint(currentScreenPos);
             transform.position += worldDelta;
@@ -260,7 +161,7 @@ public class CameraController : MonoBehaviour
         targetZoom = Mathf.Clamp(targetZoom, minZoom, maxZoom);
         cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, targetZoom, ref zoomVelocity, zoomSmoothTime);
 
-        if (useInertia && !IsCameraGestureActive && panVelocity.sqrMagnitude > 0.0001f)
+        if (useInertia && !IsCameraGestureActive && Input.touchCount == 0 && panVelocity.sqrMagnitude > 0.0001f)
         {
             transform.position += panVelocity * Time.deltaTime;
             panVelocity = Vector3.Lerp(panVelocity, Vector3.zero, dampingFactor * Time.deltaTime);
@@ -273,18 +174,5 @@ public class CameraController : MonoBehaviour
             pos.y = Mathf.Clamp(pos.y, minPosition.y, maxPosition.y);
             transform.position = pos;
         }
-    }
-
-    private void HandleEndGame()
-    {
-        transform.position = Vector3.Lerp(transform.position, initialPosition, Time.deltaTime * 2f);
-        cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, gameZoom, Time.deltaTime * 2f);
-    }
-
-    public void ZoomToEndGame()
-    {
-        isEndGame = true;
-        targetZoom = gameZoom;
-        panVelocity = Vector3.zero;
     }
 }

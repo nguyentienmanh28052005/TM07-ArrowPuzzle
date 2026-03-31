@@ -48,8 +48,15 @@ public class GameCanvas : MonoBehaviour
     [Header("Currency Top Bar")]
     [SerializeField] TextMeshProUGUI currentCoinText;
     [SerializeField] TextMeshProUGUI currentDiamondText;
+    [SerializeField] private TextMeshProUGUI currentCoinTextLose;
     [SerializeField] private RectTransform currentCoinIcon;
     [SerializeField] private RectTransform currentDiamondIcon;
+
+    [Header("Tools")]
+    [SerializeField] private TextMeshProUGUI currentEraseToolText;
+    [SerializeField] private TextMeshProUGUI currentHintToolText;
+    [SerializeField] private TextMeshProUGUI currentDashToolText;
+    [SerializeField] private GameObject dashToolPanel;
 
     private bool _isShowing = false;
     private List<GameObject> hearts;
@@ -67,7 +74,6 @@ public class GameCanvas : MonoBehaviour
     {
         if (pauseContent != null) _pauseOriginalScale = pauseContent.localScale;
         if (completeContent != null) _completeOriginalScale = completeContent.localScale;
-        // BẮT BUỘC: Lưu lại scale gốc để Popup Lose bung ra không bị biến dạng
         if (gameOverContent != null) _gameOverOriginalScale = gameOverContent.localScale; 
 
         if (starFills != null)
@@ -79,23 +85,84 @@ public class GameCanvas : MonoBehaviour
                     _starOriginalPositions[i] = starFills[i].anchoredPosition;
             }
         }
-    }
 
-    void Start()
-    {
         InitializeHearts();
         InitializePopups();
+        InitializeTools();
+    }
+
+    private void InitializeTools()
+    {
+        UpdateToolCountText(null);
     }
 
     private void InitializeHearts()
     {
         if (healthContainer != null)
         {
+            // 1. Ép Unity tính toán và xếp thẳng hàng các trái tim NGAY LẬP TỨC
+            RectTransform containerRect = healthContainer.GetComponent<RectTransform>();
+            if (containerRect != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+            }
+
+            // 2. QUA CẦU RÚT VÁN: Tắt Component LayoutGroup đi để nó không bao giờ phá DOTween nữa!
+            HorizontalLayoutGroup layout = healthContainer.GetComponent<HorizontalLayoutGroup>();
+            if (layout != null) layout.enabled = false;
+
             countHeart = healthContainer.childCount;
             hearts = new List<GameObject>(countHeart);
             foreach (Transform child in healthContainer)
             {
                 hearts.Add(child.gameObject);
+            }
+        }
+    }
+
+    public void SetupModeUI(GameMode mode)
+    {
+        if (healthContainer != null)
+        {
+            healthContainer.gameObject.SetActive(mode == GameMode.Classic || mode == GameMode.Memory);
+        }
+    }
+
+    private void UpdateToolCountText(object data)
+    {
+        if (currentEraseToolText != null)
+        {
+            if(CurrencyManager.Instance.EraseToolCount > 99)
+            {
+                currentEraseToolText.text = "99+";
+            }
+            else
+            {
+                currentEraseToolText.text = CurrencyManager.Instance.EraseToolCount.ToString();
+            }
+        }
+
+        if (currentHintToolText != null)
+        {
+            if(CurrencyManager.Instance.HintToolCount > 99)
+            {
+                currentHintToolText.text = "99+";
+            }
+            else
+            {
+                currentHintToolText.text = CurrencyManager.Instance.HintToolCount.ToString();
+            }
+        }
+
+        if (currentDashToolText != null)
+        {
+            if(CurrencyManager.Instance.DashToolCount > 99)
+            {
+                currentDashToolText.text = "99+";
+            }
+            else
+            {
+                currentDashToolText.text = CurrencyManager.Instance.DashToolCount.ToString();
             }
         }
     }
@@ -123,12 +190,28 @@ public class GameCanvas : MonoBehaviour
     {
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnTakeDamage, DecreaseHeart);
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnComplete, ShowCompletePopup);
+        MessageManager.Instance.AddSubscriber(ManhMessageType.OnHintToolChanged, UpdateToolCountText);
+        MessageManager.Instance.AddSubscriber(ManhMessageType.OnEraseToolChanged, UpdateToolCountText);
+        MessageManager.Instance.AddSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
+        MessageManager.Instance.AddSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
     }
 
     private void OnDisable()
     {
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnTakeDamage, DecreaseHeart);
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnComplete, ShowCompletePopup);
+        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnHintToolChanged, UpdateToolCountText); 
+        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnEraseToolChanged, UpdateToolCountText);
+        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
+        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
+    }
+
+    public void SetDashToolPanelActive(object data)
+    {
+        if (data is bool isActive)
+        {
+            if (dashToolPanel != null) dashToolPanel.SetActive(isActive);
+        }
     }
 
     private void Update()
@@ -202,6 +285,7 @@ public class GameCanvas : MonoBehaviour
         if (currentDiamondText != null) currentDiamondText.text = Mathf.RoundToInt(oldDiamonds).ToString();
 
         _currentPopup = PopupState.Complete;
+        AudioManager.Instance.PlaySfx(AudioManager.Instance.winSound);
         ShowOverlay(true);
         OpenPopupTween(completePanel, completeContent, _completeOriginalScale);
 
@@ -220,13 +304,15 @@ public class GameCanvas : MonoBehaviour
         if (_currentPopup != PopupState.None || _isTransitioning) return;
 
         _currentPopup = PopupState.GameOver;
-        
+
+        if (currentCoinTextLose != null) currentCoinTextLose.text = CurrencyManager.Instance.Coins.ToString();
+    
         // Rung nhẹ màn hình một phát để tăng độ cay cú khi thua (Game Feel)
         if (SettingManager.Instance != null) 
         {
             SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
         }
-
+        AudioManager.Instance.PlaySfx(AudioManager.Instance.loseSound);
         ShowOverlay(true);
         OpenPopupTween(gameOverPanel, gameOverContent, _gameOverOriginalScale);
     }
@@ -281,7 +367,8 @@ public class GameCanvas : MonoBehaviour
                 star.DOKill();
                 star.localScale = Vector3.one;
                 star.DOPunchScale(Vector3.one * 0.15f, 0.2f, 5, 1).SetUpdate(true);
-                
+                AudioManager.Instance.PlaySfx(AudioManager.Instance.starHit, 1f);
+
                 completeContent.DOKill(false);
                 completeContent.DOPunchPosition(new Vector3(0, -15f, 0), 0.2f, 10, 1).SetUpdate(true);
             });
@@ -335,6 +422,8 @@ public class GameCanvas : MonoBehaviour
             seq.Append(item.transform.DOMove(targetPos, 0.5f).SetEase(Ease.InOutSine));
 
             seq.OnComplete(() => {
+
+                AudioManager.Instance.PlaySfx(AudioManager.Instance.coinHit, 0.5f);
                 Destroy(item);
                 
                 itemsHit++;
@@ -471,26 +560,46 @@ public class GameCanvas : MonoBehaviour
         ShowText(message, Color.yellow);
     }
 
-    private void ShowText(string content, Color textColor)
+    // Thêm tham số System.Action onComplete = null
+    public void ShowText(string content, Color textColor, System.Action onComplete = null)
     {
         if (feedbackText != null)
         {
+            feedbackText.DOKill();
+            feedbackText.transform.DOKill();
+
             feedbackText.text = content;
             feedbackText.color = textColor;
+            feedbackText.alpha = 0f; 
+
             feedbackText.gameObject.SetActive(true);
             feedbackText.transform.localScale = Vector3.zero;
 
             Sequence seq = DOTween.Sequence();
+            seq.SetUpdate(true); 
+
             seq.Append(feedbackText.transform.DOScale(1f, 0.5f).SetEase(Ease.OutBack));
             seq.Join(feedbackText.DOFade(1f, 0.5f));
-            seq.AppendInterval(1f); 
+            seq.AppendInterval(1.5f); 
             seq.Append(feedbackText.DOFade(0f, 0.3f));
             seq.Join(feedbackText.transform.DOScale(1.2f, 0.3f).SetEase(Ease.InQuad));
+            
+            seq.OnComplete(() => {
+                feedbackText.gameObject.SetActive(false);
+                onComplete?.Invoke(); 
+            });
+        }
+        else
+        {
+            onComplete?.Invoke();
         }
     }
 
+
     public void DecreaseHeart(object data)
     {
+        if (GameManager.Instance.GetCurrentLevelData().gameMode == GameMode.TimeAttack) return;
+
         if (countHeart <= 0 || _currentPopup != PopupState.None) return;
 
         countHeart--;
@@ -499,19 +608,21 @@ public class GameCanvas : MonoBehaviour
 
         if (countHeart <= 0)
         {
-            // Bỏ dòng _currentPopup = PopupState.GameOver ở đây vì ShowLosePopup sẽ tự gán
-            if (gameContainer != null) gameContainer.SetActive(false);             
+            if (data is SnakeBlock sb) sb.ForceResetToOrigin();
+            CameraController.IsGameplayBlocking = true;
             StartCoroutine(SequenceGameOver());
         }
     }
 
     private IEnumerator SequenceGameOver()
     {
-        yield return new WaitForSeconds(0.5f);
-        ShowText("Game Over", Color.red);
-        yield return new WaitForSeconds(2f); 
+        yield return new WaitForSeconds(0.1f);
+    
+        // ShowOverlay(true); 
+
+        // ShowText("Game Over", Color.yellow);
         
-        // ĐÃ SỬA: Gọi ShowLosePopup để hiện UI đàng hoàng thay vì OutLevel() thẳng tay
+        // yield return new WaitForSeconds(2f);
         ShowLosePopup(null); 
     }
 
@@ -544,6 +655,106 @@ public class GameCanvas : MonoBehaviour
     {
         _isShowing = !_isShowing;
         MessageManager.Instance.SendMessage(ManhMessageType.OnShowAllPaths, _isShowing);
+    }
+    #endregion
+
+    #region [ REVIVE SYSTEM ]
+    /// <summary>
+    /// Gắn hàm này vào sự kiện OnClick của nút "GET FREE" (Xem quảng cáo)
+    /// </summary>
+    public void Btn_ReviveWithAd()
+    {
+        if (_isTransitioning) return;
+
+        // Tương lai: Bạn sẽ gọi logic của AdMob / AppLovin ở đây. 
+        // Khi SDK trả về sự kiện OnAdRewarded (xem xong), bạn mới gọi OnReviveSuccess(1).
+        
+        // Tạm thời giả lập xem Ads thành công ngay lập tức:
+        OnReviveSuccess(1);
+    }
+
+    /// <summary>
+    /// Gắn hàm này vào sự kiện OnClick của nút "GET 900" (Trả phí bằng Vàng)
+    /// </summary>
+    public void Btn_ReviveWithCoins()
+    {
+        if (_isTransitioning) return;
+
+        int cost = 1000;
+
+        // Kiểm tra ví tiền
+        if (CurrencyManager.Instance.Coins >= cost)
+        {
+            // Trừ tiền (Nếu hệ thống của bạn dùng hàm khác như SubtractCoin thì hãy đổi lại nhé)
+            CurrencyManager.Instance.SpendCoins(cost); 
+
+            // Cập nhật lại UI tiền ngay lập tức
+            if (currentCoinText != null) currentCoinText.text = Mathf.RoundToInt(CurrencyManager.Instance.Coins).ToString();
+
+            // Mua thành công -> Hồi 3 tim
+            OnReviveSuccess(3);
+        }
+        else
+        {
+            // KHÔNG ĐỦ TIỀN: Cảnh báo người chơi
+            if (SettingManager.Instance != null) 
+            {
+                SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.Failure);
+            }
+            
+            // Lắc nhẹ chữ Text để báo lỗi (Feedback trực quan)
+            if (currentCoinText != null)
+            {
+                currentCoinText.transform.DOKill(true);
+                currentCoinText.transform.DOShakePosition(0.3f, new Vector3(10f, 0, 0), 20, 90);
+                currentCoinText.DOColor(Color.red, 0.15f).SetLoops(2, LoopType.Yoyo).OnComplete(() => currentCoinText.color = Color.white);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Xử lý logic đưa người chơi quay lại bàn cờ sau khi thỏa mãn điều kiện Hồi sinh
+    /// </summary>
+    private void OnReviveSuccess(int heartsToAdd)
+    {
+        // 1. Phục hồi biến đếm (Đảm bảo không vượt quá số tim gốc)
+        countHeart = Mathf.Min(countHeart + heartsToAdd, hearts.Count);
+
+        // 2. Bật lại UI trái tim với hiệu ứng nảy (Pop)
+        for (int i = 0; i < countHeart; i++)
+        {
+            GameObject heart = hearts[i];
+            heart.SetActive(true);
+            
+            RectTransform rect = heart.GetComponent<RectTransform>();
+            Image img = heart.GetComponent<Image>();
+            
+            if (rect != null)
+            {
+                rect.DOKill();
+                rect.localScale = Vector3.zero;
+                rect.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetDelay(i * 0.5f);
+            }
+            if (img != null)
+            {
+                img.DOKill();
+                img.color = Color.white; 
+                img.DOFade(1f, 0.1f);
+            }
+        }
+
+        // 3. Đóng màn hình Thua và mở lại bàn cờ
+        ClosePopupTween(gameOverPanel, gameOverContent, () => 
+        {
+            _currentPopup = PopupState.None;
+            ShowOverlay(false);
+            
+            // BẢN VÁ: Không cần bật gameContainer nữa
+            // if (gameContainer != null) gameContainer.SetActive(true);
+            
+            // Trả lại quyền tương tác cho người chơi
+            CameraController.IsGameplayBlocking = false;
+        });
     }
     #endregion
 }

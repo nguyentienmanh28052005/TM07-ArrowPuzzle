@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
-  m_Name: Level_1
+  m_Name: Level_21
   m_EditorClassIdentifier: 
-  gameMode: 0
+  gameMode: 1
   levelDifficulty: 0
   timeLimit: 30
   rewardCoins: 10
   rewardDiamonds: 5
   snakes:
   - direction: 0
-    arrowColor: {r: 1, g: 0.9710916, b: 0, a: 1}
+    arrowColor: {r: 1, g: 1, b: 1, a: 0}
     segmentPositions:
     - {x: -1, y: 9}
     - {x: -1, y: 8}
@@ -89,7 +89,7 @@ MonoBehaviour:
     - {x: -7, y: -8}
     - {x: -7, y: -7}
   - direction: 3
-    arrowColor: {r: 1, g: 0.216981, b: 0.216981, a: 1}
+    arrowColor: {r: 1, g: 1, b: 1, a: 0}
     segmentPositions:
     - {x: 5, y: 7}
     - {x: 4, y: 7}
@@ -121,7 +121,7 @@ MonoBehaviour:
     - {x: -2, y: -5}
     - {x: -3, y: -5}
   - direction: 0
-    arrowColor: {r: 0.53651166, g: 0.7283019, b: 0, a: 1}
+    arrowColor: {r: 1, g: 1, b: 1, a: 0}
     segmentPositions:
     - {x: 3, y: 3}
     - {x: 3, y: 2}
@@ -133,7 +133,7 @@ MonoBehaviour:
     - {x: 3, y: -4}
     - {x: 3, y: -5}
   - direction: 3
-    arrowColor: {r: 0, g: 0.4641509, b: 0.20787098, a: 1}
+    arrowColor: {r: 1, g: 1, b: 1, a: 0}
     segmentPositions:
     - {x: -1, y: -7}
     - {x: -2, y: -7}
@@ -167,7 +167,7 @@ MonoBehaviour:
     - {x: -4, y: 7}
     - {x: -5, y: 7}
   - direction: 3
-    arrowColor: {r: 0.8862355, g: 0.118867874, b: 1, a: 1}
+    arrowColor: {r: 1, g: 1, b: 1, a: 0}
     segmentPositions:
     - {x: -3, y: 5}
     - {x: -4, y: 5}

@@ -389,6 +389,10 @@ MonoBehaviour:
   sfxArrowTap: {fileID: 8300000, guid: d12077135438e9541b0a8835b2a25ccb, type: 3}
   sfxArrowHit: {fileID: 8300000, guid: cad913f5880294b43978dfd8a0996d6c, type: 3}
   btnClick: {fileID: 8300000, guid: d12077135438e9541b0a8835b2a25ccb, type: 3}
+  loseSound: {fileID: 8300000, guid: ef8c900de875ae64085d09b604408d4c, type: 3}
+  winSound: {fileID: 8300000, guid: 3752dd44318d6db46a7c98aca0e730fa, type: 3}
+  coinHit: {fileID: 8300000, guid: cce642060df8857449522840057462c9, type: 3}
+  starHit: {fileID: 8300000, guid: 1249988cc2ced8b4c99b0d2d5e540a40, type: 3}
 --- !u!4 &1435478205
 Transform:
   m_ObjectHideFlags: 0
@@ -599,31 +603,31 @@ PrefabInstance:
         type: 3}
       propertyPath: levelDataSOs.Array.data[0]
       value: 
-      objectReference: {fileID: 11400000, guid: ee5d2d4d4ff9d544a9a318de68eaedd8,
+      objectReference: {fileID: 11400000, guid: 35df99b5e80cc2c4fb1ff6c97988b116,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.data[1]
       value: 
-      objectReference: {fileID: 11400000, guid: b81eb4ca7eb2f7543bfb07322752f8a2,
+      objectReference: {fileID: 11400000, guid: ee5d2d4d4ff9d544a9a318de68eaedd8,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.data[2]
       value: 
-      objectReference: {fileID: 11400000, guid: f2c40a0c89e9a304c954ffd98430e8d1,
+      objectReference: {fileID: 11400000, guid: d2ca418b4b693a44dbdec4a4fa17f01c,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.data[3]
       value: 
-      objectReference: {fileID: 11400000, guid: 9f2783509d7b86941a1f7b55004ed106,
+      objectReference: {fileID: 11400000, guid: f2c40a0c89e9a304c954ffd98430e8d1,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.data[4]
       value: 
-      objectReference: {fileID: 11400000, guid: c2c8cc4372d5c854186db843753aab8f,
+      objectReference: {fileID: 11400000, guid: b81eb4ca7eb2f7543bfb07322752f8a2,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
@@ -827,6 +831,9 @@ MonoBehaviour:
   _dontDestroyOnLoad: 1
   _coins: 0
   _diamonds: 0
+  _eraseToolCount: 0
+  _hintToolCount: 0
+  _dashToolCount: 0
 --- !u!4 &1672180462
 Transform:
   m_ObjectHideFlags: 0

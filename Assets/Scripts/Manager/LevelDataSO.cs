@@ -23,6 +23,11 @@ public class LevelDataSO : ScriptableObject
 {
     public GameMode gameMode;
     public LevelDifficulty levelDifficulty;
+
+    [Header("Mode Specific Settings")]
+    [Tooltip("Thời gian đếm ngược (Giây). Chỉ dùng cho Time Attack.")]
+    public float timeLimit = 60f;
+    
     [Header("Rewards")]
     public float rewardCoins;
     public float rewardDiamonds;

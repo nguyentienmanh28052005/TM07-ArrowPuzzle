@@ -147,7 +147,7 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
     {
         if (!interactable) return;
         
-        AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
+        //AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
         onClick?.Invoke();
     }
 }

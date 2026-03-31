@@ -12,6 +12,11 @@ public class AudioManager : Singleton<AudioManager>
     public AudioClip sfxArrowTap;
     public AudioClip sfxArrowHit;
     public AudioClip btnClick;
+    public AudioClip loseSound;
+    public AudioClip winSound;
+    public AudioClip coinHit;
+    
+    public AudioClip starHit;
     
     private List<AudioSource> _audioSourcePool;
     private AudioClip _currentMusicClip;

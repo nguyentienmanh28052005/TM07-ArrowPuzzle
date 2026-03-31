@@ -24,37 +24,7 @@ public class LevelController : MonoBehaviour
             LevelDataSO currentLevelData = null;
             bool isFullCombo = false;
 
-            if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
-            {
-                currentLevelData = GameManager.Instance.levelDataSOs[GameManager.Instance.level - 1];
-                
-                // ==========================================
-                // KIỂM TRA ĐIỀU KIỆN FULL COMBO
-                // ==========================================
-                if (ComboManager.Instance != null)
-                {
-                    // Nếu số combo hiện tại >= tổng số mũi tên ban đầu -> Người chơi đã đánh 1 mạch không lỗi
-                    isFullCombo = (ComboManager.Instance.currentCombo >= currentLevelData.snakes.Count);
-                }
-
-                if (CurrencyManager.Instance != null)
-                {
-                    // Tiền xu luôn được nhận
-                    CurrencyManager.Instance.AddCoins(currentLevelData.rewardCoins);
-                    
-                    // LỆNH GIỚI NGHIÊM: Kim cương chỉ được nhận khi Full Combo
-                    if (isFullCombo)
-                    {
-                        CurrencyManager.Instance.AddDiamonds(currentLevelData.rewardDiamonds);
-                    }
-                }
-            }
-
-            if (GameManager.Instance != null && GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
-            {
-                GameManager.Instance.level++;
-                SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
-            }
+            
 
             CameraController cam = FindObjectOfType<CameraController>();
             if (cam != null)
@@ -78,6 +48,38 @@ public class LevelController : MonoBehaviour
     {
         yield return new WaitForSeconds(waitTime);
 
+        if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
+            {
+                completedLevelData = GameManager.Instance.levelDataSOs[GameManager.Instance.level - 1];
+                
+                // ==========================================
+                // KIỂM TRA ĐIỀU KIỆN FULL COMBO
+                // ==========================================
+                if (ComboManager.Instance != null)
+                {
+                    // Nếu số combo hiện tại >= tổng số mũi tên ban đầu -> Người chơi đã đánh 1 mạch không lỗi
+                    isFullCombo = (ComboManager.Instance.currentCombo >= completedLevelData.snakes.Count);
+                }
+
+                if (CurrencyManager.Instance != null)
+                {
+                    // Tiền xu luôn được nhận
+                    CurrencyManager.Instance.AddCoins(completedLevelData.rewardCoins);
+                    
+                    // LỆNH GIỚI NGHIÊM: Kim cương chỉ được nhận khi Full Combo
+                    if (isFullCombo)
+                    {
+                        CurrencyManager.Instance.AddDiamonds(completedLevelData.rewardDiamonds);
+                    }
+                }
+            }
+
+            if (GameManager.Instance != null && GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
+            {
+                GameManager.Instance.level++;
+                SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
+            }
+
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null && completedLevelData != null)
         {
@@ -85,5 +87,7 @@ public class LevelController : MonoBehaviour
             object[] rewardData = new object[] { completedLevelData, isFullCombo };
             MessageManager.Instance.SendMessage(ManhMessageType.OnComplete, rewardData);
         }
+
+
     }
 }

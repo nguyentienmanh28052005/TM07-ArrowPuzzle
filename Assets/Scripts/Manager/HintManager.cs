@@ -2,6 +2,7 @@ using UnityEngine;
 using DG.Tweening;
 using System.Collections.Generic;
 using Solo.MOST_IN_ONE;
+using TMPro;
 
 public class HintManager : MonoBehaviour
 {
@@ -14,6 +15,8 @@ public class HintManager : MonoBehaviour
     private bool _isHinting = false;
     private Sequence _currentHintSeq; 
 
+    [SerializeField] private TextMeshProUGUI hintCountText;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -24,18 +27,21 @@ public class HintManager : MonoBehaviour
     {
         if (_isHinting || Time.timeScale == 0f) return; 
         
-        // Nếu có các tool cản trở click, hãy mở khóa các dòng if này:
-        // if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
+        // Bỏ qua nếu tẩy đang hoạt động
+        if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
-        SnakeBlock targetToHint = FindBestMove();
-
-        if (targetToHint != null)
+        if(CurrencyManager.Instance.SpendHintTool(1))
         {
-            PlayHintAnimation(targetToHint);
-        }
-        else
-        {
-            Debug.Log("<color=red>HINT: Không tìm thấy nước đi hợp lệ. Bàn cờ kẹt cứng!</color>");
+            //MessageManager.Instance.SendMessage(ManhMessageType.OnHintToolChanged, null);
+            SnakeBlock bestMoveSnake = FindBestMove();
+            if (bestMoveSnake != null)
+            {
+                PlayHintAnimation(bestMoveSnake);
+            }
+            else
+            {
+                Debug.Log("HINT: Không tìm thấy nước đi nào tốt hơn!");
+            }
         }
     }
 
@@ -87,8 +93,8 @@ public class HintManager : MonoBehaviour
     {
         _isHinting = true;
         
-        // Tùy thuộc vào việc bạn còn dùng ArrowGuideline hay không
-        // var guideline = snake.GetComponent<ArrowGuideline>();
+        // ĐÃ MỞ KHÓA: Lấy component Guideline
+        var guideline = snake.GetComponent<ArrowGuideline>();
         
         Color originalColor = snake.snakeColor;
 
@@ -96,7 +102,8 @@ public class HintManager : MonoBehaviour
 
         _currentHintSeq = DOTween.Sequence();
         
-        // _currentHintSeq.AppendCallback(() => { if (guideline != null) guideline.SetLineActive(true); });
+        // ĐÃ MỞ KHÓA: Bật tia Guideline ngay khi Hint bắt đầu
+        _currentHintSeq.AppendCallback(() => { if (guideline != null) guideline.SetLineActive(true); });
 
         // Tween đổi màu nịnh mắt
         _currentHintSeq.Append(DOVirtual.Color(originalColor, hintGlowColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
@@ -109,7 +116,8 @@ public class HintManager : MonoBehaviour
             _isHinting = false; 
             if (snake != null)
             {
-                // if (guideline != null) guideline.SetLineActive(false);
+                // ĐÃ MỞ KHÓA: Tắt tia Guideline khi Hint kết thúc hoặc bị hủy
+                if (guideline != null) guideline.SetLineActive(false);
                 snake.SetColorImmediate(originalColor);
             }
         });

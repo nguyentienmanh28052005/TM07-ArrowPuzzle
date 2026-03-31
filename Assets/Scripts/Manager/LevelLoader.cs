@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class LevelLoader : MonoBehaviour
@@ -20,16 +21,58 @@ public class LevelLoader : MonoBehaviour
 
     public bool editorMode = false;
 
-    private void Start()
+    private IEnumerator Start()
     {
         if (!editorMode && GameManager.Instance != null)
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
+
+        CameraController.IsGameplayBlocking = true;
+
+        bool isTextDone = false;
+        GameCanvas canvas = FindObjectOfType<GameCanvas>();
         
-        LoadGame();
+        if (canvas != null && levelToPlay != null)
+        {
+            // 1. Cài đặt hiển thị UI (Tim/Timer) dựa trên Mode
+            canvas.SetupModeUI(levelToPlay.gameMode);
+
+            string modeName = levelToPlay.gameMode.ToString().ToUpper();
+            canvas.ShowText(modeName, Color.cyan, () => isTextDone = true);
+        }
+        else
+        {
+            isTextDone = true;
+        }
+
+        yield return new WaitUntil(() => isTextDone);
+
+        LoadGameInternal();
+
+        // 2. Điều phối đồng hồ đếm ngược
+        if (TimeAttackManager.Instance != null)
+        {
+            if (levelToPlay != null && levelToPlay.gameMode == GameMode.TimeAttack)
+            {
+                TimeAttackManager.Instance.InitializeTimer(levelToPlay.timeLimit);
+            }
+            else
+            {
+                TimeAttackManager.Instance.DisableTimer();
+            }
+        }
+
+        CameraController camController = Camera.main.GetComponent<CameraController>();
+        if (camController != null) camController.StartIntro();
+        else CameraController.IsGameplayBlocking = false;
     }
 
     [ContextMenu("Reload Level")]
     public void LoadGame()
+    {
+        LoadGameInternal();
+    }
+
+    private void LoadGameInternal()
     {
         if (levelToPlay == null) return;
 
@@ -50,9 +93,6 @@ public class LevelLoader : MonoBehaviour
             if (gameContainer != null) snakeObj.transform.parent = gameContainer;
 
             SnakeBlock snakeScript = snakeObj.AddComponent<SnakeBlock>();
-            
-            // KHÔNG CẦN CHỈ ĐỊNH LỚP VẬT CẢN (OBSTACLE LAYER) NỮA VÌ ĐÃ SANG GRID
-            
             snakeObj.AddComponent<ArrowGuideline>();
 
             List<Transform> mainSegments = new List<Transform>();
@@ -94,12 +134,7 @@ public class LevelLoader : MonoBehaviour
             int resolution = subNodesCount + 1;
             snakeScript.Initialize(snakeData.direction, mainSegments, resolution, snakeData.arrowColor);
 
-            // ==========================================
-            // BÁO CÁO VỚI BỘ NÃO (GRID MANAGER)
-            // ==========================================
             if (GridManager.Instance != null) GridManager.Instance.RegisterSnake(snakeScript);
         }
-
-        Debug.Log("Load Game Success.");
     }
 }

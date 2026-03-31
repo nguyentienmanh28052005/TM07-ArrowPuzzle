@@ -241,4 +241,12 @@ public class GameMenuCanvas : MonoBehaviour
         }
     }
     #endregion
+
+
+    public void Gift()
+    {
+        CurrencyManager.Instance.AddHintTool(2);
+        CurrencyManager.Instance.AddEraseTool(2);
+        CurrencyManager.Instance.AddDashTool(2);
+    }
 }

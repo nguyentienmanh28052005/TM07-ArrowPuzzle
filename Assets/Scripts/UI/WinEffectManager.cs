@@ -11,7 +11,7 @@ public class WinEffectManager : MonoBehaviour
     public Color winColor = Color.green;
     public float waveSpeed = 0.1f;
     public float animationDuration = 0.4f;
-    public float scaleMultiplier = 1.5f;
+    public float scaleMultiplier = 1.2f;
 
     /// <summary>
     /// Kích hoạt chuỗi hiệu ứng gợn sóng chiến thắng quét qua toàn bộ các điểm trên lưới.

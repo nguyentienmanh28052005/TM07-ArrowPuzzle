@@ -18,6 +18,10 @@ public enum ManhMessageType
 
     OnCoinChanged,
     OnDiamondChanged,
+    OnEraseToolChanged,
+    OnHintToolChanged,
+    OnDashToolChanged,
+    OnSelectDashDirection,
 }
 
 

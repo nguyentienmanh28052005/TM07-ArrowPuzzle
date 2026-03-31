@@ -1,6 +1,7 @@
 using UnityEngine;
 using DG.Tweening;
 using System.Collections.Generic;
+using TMPro;
 
 public class EraseManager : MonoBehaviour
 {
@@ -27,6 +28,10 @@ public class EraseManager : MonoBehaviour
     // BỌC THÉP: Cờ khóa toàn cục - Đang có cục tẩy chạy trên màn hình không?
     public bool IsExecutingErase { get; private set; } = false;
 
+    public GameObject erasePanel;
+    public TextMeshProUGUI textEraseCount;
+
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -42,16 +47,22 @@ public class EraseManager : MonoBehaviour
     {
         if (Time.timeScale == 0f) return;
         
-        IsEraseModeActive = !IsEraseModeActive;
-        
-        if (IsEraseModeActive)
+        if(CurrencyManager.Instance.SpendEraseTool(1))
         {
-            Debug.Log("CHẾ ĐỘ TẨY: Đã Bật. Hãy nhấp vào một con rắn!");
+            erasePanel.gameObject.SetActive(true);
+            //MessageManager.Instance.SendMessage(ManhMessageType.OnEraseToolChanged, null);
+            IsEraseModeActive = !IsEraseModeActive;
+            
+            if (IsEraseModeActive)
+            {
+                Debug.Log("CHẾ ĐỘ TẨY: Đã Bật. Hãy nhấp vào một con rắn!");
+            }
+            else
+            {
+                Debug.Log("CHẾ ĐỘ TẨY: Đã Tắt.");
+            }
         }
-        else
-        {
-            Debug.Log("CHẾ ĐỘ TẨY: Đã Tắt.");
-        }
+
     }
 
     public void ExecuteErase(SnakeBlock targetSnake)
@@ -106,7 +117,7 @@ public class EraseManager : MonoBehaviour
             
             // 3. MỞ KHÓA TOÀN CỤC: Tẩy xong, cho phép Hint và Click hoạt động lại
             IsExecutingErase = false;
-
+            erasePanel.gameObject.SetActive(false);
             CameraController.IsGameplayBlocking = false;
         });
     }
