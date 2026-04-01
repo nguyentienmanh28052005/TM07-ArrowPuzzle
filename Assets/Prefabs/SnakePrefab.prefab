@@ -269,12 +269,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   direction: 0
-  speedPerUnit: 0.08
-  bounceBackDuration: 0.25
-  exitDuration: 0.75
-  spawnDuration: 1
+  startMoveSpeed: 0
+  maxMoveSpeed: 15
+  acceleration: 60
+  returnMoveSpeed: 20
+  exitStartSpeed: 5
+  exitMaxSpeed: 400
+  exitAcceleration: 180
   cornerRadius: 1
-  cornerSmoothSteps: 10
+  cornerSmoothSteps: 20
+  spawnSpeed: 20
   arrowVisual: {fileID: 3323251178829580407}
   snakeColor: {r: 1, g: 1, b: 1, a: 1}
   snakeMoveColor: {r: 1, g: 1, b: 1, a: 1}

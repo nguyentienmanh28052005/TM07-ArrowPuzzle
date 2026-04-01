@@ -7,20 +7,26 @@ using Solo.MOST_IN_ONE;
 [RequireComponent(typeof(LineRenderer))]
 public class SnakeBlock : MonoBehaviour
 {
-    [Header("Movement (DOTween Settings)")]
+    [Header("Movement: BLOCKED (Bị chặn)")]
     public ArrowDir direction;
-    [Tooltip("Thời gian bò qua 1 ô. Càng NHỎ càng NHANH (VD: 0.03)")]
-    [SerializeField] private float speedPerUnit = 0.05f;       
-    [SerializeField] private float bounceBackDuration = 0.25f; 
-    [Tooltip("Thời gian bay thoát ra khỏi bàn cờ (VD: 0.3)")]
-    [SerializeField] private float exitDuration = 0.5f;        
-    [SerializeField] private float spawnDuration = 0.4f;       
+    [SerializeField] private float startMoveSpeed = 0f;  
+    [SerializeField] private float maxMoveSpeed = 15f;   
+    [SerializeField] private float acceleration = 60f;   
+    [SerializeField] private float returnMoveSpeed = 20f;
+
+    [Header("Movement: EXIT (Đường thông thoáng)")]
+    [SerializeField] private float exitStartSpeed = 5f;
+    [SerializeField] private float exitMaxSpeed = 25f;  
+    [SerializeField] private float exitAcceleration = 80f;
+
+    private float _currentMoveSpeed;                      
 
     [Header("Corner & Spawn Settings")]
     [SerializeField] private float cornerRadius = 1f;
-    [SerializeField] private int cornerSmoothSteps = 20;
+    [SerializeField] private int cornerSmoothSteps = 8;
+    [SerializeField] private float spawnSpeed = 10f;
 
-    [Header("Visuals (Data-Driven)")]
+    [Header("Visuals (Data-Driven Hybrid)")]
     public Transform arrowVisual; 
     public Color snakeColor = Color.white;
     public Color snakeMoveColor = Color.white;
@@ -58,6 +64,7 @@ public class SnakeBlock : MonoBehaviour
     private float _visiblePoints;
     private bool _isSpawning = false;
     private bool _hasDealtDamage = false;
+    private bool _forceRedraw = false; // Cờ Render đồng bộ LateUpdate
 
     private HashSet<Vector2Int> _occupiedCells = new HashSet<Vector2Int>();
     private int _lastProcessedGrid = 0; 
@@ -111,7 +118,7 @@ public class SnakeBlock : MonoBehaviour
             DOTween.To(() => lineRenderer.widthMultiplier, x =>
             {
                 lineRenderer.widthMultiplier = x;
-                UpdateLineRenderer();
+                _forceRedraw = true; // Ép vẽ lại
             }, targetWidth, duration)
             .SetEase(isFocused ? Ease.OutBack : Ease.OutQuad)
             .SetTarget(lineRenderer).SetLink(gameObject);
@@ -156,25 +163,12 @@ public class SnakeBlock : MonoBehaviour
     }
     #endregion
 
-    #region [ CORE MOVEMENT (DOTWEEN) ]
+    #region [ HYBRID MOVEMENT (PHYSICS COROUTINE + MATH) ]
     public bool OnHeadClicked()
     {
         if (!_isMoving && !_isSpawning) 
         {
-            _isMoving = true;
-            SetFocusColor(false, 0.5f);
-            lineRenderer.sortingOrder = 20;
-
-            System.Array.Copy(_originalState, _currentPositions, _totalPoints);
-            _accumulatedShift = 0f;
-            Vector3 moveDir = GetDirVector(direction);
-            
-            float distToObstacle = CheckObstacleDistance(moveDir);
-            bool isGhostMode = (distToObstacle == float.MaxValue);
-
-            if (isGhostMode) ProcessExitMovementDOTween(moveDir);
-            else ProcessBlockedMovementDOTween(moveDir, distToObstacle);
-            
+            StartCoroutine(ProcessMovementMaster());
             return true;
         }
         return false;
@@ -184,124 +178,198 @@ public class SnakeBlock : MonoBehaviour
     {
         if (!_isMoving && !_isSpawning) 
         {
-            _isMoving = true;
-            SetFocusColor(false, 0.5f);
-            lineRenderer.sortingOrder = 20;
-
             System.Array.Copy(_originalState, _currentPositions, _totalPoints);
             _accumulatedShift = 0f;
-            Vector3 moveDir = GetDirVector(direction);
-            
-            ProcessExitMovementDOTween(moveDir);
+            StartCoroutine(ProcessExitMovement(GetDirVector(direction)));
         }
     }
 
-    private void ProcessBlockedMovementDOTween(Vector3 moveDir, float distToObstacle)
+    private IEnumerator ProcessMovementMaster()
     {
-        float visualTargetShift = Mathf.Max(0.2f, distToObstacle - 0.1f) * _nodesPerUnit;
-        float timeToHit = distToObstacle * speedPerUnit;
+        _isMoving = true;
+        SetFocusColor(false, 0.5f);
+        lineRenderer.sortingOrder = 20;
 
-        _lastProcessedGrid = 0;
+        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
+        _accumulatedShift = 0f;
+        Vector3 moveDir = GetDirVector(direction);
+        
+        float distToObstacle = CheckObstacleDistance(moveDir);
+        bool isGhostMode = (distToObstacle == float.MaxValue);
 
-        Sequence seq = DOTween.Sequence();
-        seq.SetId(this.GetInstanceID()); 
+        if (isGhostMode)
+        {
+            yield return StartCoroutine(ProcessExitMovement(moveDir));
+        }
+        else
+        {
+            float targetMaxShift = distToObstacle * _nodesPerUnit;
+            yield return StartCoroutine(ProcessBlockedMovement(moveDir, targetMaxShift, distToObstacle));
+        }
 
-        // TRẢ LẠI GIA TỐC ĐÂM TƯỜNG (InQuad) VÀ CHỐNG GIẬT (Late)
-        seq.Append(DOTween.To(() => _accumulatedShift, x => {
-            _accumulatedShift = x;
-            SyncVisuals(moveDir, updateGrid: true);
-        }, visualTargetShift, timeToHit).SetEase(Ease.InQuad));
-
-        seq.AppendCallback(() => {
-            if (!_hasDealtDamage) 
-            { 
-                if (MessageManager.Instance != null) MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage, this);
-                _hasDealtDamage = true; 
-            }
-            if (ComboManager.Instance != null) ComboManager.Instance.StopCombo();
-            if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
-            SetColorImmediate(snakeTakeHitColor);
-            if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);   
-        });
-
-        // DỘI NGƯỢC CŨNG PHẢI ĐỒNG BỘ KHUNG HÌNH
-        seq.Append(DOTween.To(() => _accumulatedShift, x => {
-            _accumulatedShift = x;
-            SyncVisuals(moveDir, updateGrid: true);
-        }, 0f, bounceBackDuration).SetEase(Ease.OutQuad));
-
-        seq.OnComplete(() => {
-            System.Array.Copy(_originalState, _currentPositions, _totalPoints);
-            SyncArrowVisualPosition();
-            UpdateGridOccupancy(); 
-            SetColorImmediate(snakeColor);
-            lineRenderer.sortingOrder = 10;
-            _isMoving = false;
-        });
+        _isMoving = false;
+        lineRenderer.sortingOrder = 10;
     }
 
-    private void ProcessExitMovementDOTween(Vector3 moveDir)
+    private IEnumerator ProcessExitMovement(Vector3 moveDir)
     {
         ClearFromGrid(); 
         if (ComboManager.Instance != null) ComboManager.Instance.AddCombo();
-
+        
+        _currentMoveSpeed = exitStartSpeed;
         _lastProcessedGrid = 0;
         outed = false;
 
         float exitDistance = 150f; 
-        float targetShift = exitDistance * _nodesPerUnit;
+        float finalTargetShift = exitDistance * _nodesPerUnit;
 
-        // =========================================================
-        // BẢN VÁ TUYỆT ĐỐI: Xóa bỏ mọi công thức tính toán ngầm!
-        // Truyền thẳng biến exitDuration từ Inspector vào DOTween.
-        // =========================================================
-        DOTween.To(() => _accumulatedShift, x => {
-            _accumulatedShift = x;
-            SyncVisuals(moveDir, updateGrid: false);
+        // BẢN VÁ: Đồng bộ hóa luồng Vật lý
+        WaitForFixedUpdate waitFixed = new WaitForFixedUpdate();
 
-            if (!outed && _accumulatedShift > 2f * _nodesPerUnit)
+        while (true)
+        {
+            // BẢN VÁ: Sử dụng hằng số thời gian không dao động
+            float dt = Time.fixedDeltaTime;
+            
+            _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, exitMaxSpeed, exitAcceleration * dt);
+            _accumulatedShift += dt * _currentMoveSpeed * _nodesPerUnit;
+            
+            UpdateSnakePosition(_accumulatedShift, moveDir);
+
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            while (_lastProcessedGrid < currentGridProgress)
+            {
+                Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
+                if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
+                {
+                    dotToAnimate.PlayLeaveEffect();
+                }
+                _lastProcessedGrid++;
+            }
+
+            if (_accumulatedShift > 2f * _nodesPerUnit && !outed)
             {
                 if (levelController != null) levelController.SetCountArrowInGame();
                 outed = true;
             }
-        }, targetShift, exitDuration).SetEase(Ease.InCubic)
-        .OnComplete(() => {
-            gameObject.SetActive(false); 
-            _isMoving = false;
-        }).SetId(this.GetInstanceID());
+
+            if (_accumulatedShift >= finalTargetShift)
+            {
+                gameObject.SetActive(false);
+                yield break;
+            }
+            
+            yield return waitFixed;
+        }
     }
 
-    private void SyncVisuals(Vector3 moveDir, bool updateGrid)
+    private IEnumerator ProcessBlockedMovement(Vector3 moveDir, float targetMaxShift, float distToObstacle)
     {
-        UpdateSnakePosition(_accumulatedShift, moveDir);
-        UpdateLineRenderer();
+        _currentMoveSpeed = startMoveSpeed;
+        _lastProcessedGrid = 0;
 
-        int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
-        
-        while (_lastProcessedGrid < currentGridProgress)
+        WaitForFixedUpdate waitFixed = new WaitForFixedUpdate();
+
+        // 1. CHẠY TỚI ĐIỂM VA CHẠM
+        while (true)
         {
-            if (updateGrid) UpdateGridOccupancy();
-            Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
-            if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
+            float dt = Time.fixedDeltaTime;
+            float nextShiftAmount = dt * _currentMoveSpeed * _nodesPerUnit;
+
+            if (_accumulatedShift + nextShiftAmount >= targetMaxShift)
             {
-                dotToAnimate.PlayLeaveEffect();
+                yield return StartCoroutine(HandleCollision(moveDir, distToObstacle, _lastProcessedGrid));
+                break; 
             }
-            _lastProcessedGrid++;
+
+            _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * dt);
+            _accumulatedShift += nextShiftAmount;
+            
+            UpdateSnakePosition(_accumulatedShift, moveDir);
+
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            while (_lastProcessedGrid < currentGridProgress)
+            {
+                UpdateGridOccupancy(); 
+                Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
+                if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
+                {
+                    dotToAnimate.PlayLeaveEffect();
+                }
+                _lastProcessedGrid++;
+            }
+            
+            yield return waitFixed;
+        }
+    }
+
+    private IEnumerator HandleCollision(Vector3 dir, float dist, int lastProcessedGrid)
+    {
+        float targetShift = dist * _nodesPerUnit;
+        int _lastBounceGrid = lastProcessedGrid;
+        
+        WaitForFixedUpdate waitFixed = new WaitForFixedUpdate();
+
+        // ÉP SÁT TƯỜNG (Giữ nguyên vận tốc)
+        while (_accumulatedShift < targetShift)
+        {
+            float dt = Time.fixedDeltaTime;
+            float forwardStep = _currentMoveSpeed * _nodesPerUnit * dt;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, forwardStep);
+            
+            UpdateSnakePosition(_accumulatedShift, dir);
+            
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            if (currentGridProgress > _lastBounceGrid) 
+            {
+                UpdateGridOccupancy();
+                _lastBounceGrid = currentGridProgress;
+            }
+            yield return waitFixed;
+        }
+
+        // TÁC ĐỘNG VA CHẠM
+        if (!_hasDealtDamage) 
+        { 
+            if (MessageManager.Instance != null) MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage, this);
+            _hasDealtDamage = true; 
         }
         
-        while (_lastProcessedGrid > currentGridProgress)
+        if (ComboManager.Instance != null) ComboManager.Instance.StopCombo();
+        if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
+        SetColorImmediate(snakeTakeHitColor);
+        if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);   
+        
+        // DỘI LÙI VỀ BẰNG TOÁN HỌC VẬT LÝ
+        while (_accumulatedShift > 0f)
         {
-            if (updateGrid) UpdateGridOccupancy();
-            _lastProcessedGrid--;
+            float dt = Time.fixedDeltaTime;
+            float returnStep = returnMoveSpeed * _nodesPerUnit * dt;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, 0f, returnStep);
+            
+            UpdateSnakePosition(_accumulatedShift, dir);
+            
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            if (currentGridProgress < _lastBounceGrid) 
+            {
+                UpdateGridOccupancy();
+                _lastBounceGrid = currentGridProgress;
+            }
+            yield return waitFixed;
         }
+
+        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
+        SyncArrowVisualPosition();
+        UpdateGridOccupancy(); 
+        SetColorImmediate(snakeColor);
     }
     #endregion
 
-    #region [ SYSTEM MAINTENANCE ]
+    #region [ SYSTEM MAINTENANCE & GRID ]
     public void ForceResetToOrigin()
     {
-        DOTween.Kill(this.GetInstanceID()); 
         StopAllCoroutines(); 
+        DOTween.Kill(this.GetInstanceID()); 
         
         _accumulatedShift = 0f;
         _isMoving = false;
@@ -310,7 +378,8 @@ public class SnakeBlock : MonoBehaviour
         System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         SyncArrowVisualPosition();
         UpdateGridOccupancy();
-        UpdateLineRenderer();
+        
+        _forceRedraw = true; // Bắt LateUpdate vẽ lại
 
         SetColorImmediate(snakeColor);
         lineRenderer.sortingOrder = 10;
@@ -390,7 +459,7 @@ public class SnakeBlock : MonoBehaviour
     }
     #endregion
 
-    #region [ INITIALIZATION & RENDERER ]
+    #region [ INITIALIZATION, COROUTINE SPAWN & LATE RENDER ]
     public void Initialize(ArrowDir dir, List<Vector2Int> gridPositions, int resolution, Color color)
     {
         snakeColor = color;
@@ -449,7 +518,6 @@ public class SnakeBlock : MonoBehaviour
 
         _isInitialized = true;
         _visiblePoints = 0;
-        _isSpawning = true;
         
         outed = false;
         _accumulatedShift = 0f;
@@ -466,42 +534,44 @@ public class SnakeBlock : MonoBehaviour
             arrowVisual.position = _currentPositions[0]; 
         }
 
-        TriggerSpawnAnimation();
+        StartCoroutine(PlaySpawnAnimationFromTail());
     }
 
-    public void TriggerSpawnAnimation()
+    private IEnumerator PlaySpawnAnimationFromTail()
     {
-        if (gameObject.activeInHierarchy && _isInitialized)
+        _isSpawning = true;
+        
+        // BẢN VÁ: Dùng float thay vì int để mượt từ khung hình đầu
+        _visiblePoints = Mathf.Min(2f, (float)_totalPoints); 
+        yield return null;
+
+        float progress = _visiblePoints;
+        while (_visiblePoints < _totalPoints)
         {
-            _isSpawning = true;
-            _visiblePoints = Mathf.Min(2f, _totalPoints); 
+            // BẢN VÁ: Áp dụng lưới kẹp khung hình an toàn
+            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
             
-            if (arrowVisual != null) arrowVisual.gameObject.SetActive(false);
-
-            Sequence spawnSeq = DOTween.Sequence();
-            spawnSeq.SetId(this.GetInstanceID()); 
-
-            spawnSeq.Append(DOTween.To(() => _visiblePoints, x => {
-                _visiblePoints = x;
-                UpdateLineRenderer();
-            }, _totalPoints, spawnDuration).SetEase(Ease.Linear));
-
-            spawnSeq.OnComplete(() => {
-                _isSpawning = false;
-                _visiblePoints = _totalPoints;
-                UpdateLineRenderer();
-
-                if (arrowVisual != null)
-                {
-                    SyncArrowVisualPosition(); 
-                    arrowVisual.gameObject.SetActive(true);
-                    arrowVisual.DOKill();
-                    arrowVisual.localScale = Vector3.zero;
-                    
-                    arrowVisual.DOScale(_originalArrowScale, 0.4f).SetEase(Ease.OutBack).SetLink(arrowVisual.gameObject);
-                }
-            });
+            progress += safeDeltaTime * spawnSpeed;
+            
+            // BẢN VÁ: Không ép kiểu về int để nội suy chính xác từng thập phân
+            _visiblePoints = Mathf.Min(progress, (float)_totalPoints);
+            
+            yield return null;
         }
+
+        if (arrowVisual != null)
+        {
+            SyncArrowVisualPosition();
+            arrowVisual.gameObject.SetActive(true);
+            arrowVisual.DOKill();
+            arrowVisual.localScale = Vector3.zero;
+            arrowVisual.DOScale(_originalArrowScale, 0.4f).SetEase(Ease.OutBack).SetLink(arrowVisual.gameObject); 
+        }
+
+        _visiblePoints = _totalPoints;
+        _isSpawning = false;
+        
+        _forceRedraw = true; 
     }
 
     private void UpdateSnakePosition(float shift, Vector3 moveDir)
@@ -534,6 +604,15 @@ public class SnakeBlock : MonoBehaviour
         if (arrowVisual != null && _currentPositions != null && _currentPositions.Length > 0)
         {
             arrowVisual.position = _currentPositions[0];
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (_isMoving || _forceRedraw || _isSpawning)
+        {
+            UpdateLineRenderer();
+            if (!_isMoving && !_isSpawning) _forceRedraw = false;
         }
     }
 
@@ -685,4 +764,5 @@ public class SnakeBlock : MonoBehaviour
         }
     }
     #endregion
+
 }
