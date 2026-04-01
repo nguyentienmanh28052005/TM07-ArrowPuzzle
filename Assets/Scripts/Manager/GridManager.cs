@@ -15,23 +15,22 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Đóng dấu chủ quyền lên tất cả các ô mà thân rắn đang đè lên.
+    /// Đóng dấu chủ quyền lên tất cả các ô mà thân rắn đang đè lên (Thuần Dữ Liệu)
     /// </summary>
     public void RegisterSnake(SnakeBlock snake)
     {
-        if (snake == null || snake.bodySegments == null) return;
-        foreach (Transform segment in snake.bodySegments)
+        if (snake == null || snake.LogicNodes == null) return;
+        
+        // Vòng lặp siêu nhẹ: Chỉ đọc con số, không đụng tới GameObject
+        foreach (Vector3 nodePos in snake.LogicNodes)
         {
-            if (segment != null)
-            {
-                Vector2Int pos = new Vector2Int(Mathf.RoundToInt(segment.position.x), Mathf.RoundToInt(segment.position.y));
-                GridMap[pos] = snake; 
-            }
+            Vector2Int pos = new Vector2Int(Mathf.RoundToInt(nodePos.x), Mathf.RoundToInt(nodePos.y));
+            GridMap[pos] = snake; 
         }
     }
 
     /// <summary>
-    /// Xóa toàn bộ dấu vết của con rắn khỏi Sổ cái (Khi nó đi mất, hoặc bị cục tẩy xóa).
+    /// Xóa toàn bộ dấu vết của con rắn khỏi Sổ cái
     /// </summary>
     public void UnregisterSnake(SnakeBlock snake)
     {

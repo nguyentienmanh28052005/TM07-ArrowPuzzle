@@ -7,10 +7,9 @@ public class LevelLoader : MonoBehaviour
     [Header("Data")]
     public LevelDataSO levelToPlay;
 
-    [Header("Prefabs")]
-    public GameObject headPrefab;
-    public GameObject bodyPrefab;
-    public GameObject dotPrefab;
+    [Header("Prefabs (Data-Driven)")]
+    public GameObject snakePrefab; 
+    public GameObject dotPrefab;   
 
     [Header("Container")]
     public Transform gameContainer;
@@ -26,41 +25,47 @@ public class LevelLoader : MonoBehaviour
         if (!editorMode && GameManager.Instance != null)
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
 
+        // 1. KHÓA GAMEPLAY NGAY LẬP TỨC
         CameraController.IsGameplayBlocking = true;
 
+        // ========================================================
+        // BẢN VÁ: KHÔI PHỤC FEEDBACK TEXT GIỚI THIỆU MÀN CHƠI
+        // ========================================================
         bool isTextDone = false;
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         
         if (canvas != null && levelToPlay != null)
         {
-            // 1. Cài đặt hiển thị UI (Tim/Timer) dựa trên Mode
+            // Cài đặt hiển thị UI (Tim/Timer) dựa trên Mode
             canvas.SetupModeUI(levelToPlay.gameMode);
 
             string modeName = levelToPlay.gameMode.ToString().ToUpper();
+            // Gọi hàm ShowText và truyền Callback để biết khi nào Animation chữ chạy xong
             canvas.ShowText(modeName, Color.cyan, () => isTextDone = true);
         }
         else
         {
-            isTextDone = true;
+            // Nếu không có Canvas (chạy test), bỏ qua đoạn chờ
+            isTextDone = true; 
         }
 
+        // Chờ đến khi cờ isTextDone được bật lên bởi Callback của GameCanvas
         yield return new WaitUntil(() => isTextDone);
+        // ========================================================
 
+        // 2. CHỮ BAY XONG -> BẮT ĐẦU LOAD RẮN THEO DATA-DRIVEN
         LoadGameInternal();
 
-        // 2. Điều phối đồng hồ đếm ngược
+        // 3. ĐIỀU PHỐI ĐỒNG HỒ ĐẾM NGƯỢC
         if (TimeAttackManager.Instance != null)
         {
             if (levelToPlay != null && levelToPlay.gameMode == GameMode.TimeAttack)
-            {
                 TimeAttackManager.Instance.InitializeTimer(levelToPlay.timeLimit);
-            }
             else
-            {
                 TimeAttackManager.Instance.DisableTimer();
-            }
         }
 
+        // 4. KÍCH HOẠT HIỆU ỨNG CAMERA (Camera Intro xong mới mở khóa Input)
         CameraController camController = Camera.main.GetComponent<CameraController>();
         if (camController != null) camController.StartIntro();
         else CameraController.IsGameplayBlocking = false;
@@ -89,50 +94,23 @@ public class LevelLoader : MonoBehaviour
         {
             if (snakeData.segmentPositions.Count == 0) continue;
 
-            GameObject snakeObj = new GameObject("Snake");
-            if (gameContainer != null) snakeObj.transform.parent = gameContainer;
-
-            SnakeBlock snakeScript = snakeObj.AddComponent<SnakeBlock>();
-            snakeObj.AddComponent<ArrowGuideline>();
-
-            List<Transform> mainSegments = new List<Transform>();
+            GameObject snakeObj = Instantiate(snakePrefab, gameContainer);
+            snakeObj.name = "Snake";
+            SnakeBlock snakeScript = snakeObj.GetComponent<SnakeBlock>();
 
             for (int i = 0; i < snakeData.segmentPositions.Count; i++)
             {
                 Vector2Int pos = snakeData.segmentPositions[i];
                 Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
 
-                GameObject prefab = (i == 0) ? headPrefab : bodyPrefab;
-                GameObject mainSeg = Instantiate(prefab, currentPos, Quaternion.identity, snakeObj.transform);
-
-                mainSeg.name = (i == 0) ? "Head" : $"Main_{i}";
-                mainSegments.Add(mainSeg.transform);
-
                 if (dotPrefab != null && i % 2 == 0)
                 {
                     Instantiate(dotPrefab, currentPos, Quaternion.identity, gameContainer);
                 }
-
-                if (i == 0)
-                {
-                    Transform arrowVis = mainSeg.transform.Find("Arrow");
-                    if (arrowVis)
-                    {
-                        float angle = 0;
-                        switch (snakeData.direction)
-                        {
-                            case ArrowDir.Up: angle = 0; break;
-                            case ArrowDir.Down: angle = 180; break;
-                            case ArrowDir.Left: angle = 90; break;
-                            case ArrowDir.Right: angle = -90; break;
-                        }
-                        arrowVis.localRotation = Quaternion.Euler(0, 0, angle);
-                    }
-                }
             }
 
             int resolution = subNodesCount + 1;
-            snakeScript.Initialize(snakeData.direction, mainSegments, resolution, snakeData.arrowColor);
+            snakeScript.Initialize(snakeData.direction, snakeData.segmentPositions, resolution, snakeData.arrowColor);
 
             if (GridManager.Instance != null) GridManager.Instance.RegisterSnake(snakeScript);
         }

@@ -22,15 +22,11 @@ public class EraseManager : MonoBehaviour
     [Tooltip("Vị trí Nút Cục Tẩy trên UI (Kéo thả RectTransform của nút vào đây)")]
     public RectTransform uiButtonRect;
 
-    // Trạng thái: Game có đang ở chế độ chờ người chơi chọn rắn để tẩy không?
     public bool IsEraseModeActive { get; private set; } = false;
-
-    // BỌC THÉP: Cờ khóa toàn cục - Đang có cục tẩy chạy trên màn hình không?
     public bool IsExecutingErase { get; private set; } = false;
 
     public GameObject erasePanel;
     public TextMeshProUGUI textEraseCount;
-
 
     private void Awake()
     {
@@ -50,29 +46,19 @@ public class EraseManager : MonoBehaviour
         if(CurrencyManager.Instance.SpendEraseTool(1))
         {
             erasePanel.gameObject.SetActive(true);
-            //MessageManager.Instance.SendMessage(ManhMessageType.OnEraseToolChanged, null);
             IsEraseModeActive = !IsEraseModeActive;
             
-            if (IsEraseModeActive)
-            {
-                Debug.Log("CHẾ ĐỘ TẨY: Đã Bật. Hãy nhấp vào một con rắn!");
-            }
-            else
-            {
-                Debug.Log("CHẾ ĐỘ TẨY: Đã Tắt.");
-            }
+            if (IsEraseModeActive) Debug.Log("CHẾ ĐỘ TẨY: Đã Bật. Hãy nhấp vào một con rắn!");
+            else Debug.Log("CHẾ ĐỘ TẨY: Đã Tắt.");
         }
-
     }
 
     public void ExecuteErase(SnakeBlock targetSnake)
     {
-        if (targetSnake == null || targetSnake.bodySegments.Count == 0) return;
+        // ĐÃ SỬA: Kiểm tra LogicNodes thay vì bodySegments
+        if (targetSnake == null || targetSnake.LogicNodes == null || targetSnake.LogicNodes.Count == 0) return;
 
-        // 1. Tắt chế độ chờ 
         IsEraseModeActive = false;
-        
-        // 2. ĐÓNG Ổ KHÓA TOÀN CỤC: Bắt đầu tẩy
         IsExecutingErase = true; 
 
         Vector3 spawnWorldPos = Camera.main.ScreenToWorldPoint(uiButtonRect.position);
@@ -80,33 +66,30 @@ public class EraseManager : MonoBehaviour
 
         GameObject eraserObj = Instantiate(eraserPrefab, spawnWorldPos, Quaternion.identity);
         
-        List<Transform> segments = targetSnake.bodySegments;
-        Vector3 tailPos = segments[segments.Count - 1].position;
+        // ĐÃ SỬA: Lấy danh sách tọa độ Toán học
+        List<Vector3> nodes = targetSnake.LogicNodes;
+        Vector3 tailPos = nodes[nodes.Count - 1];
 
         Sequence eraseSeq = DOTween.Sequence();
 
-        // Bay từ UI vào
         eraseSeq.Append(eraserObj.transform.DOJump(tailPos, jumpPower: 2f, numJumps: 1, flyToTailDuration));
 
-        // Quỹ đạo chạy men theo rắn
-        Vector3[] pathPositions = new Vector3[segments.Count];
-        for (int i = 0; i < segments.Count; i++)
+        Vector3[] pathPositions = new Vector3[nodes.Count];
+        for (int i = 0; i < nodes.Count; i++)
         {
-            pathPositions[i] = segments[(segments.Count - 1) - i].position;
+            pathPositions[i] = nodes[(nodes.Count - 1) - i];
         }
 
-        float totalEraseTime = segments.Count * eraseSpeedPerNode;
+        float totalEraseTime = nodes.Count * eraseSpeedPerNode;
         Tween pathTween = eraserObj.transform.DOPath(pathPositions, totalEraseTime, PathType.Linear).SetEase(Ease.Linear);
         eraseSeq.Append(pathTween);
 
-        // Mờ dần con rắn
         eraseSeq.Join(DOVirtual.Float(1f, 0.3f, totalEraseTime, (alpha) => {
             Color fadedColor = targetSnake.snakeColor;
             fadedColor.a = alpha;
             targetSnake.SetColorImmediate(fadedColor);
         }));
 
-        // Kết thúc
         eraseSeq.OnComplete(() => {
             eraserObj.transform.DOScale(0f, 0.2f).SetEase(Ease.InBack).OnComplete(() => {
                 Destroy(eraserObj);
@@ -115,7 +98,6 @@ public class EraseManager : MonoBehaviour
             Destroy(targetSnake.gameObject);
             if (levelController != null) levelController.SetCountArrowInGame();
             
-            // 3. MỞ KHÓA TOÀN CỤC: Tẩy xong, cho phép Hint và Click hoạt động lại
             IsExecutingErase = false;
             erasePanel.gameObject.SetActive(false);
             CameraController.IsGameplayBlocking = false;

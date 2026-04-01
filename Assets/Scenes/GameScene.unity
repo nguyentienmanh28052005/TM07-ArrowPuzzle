@@ -1897,6 +1897,8 @@ GameObject:
   m_Component:
   - component: {fileID: 345083785}
   - component: {fileID: 345083786}
+  - component: {fileID: 345083787}
+  - component: {fileID: 345083788}
   m_Layer: 5
   m_Name: Tool_Container
   m_TagString: Untagged
@@ -1952,6 +1954,33 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &345083787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 345083784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 570f67ce43951324aa6e17815d2127bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  delayTime: 1.5
+  slideDuration: 0.8
+  offscreenOffset: -800
+--- !u!225 &345083788
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 345083784}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &352531168
 GameObject:
   m_ObjectHideFlags: 0
@@ -2806,9 +2835,9 @@ MonoBehaviour:
   minZoom: 10
   maxZoom: 70
   zoomSmoothTime: 0.1
-  autoFitPadding: 8
+  autoFitPadding: 12
   defaultGameplayZoom: 40
-  overviewWaitTime: 0.3
+  overviewWaitTime: 0.01
   useLimits: 1
   minPosition: {x: -20, y: -20}
   maxPosition: {x: 20, y: 20}
@@ -23533,13 +23562,19 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
+      propertyPath: snakePrefab
+      value: 
+      objectReference: {fileID: 4484580423729698483, guid: c7cdd4e76768e4a4f94781dcb6154586,
+        type: 3}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
       propertyPath: gameContainer
       value: 
       objectReference: {fileID: 1087363345}
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
       propertyPath: subNodesCount
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5993598248448990141, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}

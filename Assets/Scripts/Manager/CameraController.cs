@@ -8,7 +8,6 @@ public class CameraController : MonoBehaviour
 {
     public static bool IsGameplayBlocking = false;
     
-    // ĐÃ SỬA LỖI CS0117: Đổi lại thành IsCameraGestureActive để khớp với SnakeInput
     public static bool IsCameraGestureActive = false; 
     public static event System.Action OnIntroFinished;
 
@@ -60,10 +59,16 @@ public class CameraController : MonoBehaviour
     {
         IsGameplayBlocking = true; 
 
-        SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
-        if (allSnakes.Length == 0)
+        // =======================================================
+        // BẢN VÁ DATA-DRIVEN: ĐỌC THẲNG TỪ DATA (KHÔNG TÌM GAMEOBJECT)
+        // =======================================================
+        LevelLoader loader = FindObjectOfType<LevelLoader>();
+        
+        // Nếu không có LevelLoader hoặc chưa có Data, thoát luôn để chống kẹt
+        if (loader == null || loader.levelToPlay == null || loader.levelToPlay.snakes == null)
         {
             IsGameplayBlocking = false;
+            OnIntroFinished?.Invoke();
             yield break;
         }
 
@@ -73,29 +78,28 @@ public class CameraController : MonoBehaviour
         float maxY = float.MinValue;
         bool hasNodes = false;
 
-        foreach (var snake in allSnakes)
+        // Vòng lặp duyệt thuần con số toán học (Siêu nhẹ cho CPU)
+        foreach (var snakeData in loader.levelToPlay.snakes)
         {
-            if (snake.bodySegments == null) continue;
-            foreach (Transform seg in snake.bodySegments)
+            if (snakeData.segmentPositions == null) continue;
+            foreach (Vector2Int gridPos in snakeData.segmentPositions)
             {
-                if (seg != null)
-                {
-                    Vector3 pos = seg.position;
-                    if (pos.x < minX) minX = pos.x;
-                    if (pos.x > maxX) maxX = pos.x;
-                    if (pos.y < minY) minY = pos.y;
-                    if (pos.y > maxY) maxY = pos.y;
-                    hasNodes = true;
-                }
+                if (gridPos.x < minX) minX = gridPos.x;
+                if (gridPos.x > maxX) maxX = gridPos.x;
+                if (gridPos.y < minY) minY = gridPos.y;
+                if (gridPos.y > maxY) maxY = gridPos.y;
+                hasNodes = true;
             }
         }
 
         if (!hasNodes) 
         {
             IsGameplayBlocking = false;
+            OnIntroFinished?.Invoke();
             yield break;
         }
 
+        // Tính toán kích thước bàn cờ dựa trên con số Min/Max
         float width = maxX - minX;
         float height = maxY - minY;
         initialPosition = new Vector3(minX + width / 2f, minY + height / 2f, transform.position.z);
@@ -107,14 +111,19 @@ public class CameraController : MonoBehaviour
         maxZoom = Mathf.Max(maxZoom, gameZoom + 5f);
 
         transform.position = initialPosition;
-        cam.orthographicSize = maxZoom; 
         
+        // 0. Bắt đầu ở góc nhìn mặc định
+        cam.orthographicSize = defaultGameplayZoom / 3; 
         cam.DOKill();
+        
+        // 1. Zoom đến gameZoom (để nhìn vừa vặn toàn bộ bàn cờ)
         cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
-        yield return new WaitForSeconds(1.5f);
+        yield return new WaitForSeconds(1f);
 
+        // Đợi 1 chút để người chơi quan sát tổng thể map
         yield return new WaitForSeconds(overviewWaitTime);
 
+        // 2. Zoom ngược lại về defaultGameplayZoom để bắt đầu chơi
         cam.DOOrthoSize(defaultGameplayZoom, 1.2f).SetEase(Ease.InOutQuad);
         yield return new WaitForSeconds(1.2f);
 
@@ -125,7 +134,6 @@ public class CameraController : MonoBehaviour
         IsGameplayBlocking = false;
         OnIntroFinished?.Invoke();
     }
-
     void LateUpdate() 
     {
         if (IsGameplayBlocking)

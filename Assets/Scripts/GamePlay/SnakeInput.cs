@@ -38,7 +38,8 @@ public class SnakeInput : MonoBehaviour
 
     private void Awake()
     {
-        parentScript = GetComponentInParent<SnakeBlock>();
+        parentScript = GetComponent<SnakeBlock>();
+        if (parentScript == null) parentScript = GetComponentInParent<SnakeBlock>();
     }
 
     private void Start()
@@ -93,6 +94,39 @@ public class SnakeInput : MonoBehaviour
         return EventSystem.current.IsPointerOverGameObject();
     }
 
+    // =========================================================
+    // LÕI TOÁN HỌC: ĐO KHOẢNG CÁCH TỪ CHUỘT ĐẾN TOÀN BỘ THÂN RẮN
+    // =========================================================
+    public float GetMinDistanceFromMouse(Vector2 mousePos)
+    {
+        if (parentScript == null || parentScript.LogicNodes == null || parentScript.LogicNodes.Count == 0) return float.MaxValue;
+        
+        float minDist = float.MaxValue;
+        List<Vector3> nodes = parentScript.LogicNodes;
+        
+        if (nodes.Count == 1) return Vector2.Distance(nodes[0], mousePos);
+
+        for (int i = 0; i < nodes.Count - 1; i++)
+        {
+            float dist = DistancePointToSegment(mousePos, nodes[i], nodes[i + 1]);
+            if (dist < minDist) minDist = dist;
+        }
+        return minDist;
+    }
+
+    private float DistancePointToSegment(Vector2 p, Vector2 a, Vector2 b)
+    {
+        Vector2 ab = b - a;
+        float sqrMag = ab.sqrMagnitude;
+        if (sqrMag == 0) return Vector2.Distance(p, a);
+
+        float t = Vector2.Dot(p - a, ab) / sqrMag;
+        t = Mathf.Clamp01(t); // Giới hạn hình chiếu nằm gọn trong đoạn thẳng AB
+        Vector2 projection = a + t * ab;
+        return Vector2.Distance(p, projection);
+    }
+    // =========================================================
+
     private void HandleInputDown()
     {
         if (CameraController.IsGameplayBlocking) return;
@@ -100,7 +134,9 @@ public class SnakeInput : MonoBehaviour
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        float myDist = Vector2.Distance(transform.position, mousePos);
+        
+        // BẢN VÁ: Đo khoảng cách với toàn thân rắn thay vì chỉ Head
+        float myDist = GetMinDistanceFromMouse(mousePos);
 
         if (myDist > clickRadius) return;
         if (!IsClosestToClick(mousePos, myDist)) return;
@@ -159,7 +195,8 @@ public class SnakeInput : MonoBehaviour
 
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         
-        if (!isCanceledByCamera && !CameraController.IsCameraGestureActive && Vector2.Distance(transform.position, mousePos) <= clickRadius)
+        // BẢN VÁ: Đo lại khoảng cách lúc nhả chuột với toàn thân
+        if (!isCanceledByCamera && !CameraController.IsCameraGestureActive && GetMinDistanceFromMouse(mousePos) <= clickRadius)
         {
             if (parentScript != null)
             {
@@ -194,7 +231,7 @@ public class SnakeInput : MonoBehaviour
             }
 
             Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            bool isInside = Vector2.Distance(transform.position, mousePos) <= clickRadius;
+            bool isInside = GetMinDistanceFromMouse(mousePos) <= clickRadius;
 
             if (!isInside)
             {
@@ -215,7 +252,8 @@ public class SnakeInput : MonoBehaviour
         {
             if (other != null && other != this && other.gameObject.activeInHierarchy)
             {
-                float otherDist = Vector2.Distance(other.transform.position, mousePos);
+                // BẢN VÁ: Hỏi khoảng cách đến thân của các con rắn khác để tranh quyền click
+                float otherDist = other.GetMinDistanceFromMouse(mousePos);
                 
                 if (otherDist <= other.clickRadius)
                 {
@@ -250,11 +288,5 @@ public class SnakeInput : MonoBehaviour
     {
         transform.DOKill();
         if (isPressed && _isMemoryMode) CameraController.IsGameplayBlocking = false;
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, clickRadius);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -12,7 +13,6 @@ public enum EditorToolType { Draw, Erase, Paint }
 
 public class LevelEditor : MonoBehaviour
 {
-    #region [ VARIABLES & REFERENCES ]
     [Header("Assets")]
     public GameObject headPrefab;
     public GameObject bodyPrefab;
@@ -36,17 +36,12 @@ public class LevelEditor : MonoBehaviour
     private List<Transform> currentSegments = new List<Transform>();
 
     private Stack<GameObject> finishedSnakesHistory = new Stack<GameObject>();
-    #endregion
 
     private void Start()
     {
         LoadLevelToEdit();
     }
 
-    #region [ MAIN LOOP ]
-    /// <summary>
-    /// Vòng lặp chính quản lý phím tắt và tương tác chuột trên Editor.
-    /// </summary>
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space)) UI_FinishSnake();
@@ -69,9 +64,7 @@ public class LevelEditor : MonoBehaviour
             else if (currentTool == EditorToolType.Erase) HandleEraseClick();
         }
     }
-    #endregion
 
-    #region [ UI & SHORTCUT ACTIONS ]
     public void UI_SetTool(int toolIndex)
     {
         currentTool = (EditorToolType)toolIndex;
@@ -97,20 +90,27 @@ public class LevelEditor : MonoBehaviour
         
         if (currentSnakeScript != null)
         {
-            // BẢN VÁ: Dùng API đổi màu mới của hệ thống thay vì sửa LineRenderer trực tiếp
             currentSnakeScript.SetColorImmediatePublic(currentColor);
         }
     }
 
-    /// <summary>
-    /// Hoàn tất việc vẽ con rắn hiện tại và đưa vào ngăn xếp Undo.
-    /// </summary>
     public void UI_FinishSnake()
     {
-        if (currentSnakeObj == null) return;
+        if (currentSnakeObj == null || currentSegments.Count == 0) return;
 
-        // BẢN VÁ: Gọi hàm Initialize mới của SnakeBlock để nó sinh tọa độ chuẩn
-        currentSnakeScript.Initialize(currentDir, new List<Transform>(currentSegments), 9, currentColor);
+        // BẢN VÁ: Vắt dữ liệu Vector2Int từ các Transform tạm thời
+        List<Vector2Int> gridPositions = new List<Vector2Int>();
+        foreach (Transform seg in currentSegments)
+        {
+            if (seg != null)
+            {
+                gridPositions.Add(new Vector2Int(Mathf.RoundToInt(seg.position.x), Mathf.RoundToInt(seg.position.y)));
+                Destroy(seg.gameObject); // XÓA LUÔN Transform tạm để tránh rác!
+            }
+        }
+
+        // Khởi tạo rắn bằng Dữ Liệu
+        currentSnakeScript.Initialize(currentDir, gridPositions, 9, currentColor);
 
         finishedSnakesHistory.Push(currentSnakeObj);
 
@@ -130,21 +130,18 @@ public class LevelEditor : MonoBehaviour
     {
         if (textCurrentTool != null) textCurrentTool.text = $"{currentTool} - {currentDir}";
     }
-    #endregion
 
-    #region [ MOUSE INTERACTIONS (PATCHED FOR MATH INSTEAD OF PHYSICS) ]
-    
-    // HÀM TRỢ GIÚP MỚI: Quét bằng Toán học thay vì Vật lý 2D
+    // ĐÃ SỬA: Quét qua LogicNodes thay vì Transform
     private SnakeBlock GetSnakeAtGridPos(Vector2Int pos)
     {
         foreach (Transform snakeParent in levelContainer)
         {
             SnakeBlock sb = snakeParent.GetComponent<SnakeBlock>();
-            if (sb != null && sb.bodySegments != null)
+            if (sb != null && sb.LogicNodes != null)
             {
-                foreach (Transform seg in sb.bodySegments)
+                foreach (Vector3 node in sb.LogicNodes)
                 {
-                    if (seg != null && Mathf.RoundToInt(seg.position.x) == pos.x && Mathf.RoundToInt(seg.position.y) == pos.y)
+                    if (Mathf.RoundToInt(node.x) == pos.x && Mathf.RoundToInt(node.y) == pos.y)
                     {
                         return sb;
                     }
@@ -156,13 +153,10 @@ public class LevelEditor : MonoBehaviour
 
     private bool IsPositionOccupied(Vector2Int pos)
     {
-        // 1. Check con rắn đang vẽ dở (chưa finish)
         foreach (var seg in currentSegments)
         {
             if (seg != null && Mathf.RoundToInt(seg.position.x) == pos.x && Mathf.RoundToInt(seg.position.y) == pos.y) return true;
         }
-
-        // 2. Check các con rắn đã vẽ trên Scene
         return GetSnakeAtGridPos(pos) != null;
     }
 
@@ -176,15 +170,11 @@ public class LevelEditor : MonoBehaviour
             return;
         }
 
-        if (currentSnakeObj == null) 
-        {
-            CreateHead(gridPos);
-        }
+        if (currentSnakeObj == null) CreateHead(gridPos);
         else 
         {
             Transform lastSeg = currentSegments[currentSegments.Count - 1];
             Vector2Int lastPos = new Vector2Int(Mathf.RoundToInt(lastSeg.position.x), Mathf.RoundToInt(lastSeg.position.y));
-            
             int manhattanDist = Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y);
 
             if (manhattanDist != 1)
@@ -192,7 +182,6 @@ public class LevelEditor : MonoBehaviour
                 Debug.LogWarning("Phải đặt sát cạnh đốt trước! Không thể đi chéo hoặc nhảy cóc.");
                 return; 
             }
-
             CreateBodySegment(gridPos);
         }
     }
@@ -208,7 +197,6 @@ public class LevelEditor : MonoBehaviour
         if (gridPos == lastPos) return; 
 
         int manhattanDist = Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y);
-        
         if (manhattanDist == 1 && !IsPositionOccupied(gridPos))
         {
             CreateBodySegment(gridPos);
@@ -218,7 +206,7 @@ public class LevelEditor : MonoBehaviour
     private void HandleEraseClick()
     {
         Vector2Int gridPos = GetMouseGridPosition();
-        SnakeBlock sb = GetSnakeAtGridPos(gridPos); // Quét bằng Toán học
+        SnakeBlock sb = GetSnakeAtGridPos(gridPos);
 
         if (sb != null)
         {
@@ -235,7 +223,7 @@ public class LevelEditor : MonoBehaviour
     private void HandlePaintClick()
     {
         Vector2Int gridPos = GetMouseGridPosition();
-        SnakeBlock sb = GetSnakeAtGridPos(gridPos); // Quét bằng Toán học
+        SnakeBlock sb = GetSnakeAtGridPos(gridPos);
 
         if (sb != null)
         {
@@ -243,9 +231,7 @@ public class LevelEditor : MonoBehaviour
             sb.SetColorImmediatePublic(currentColor);
         }
     }
-    #endregion
 
-    #region [ CORE CREATION & UNDO ]
     private void CreateHead(Vector2Int pos)
     {
         currentSnakeObj = new GameObject("Snake_" + pos);
@@ -257,27 +243,13 @@ public class LevelEditor : MonoBehaviour
         currentSegments.Add(headParams.transform);
 
         currentSnakeScript.direction = currentDir;
-        currentSnakeScript.snakeColor = currentColor; // Lưu màu vào script
+        currentSnakeScript.snakeColor = currentColor; 
 
         LineRenderer lr = currentSnakeScript.GetComponent<LineRenderer>();
         if (lr) { lr.startColor = currentColor; lr.endColor = currentColor; }
 
         SpriteRenderer[] srs = headParams.GetComponentsInChildren<SpriteRenderer>();
         foreach (var sr in srs) sr.color = currentColor;
-
-        Transform arrowVis = headParams.transform.Find("Arrow");
-        if (arrowVis)
-        {
-            float angle = currentDir switch
-            {
-                ArrowDir.Up => 0,
-                ArrowDir.Down => 180,
-                ArrowDir.Left => 90,
-                ArrowDir.Right => -90,
-                _ => 0
-            };
-            arrowVis.localRotation = Quaternion.Euler(0, 0, angle);
-        }
 
         UpdateSnakeLinePreview();
     }
@@ -309,10 +281,7 @@ public class LevelEditor : MonoBehaviour
                 currentSnakeObj = null;
                 currentSnakeScript = null;
             }
-            else
-            {
-                UpdateSnakeLinePreview(); 
-            }
+            else UpdateSnakeLinePreview(); 
         }
         else if (finishedSnakesHistory.Count > 0)
         {
@@ -324,9 +293,7 @@ public class LevelEditor : MonoBehaviour
             }
         }
     }
-    #endregion
 
-    #region [ VISUAL FEEDBACKS ]
     private void UpdateSnakeLinePreview()
     {
         if (currentSnakeScript != null && currentSegments.Count > 0)
@@ -372,10 +339,7 @@ public class LevelEditor : MonoBehaviour
                 int manhattanDist = Mathf.Abs(gridPos.x - Mathf.RoundToInt(lastSeg.position.x)) + Mathf.Abs(gridPos.y - Mathf.RoundToInt(lastSeg.position.y));
                 previewCursor.color = (manhattanDist == 1) ? ghostColor : errorColor;
             }
-            else
-            {
-                previewCursor.color = ghostColor;
-            }
+            else previewCursor.color = ghostColor;
         }
         else if (currentTool == EditorToolType.Erase)
         {
@@ -388,10 +352,7 @@ public class LevelEditor : MonoBehaviour
             Color paintColor = currentColor; paintColor.a = 0.8f;
             previewCursor.color = paintColor;
         }
-        else
-        {
-            previewCursor.enabled = false;
-        }
+        else previewCursor.enabled = false;
     }
 
     private Vector2Int GetMouseGridPosition()
@@ -399,9 +360,7 @@ public class LevelEditor : MonoBehaviour
         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         return new Vector2Int(Mathf.RoundToInt(mousePos.x), Mathf.RoundToInt(mousePos.y));
     }
-    #endregion
 
-    #region [ SAVE & LOAD SYSTEM ]
     public void UI_SaveLevel() { SaveLevel(); }
     public void UI_LoadLevel() { LoadLevelToEdit(); }
 
@@ -414,25 +373,16 @@ public class LevelEditor : MonoBehaviour
         foreach (Transform snakeParent in levelContainer)
         {
             SnakeBlock sb = snakeParent.GetComponent<SnakeBlock>();
-            if (sb != null)
+            // ĐÃ SỬA: Chỉ lưu nếu có LogicNodes
+            if (sb != null && sb.LogicNodes != null && sb.LogicNodes.Count > 0)
             {
                 SnakeSaveData data = new SnakeSaveData();
                 data.direction = sb.direction;
-
-                // BẢN VÁ: Lấy màu gốc từ script thay vì LineRenderer
                 data.arrowColor = sb.snakeColor;
 
-                List<Transform> segmentsToSave = sb.bodySegments;
-                if (segmentsToSave == null || segmentsToSave.Count == 0)
+                foreach (Vector3 node in sb.LogicNodes)
                 {
-                    segmentsToSave = new List<Transform>();
-                    foreach (Transform child in snakeParent) segmentsToSave.Add(child);
-                }
-
-                foreach (Transform seg in segmentsToSave)
-                {
-                    if (seg != null)
-                        data.segmentPositions.Add(new Vector2Int(Mathf.RoundToInt(seg.position.x), Mathf.RoundToInt(seg.position.y)));
+                    data.segmentPositions.Add(new Vector2Int(Mathf.RoundToInt(node.x), Mathf.RoundToInt(node.y)));
                 }
                 currentData.snakes.Add(data);
             }
@@ -469,26 +419,14 @@ public class LevelEditor : MonoBehaviour
 
             SnakeBlock sb = snakeObj.AddComponent<SnakeBlock>();
 
-            List<Transform> loadedSegments = new List<Transform>();
-
-            for (int i = 0; i < data.segmentPositions.Count; i++)
-            {
-                Vector2Int pos = data.segmentPositions[i];
-                GameObject prefab = (i == 0) ? headPrefab : bodyPrefab;
-                GameObject seg = Instantiate(prefab, new Vector3(pos.x, pos.y, 0), Quaternion.identity, snakeObj.transform);
-                loadedSegments.Add(seg.transform);
-            }
-
-            // BẢN VÁ: Gọi Initialize mới
-            sb.Initialize(data.direction, loadedSegments, 9, data.arrowColor);
+            // ĐÃ SỬA: Load thẳng qua Vector2Int Data, không dùng Transform nữa
+            sb.Initialize(data.direction, data.segmentPositions, 9, data.arrowColor);
 
             finishedSnakesHistory.Push(snakeObj); 
         }
         Debug.Log("Đã tải Level.");
     }
-    #endregion
 
-    #region [ EDITOR GIZMOS & HANDLES ]
     private void OnDrawGizmos()
     {
 #if UNITY_EDITOR
@@ -515,22 +453,18 @@ public class LevelEditor : MonoBehaviour
             foreach (Transform snake in levelContainer)
             {
                 SnakeBlock sb = snake.GetComponent<SnakeBlock>();
-                if (sb != null && sb.bodySegments != null && sb.bodySegments.Count > 1)
+                // ĐÃ SỬA: Vẽ Gizmo dựa trên LogicNodes
+                if (sb != null && sb.LogicNodes != null && sb.LogicNodes.Count > 1)
                 {
-                    for (int i = 0; i < sb.bodySegments.Count - 1; i++)
+                    for (int i = 0; i < sb.LogicNodes.Count - 1; i++)
                     {
-                        if (sb.bodySegments[i] != null && sb.bodySegments[i + 1] != null)
-                        {
-                            Handles.DrawAAPolyLine(lineThickness, sb.bodySegments[i].position, sb.bodySegments[i + 1].position);
-                            Gizmos.DrawSphere(sb.bodySegments[i].position, 0.1f);
-                        }
+                        Handles.DrawAAPolyLine(lineThickness, sb.LogicNodes[i], sb.LogicNodes[i + 1]);
+                        Gizmos.DrawSphere(sb.LogicNodes[i], 0.1f);
                     }
-                    if (sb.bodySegments[sb.bodySegments.Count - 1] != null)
-                        Gizmos.DrawSphere(sb.bodySegments[sb.bodySegments.Count - 1].position, 0.1f);
+                    Gizmos.DrawSphere(sb.LogicNodes[sb.LogicNodes.Count - 1], 0.1f);
                 }
             }
         }
 #endif
     }
-    #endregion
 }

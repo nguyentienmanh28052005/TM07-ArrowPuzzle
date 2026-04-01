@@ -20,7 +20,12 @@ public class GameManager : Singleton<GameManager>
     void Awake()
     {
         StartCoroutine(PrewarmAsyncRoutine());
+
+        QualitySettings.vSyncCount = 0; 
+
+        Application.targetFrameRate = 60;
     }
+
 
     /// <summary>
     /// Coroutine chịu trách nhiệm mồi (Warm-up) Engine Vật Lý, Burst Compiler và hệ thống Audio.

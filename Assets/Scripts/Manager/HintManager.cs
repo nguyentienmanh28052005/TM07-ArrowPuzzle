@@ -27,12 +27,10 @@ public class HintManager : MonoBehaviour
     {
         if (_isHinting || Time.timeScale == 0f) return; 
         
-        // Bỏ qua nếu tẩy đang hoạt động
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
         if(CurrencyManager.Instance.SpendHintTool(1))
         {
-            //MessageManager.Instance.SendMessage(ManhMessageType.OnHintToolChanged, null);
             SnakeBlock bestMoveSnake = FindBestMove();
             if (bestMoveSnake != null)
             {
@@ -45,29 +43,27 @@ public class HintManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Thuật toán tìm đường hoàn toàn mới sử dụng Grid Logic thay vì BoxCast Vật lý.
-    /// </summary>
     private SnakeBlock FindBestMove()
     {
         SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
 
         foreach (var snake in allSnakes)
         {
-            if (snake == null || snake.IsMoving || snake.bodySegments.Count == 0) continue;
+            // ĐÃ SỬA: Check LogicNodes.Count thay vì bodySegments.Count
+            if (snake == null || snake.IsMoving || snake.LogicNodes == null || snake.LogicNodes.Count == 0) continue;
 
             Vector3 moveDir = GetDirVector(snake.direction);
-            Vector2Int headPos = new Vector2Int(Mathf.RoundToInt(snake.bodySegments[0].position.x), Mathf.RoundToInt(snake.bodySegments[0].position.y));
+            
+            // ĐÃ SỬA: Lấy HeadPosition cực lẹ
+            Vector2Int headPos = new Vector2Int(Mathf.RoundToInt(snake.HeadPosition.x), Mathf.RoundToInt(snake.HeadPosition.y));
             Vector2Int step = new Vector2Int(Mathf.RoundToInt(moveDir.x), Mathf.RoundToInt(moveDir.y));
 
             bool isBlocked = false;
 
-            // Quét tối đa 50 ô trên Grid (Logic giống hệ thống di chuyển của rắn)
             for (int d = 1; d < 50; d++)
             {
                 Vector2Int checkPos = headPos + (step * d);
                 
-                // Tràn viền map nghĩa là lối thoát thông thoáng
                 if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) 
                 {
                     break;
@@ -78,11 +74,10 @@ public class HintManager : MonoBehaviour
                 if (obstacle != null && obstacle != snake)
                 {
                     isBlocked = true; 
-                    break; // Gặp vật cản -> Bỏ qua con rắn này
+                    break; 
                 }
             }
 
-            // Nếu vòng for chạy xong mà không bị block -> Con rắn này có thể thoát!
             if (!isBlocked) return snake;
         }
         
@@ -93,19 +88,15 @@ public class HintManager : MonoBehaviour
     {
         _isHinting = true;
         
-        // ĐÃ MỞ KHÓA: Lấy component Guideline
         var guideline = snake.GetComponent<ArrowGuideline>();
-        
         Color originalColor = snake.snakeColor;
 
         if (_currentHintSeq != null && _currentHintSeq.IsActive()) _currentHintSeq.Kill();
 
         _currentHintSeq = DOTween.Sequence();
         
-        // ĐÃ MỞ KHÓA: Bật tia Guideline ngay khi Hint bắt đầu
         _currentHintSeq.AppendCallback(() => { if (guideline != null) guideline.SetLineActive(true); });
 
-        // Tween đổi màu nịnh mắt
         _currentHintSeq.Append(DOVirtual.Color(originalColor, hintGlowColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
         _currentHintSeq.Append(DOVirtual.Color(hintGlowColor, originalColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
         
@@ -116,7 +107,6 @@ public class HintManager : MonoBehaviour
             _isHinting = false; 
             if (snake != null)
             {
-                // ĐÃ MỞ KHÓA: Tắt tia Guideline khi Hint kết thúc hoặc bị hủy
                 if (guideline != null) guideline.SetLineActive(false);
                 snake.SetColorImmediate(originalColor);
             }

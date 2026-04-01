@@ -13,9 +13,6 @@ public class ArrowGuideline : MonoBehaviour
     private GameObject _guidelineRoot;
     private SnakeBlock _snakeBlock;
 
-    /// <summary>
-    /// Khởi tạo tham chiếu và gọi hàm sinh hình ảnh tia dóng lúc mới nạp.
-    /// </summary>
     private void Awake()
     {
         _snakeBlock = GetComponent<SnakeBlock>();
@@ -23,25 +20,16 @@ public class ArrowGuideline : MonoBehaviour
         SetLineActive(false);
     }
 
-    /// <summary>
-    /// Đăng ký lắng nghe sự kiện từ MessageManager khi Object được bật.
-    /// </summary>
     private void OnEnable()
     {
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnShowAllPaths, HandleShowAllPaths);
     }
 
-    /// <summary>
-    /// Hủy đăng ký lắng nghe sự kiện để chống lỗi tràn bộ nhớ khi Object bị tắt.
-    /// </summary>
     private void OnDisable()
     {
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnShowAllPaths, HandleShowAllPaths);
     }
 
-    /// <summary>
-    /// Xử lý tín hiệu bật/tắt hiển thị toàn bộ đường đi từ hệ thống.
-    /// </summary>
     private void HandleShowAllPaths(object data)
     {
         if (data is bool isShowing)
@@ -51,9 +39,6 @@ public class ArrowGuideline : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Tự động khởi tạo cấu trúc GameObject và SpriteRenderer cho tia dóng bằng code.
-    /// </summary>
     private void CreateGuidelineProcedurally()
     {
         _guidelineRoot = new GameObject("Guideline_Root_Auto");
@@ -73,9 +58,6 @@ public class ArrowGuideline : MonoBehaviour
         visual.transform.localPosition = Vector3.zero; 
     }
 
-    /// <summary>
-    /// Cập nhật liên tục vị trí của tia dóng vào cuối mỗi khung hình để chống giật lag.
-    /// </summary>
     private void LateUpdate()
     {
         if (_guidelineRoot != null && _guidelineRoot.activeSelf && _snakeBlock != null)
@@ -84,14 +66,13 @@ public class ArrowGuideline : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Tính toán và đồng bộ vị trí, góc xoay của tia dóng theo nốt đầu tiên của thân rắn.
-    /// </summary>
     private void UpdatePositionAndRotation()
     {
-        if (_snakeBlock.bodySegments.Count == 0 || _snakeBlock.bodySegments[0] == null) return;
+        // ĐÃ SỬA LỖI: Kiểm tra danh sách LogicNodes thay vì bodySegments
+        if (_snakeBlock.LogicNodes == null || _snakeBlock.LogicNodes.Count == 0) return;
 
-        Vector3 headPos = _snakeBlock.bodySegments[0].position;
+        // ĐÃ SỬA LỖI: Lấy trực tiếp tọa độ đầu từ biến HeadPosition
+        Vector3 headPos = _snakeBlock.HeadPosition;
         Vector3 moveDir = Vector3.up;
         float angle = 0f;
 
@@ -107,9 +88,6 @@ public class ArrowGuideline : MonoBehaviour
         _guidelineRoot.transform.rotation = Quaternion.Euler(0, 0, angle);
     }
 
-    /// <summary>
-    /// Kích hoạt hoặc vô hiệu hóa trạng thái hiển thị của tia dóng.
-    /// </summary>
     public void SetLineActive(bool isActive)
     {
         if (_guidelineRoot != null) _guidelineRoot.SetActive(isActive);
