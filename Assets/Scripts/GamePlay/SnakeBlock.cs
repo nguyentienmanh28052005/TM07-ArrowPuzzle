@@ -38,7 +38,10 @@ public class SnakeBlock : MonoBehaviour
     // ==========================================
     private List<Vector3> _logicNodes = new List<Vector3>();
     private Vector3[] _originalState;
-    private Vector3[] _currentPositions;
+
+    // Buffers để vẽ line mà không tạo GC mỗi frame
+    private readonly List<Vector3> _renderPoints = new List<Vector3>(256);
+    private readonly List<Vector3> _smoothedPoints = new List<Vector3>(512);
 
     private int _totalPoints;
     private int _nodesPerUnit;
@@ -64,7 +67,9 @@ public class SnakeBlock : MonoBehaviour
     
     // API CẦU NỐI CHO GRID MANAGER VÀ DASH MANAGER
     public List<Vector3> LogicNodes => _logicNodes;
-    public Vector3 HeadPosition => (_currentPositions != null && _currentPositions.Length > 0) ? _currentPositions[0] : (_logicNodes != null && _logicNodes.Count > 0 ? _logicNodes[0] : transform.position);
+    public Vector3 HeadPosition => (_isInitialized && _originalState != null && _originalState.Length > 0)
+        ? GetPositionAtTrackIndex(-_accumulatedShift)
+        : (_logicNodes != null && _logicNodes.Count > 0 ? _logicNodes[0] : transform.position);
 
     private void Awake()
     {
@@ -180,8 +185,6 @@ public class SnakeBlock : MonoBehaviour
             _isMoving = true;
             SetFocusColor(false, 0.5f);
             lineRenderer.sortingOrder = 20;
-
-            System.Array.Copy(_originalState, _currentPositions, _totalPoints);
             _accumulatedShift = 0f;
             StartCoroutine(ProcessExitMovement(GetDirVector(direction)));
         }
@@ -195,8 +198,6 @@ public class SnakeBlock : MonoBehaviour
         _isMoving = true;
         SetFocusColor(false, 0.5f);
         lineRenderer.sortingOrder = 20;
-
-        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         _accumulatedShift = 0f;
         Vector3 moveDir = GetDirVector(direction);
         
@@ -354,8 +355,6 @@ public class SnakeBlock : MonoBehaviour
             }
             yield return null;
         }
-
-        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         SyncArrowVisualPosition();
         UpdateGridOccupancy(); 
     }
@@ -374,7 +373,6 @@ public class SnakeBlock : MonoBehaviour
         _isMoving = false;
         _hasDealtDamage = false; 
 
-        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         SyncArrowVisualPosition();
         UpdateGridOccupancy();
         
@@ -438,9 +436,10 @@ public class SnakeBlock : MonoBehaviour
 
     private float CheckObstacleDistance(Vector3 dir)
     {
-        if (!_isInitialized || _currentPositions == null || GridManager.Instance == null) return float.MaxValue;
+        if (!_isInitialized || _originalState == null || GridManager.Instance == null) return float.MaxValue;
 
-        Vector2Int headPos = new Vector2Int(Mathf.RoundToInt(_currentPositions[0].x), Mathf.RoundToInt(_currentPositions[0].y));
+        Vector3 headPos3D = GetPositionAtTrackIndex(-_accumulatedShift);
+        Vector2Int headPos = new Vector2Int(Mathf.RoundToInt(headPos3D.x), Mathf.RoundToInt(headPos3D.y));
         Vector2Int step = new Vector2Int(Mathf.RoundToInt(dir.x), Mathf.RoundToInt(dir.y));
 
         for (int d = 1; d < 50; d++)
@@ -499,7 +498,6 @@ public class SnakeBlock : MonoBehaviour
             _totalPoints = currentTotalPoints + 1;
 
             _originalState = new Vector3[_totalPoints];
-            _currentPositions = new Vector3[_totalPoints];
 
             int arrayIndex = 0;
             for (int i = 0; i < segmentsCount; i++)
@@ -515,13 +513,11 @@ public class SnakeBlock : MonoBehaviour
                 }
             }
             _originalState[arrayIndex] = _logicNodes[segmentsCount];
-            System.Array.Copy(_originalState, _currentPositions, _totalPoints);
         }
         else if (_logicNodes.Count == 1)
         {
             _totalPoints = 1;
             _originalState = new Vector3[] { _logicNodes[0] };
-            _currentPositions = new Vector3[] { _logicNodes[0] };
         }
 
         _isInitialized = true;
@@ -539,7 +535,7 @@ public class SnakeBlock : MonoBehaviour
         if (arrowVisual != null)
         {
             arrowVisual.gameObject.SetActive(false);
-            arrowVisual.position = _currentPositions[0]; 
+            arrowVisual.position = GetPositionAtTrackIndex(-_accumulatedShift);
         }
 
         StartCoroutine(PlaySpawnAnimationFromTail());
@@ -577,41 +573,25 @@ public class SnakeBlock : MonoBehaviour
 
     private void UpdateSnakePosition(float shift, Vector3 moveDir)
     {
+        // Data-driven, không tính lại toàn bộ thân mỗi frame (tránh lag/stutter).
+        // LineRenderer sẽ vẽ dựa trên _accumulatedShift + _originalState.
         if (!_isInitialized) return;
-        for (int i = 0; i < _totalPoints; i++)
-        {
-            float trackIdx = -shift + i;
-            if (trackIdx < 0) 
-            {
-                float distFromHead = Mathf.Abs(trackIdx) / _nodesPerUnit;
-                _currentPositions[i] = _originalState[0] + moveDir * distFromHead;
-            }
-            else
-            {
-                int idx = Mathf.FloorToInt(trackIdx);
-                if (idx >= _totalPoints - 1) _currentPositions[i] = _originalState[_totalPoints - 1];
-                else 
-                {
-                    float t = trackIdx - idx;
-                    _currentPositions[i] = Vector3.Lerp(_originalState[idx], _originalState[idx + 1], t);
-                }
-            }
-        }
         SyncArrowVisualPosition();
+        _forceRedraw = true;
     }
 
     private void SyncArrowVisualPosition()
     {
-        if (arrowVisual != null && _currentPositions != null && _currentPositions.Length > 0)
-        {
-            arrowVisual.position = _currentPositions[0];
-        }
+        if (arrowVisual == null || !_isInitialized || _originalState == null || _originalState.Length == 0) return;
+        arrowVisual.position = GetPositionAtTrackIndex(-_accumulatedShift);
     }
 
     private void LateUpdate()
     {
         if (_isMoving || _forceRedraw || _isSpawning)
         {
+            // Đảm bảo arrow luôn bám đúng đầu ở pha render
+            if (!_isSpawning) SyncArrowVisualPosition();
             UpdateLineRenderer();
             if (!_isMoving && !_isSpawning) _forceRedraw = false;
         }
@@ -630,8 +610,8 @@ public class SnakeBlock : MonoBehaviour
             headTrackIdx = tailTrackIdx - (_visiblePoints - 1); 
         }
 
-        List<Vector3> renderPoints = new List<Vector3>();
-        renderPoints.Add(GetPositionAtTrackIndex(headTrackIdx));
+        _renderPoints.Clear();
+        _renderPoints.Add(GetPositionAtTrackIndex(headTrackIdx));
 
         int firstStatic = Mathf.CeilToInt(headTrackIdx);
         int lastStatic = Mathf.FloorToInt(tailTrackIdx);
@@ -640,24 +620,34 @@ public class SnakeBlock : MonoBehaviour
         {
             if (i > headTrackIdx + 0.001f && i < tailTrackIdx - 0.001f)
             {
-                if (i >= 0 && i < _totalPoints) renderPoints.Add(_originalState[i]); 
+                if (i >= 0 && i < _totalPoints) _renderPoints.Add(_originalState[i]);
             }
         }
 
         if (tailTrackIdx > headTrackIdx + 0.001f)
         {
-            renderPoints.Add(GetPositionAtTrackIndex(tailTrackIdx));
+            _renderPoints.Add(GetPositionAtTrackIndex(tailTrackIdx));
         }
 
-        Vector3[] finalPoints = renderPoints.ToArray();
-
-        if (finalPoints.Length > 2 && cornerRadius > 0f)
+        IReadOnlyList<Vector3> finalPoints = _renderPoints;
+        if (_renderPoints.Count > 2 && cornerRadius > 0f)
         {
-            finalPoints = BuildSmoothedPositionsForRender(finalPoints);
+            BuildSmoothedPositionsForRender(_renderPoints, _smoothedPoints);
+            finalPoints = _smoothedPoints;
         }
 
-        lineRenderer.positionCount = finalPoints.Length;
-        lineRenderer.SetPositions(finalPoints);
+        int count = finalPoints.Count;
+        if (count <= 0)
+        {
+            lineRenderer.positionCount = 0;
+            return;
+        }
+
+        lineRenderer.positionCount = count;
+        for (int i = 0; i < count; i++)
+        {
+            lineRenderer.SetPosition(i, finalPoints[i]);
+        }
     }
 
     private Vector3 GetPositionAtTrackIndex(float trackIndex)
@@ -676,16 +666,23 @@ public class SnakeBlock : MonoBehaviour
         }
     }
 
-    private Vector3[] BuildSmoothedPositionsForRender(Vector3[] positions)
+    private void BuildSmoothedPositionsForRender(IReadOnlyList<Vector3> positions, List<Vector3> output)
     {
-        if (positions.Length < 3) return positions;
+        output.Clear();
+        if (positions == null || positions.Count < 3)
+        {
+            if (positions != null)
+            {
+                for (int i = 0; i < positions.Count; i++) output.Add(positions[i]);
+            }
+            return;
+        }
 
-        List<Vector3> result = new List<Vector3>(positions.Length + cornerSmoothSteps * 4);
-        result.Add(positions[0]);
+        output.Add(positions[0]);
 
         float angleThreshold = 15f;
 
-        for (int i = 1; i < positions.Length - 1; i++)
+        for (int i = 1; i < positions.Count - 1; i++)
         {
             Vector3 prev = positions[i - 1];
             Vector3 curr = positions[i];
@@ -696,7 +693,7 @@ public class SnakeBlock : MonoBehaviour
 
             if (dirIn.sqrMagnitude < 0.0001f || dirOut.sqrMagnitude < 0.0001f)
             {
-                result.Add(curr);
+                output.Add(curr);
                 continue;
             }
 
@@ -712,25 +709,24 @@ public class SnakeBlock : MonoBehaviour
                 Vector3 p1 = curr;
                 Vector3 p2 = curr + dirOut.normalized * r;
 
-                if (result.Count > 0 && Vector3.SqrMagnitude(result[result.Count - 1] - p0) < 0.001f)
-                    result.RemoveAt(result.Count - 1);
+                if (output.Count > 0 && Vector3.SqrMagnitude(output[output.Count - 1] - p0) < 0.001f)
+                    output.RemoveAt(output.Count - 1);
 
                 int steps = Mathf.Max(3, cornerSmoothSteps);
                 for (int s = 0; s <= steps; s++)
                 {
                     float t = (float)s / steps;
                     Vector3 pt = (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-                    result.Add(pt);
+                    output.Add(pt);
                 }
             }
             else
             {
-                result.Add(curr);
+                output.Add(curr);
             }
         }
 
-        result.Add(positions[positions.Length - 1]);
-        return result.ToArray();
+        output.Add(positions[positions.Count - 1]);
     }
 
     public void UpdateVisualRotation()
