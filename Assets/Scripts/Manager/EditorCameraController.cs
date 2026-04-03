@@ -4,8 +4,6 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(Camera))]
 public class EditorCameraController : MonoBehaviour
 {
-    // Giữ lại biến này phòng trường hợp bạn muốn Editor Tool (như vẽ rắn) 
-    // không bị vẽ nhầm khi đang dùng chuột phải/2 ngón tay kéo Camera
     public static bool IsCameraGestureActive = false; 
 
     [Header("Zoom Settings (Editor)")]
@@ -16,7 +14,7 @@ public class EditorCameraController : MonoBehaviour
     public float zoomSmoothTime = 0.1f;
 
     [Header("Pan Settings")]
-    public bool useLimits = false; // Editor thường không cần giới hạn để tự do vẽ
+    public bool useLimits = false;
     public Vector2 minPosition = new Vector2(-50, -50);
     public Vector2 maxPosition = new Vector2(50, 50);
     public float dragThreshold = 5f;
@@ -36,7 +34,7 @@ public class EditorCameraController : MonoBehaviour
     private void Start()
     {
         cam = GetComponent<Camera>();
-        targetZoom = cam.orthographicSize; // Lấy luôn size mặc định của cam trong Scene
+        targetZoom = cam.orthographicSize;
     }
 
     void LateUpdate() 
@@ -59,7 +57,6 @@ public class EditorCameraController : MonoBehaviour
             targetZoom -= scroll * zoomSpeedPC;
         }
 
-        // Chuột phải (1) dùng để Kéo (Pan) Camera trong Editor
         if (Input.GetMouseButtonDown(1))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -145,7 +142,7 @@ public class EditorCameraController : MonoBehaviour
             }
         }
 
-        if (IsCameraGestureActive && !wasZoomingLastFrame && Input.touchCount == 1)
+        if (IsCameraGestureActive && !wasZoomingLastFrame && Input.touchCount <= 1)
         {
             Vector3 worldDelta = cam.ScreenToWorldPoint(lastPanScreenPos) - cam.ScreenToWorldPoint(currentScreenPos);
             transform.position += worldDelta;
