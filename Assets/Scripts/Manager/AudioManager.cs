@@ -25,9 +25,6 @@ public class AudioManager : Singleton<AudioManager>
     private float _sfxVolume = 1f;
     private bool _isSfxMuted = false;
 
-    // =====================================
-    // TÍNH NĂNG MỚI: BẬT/TẮT MUTE AN TOÀN
-    // =====================================
     public bool IsMusicMuted
     {
         get => _musicSource.mute;
@@ -97,7 +94,7 @@ public class AudioManager : Singleton<AudioManager>
     public void PlaySfx(AudioClip clip, float volume = 1f, float pitch = 1f)
     {
         AudioSource source = GetAvailableAudioSource();
-        source.volume = volume; // Giờ đây thoải mái gán volume, vì nếu Mute = true thì nó vẫn không kêu!
+        source.volume = volume;
         source.pitch = pitch;
         source.PlayOneShot(clip);
     }
@@ -120,6 +117,18 @@ public class AudioManager : Singleton<AudioManager>
         newSource.mute = _isSfxMuted; // An toàn tuyệt đối
         _audioSourcePool.Add(newSource);
         return newSource;
+    }
+
+    public void StopAllSfx()
+    {
+        if (_audioSourcePool == null) return;
+        foreach (var source in _audioSourcePool)
+        {
+            if (source != null)
+            {
+                source.Stop();
+            }
+        }
     }
 
     private IEnumerator FadeOutAndIn(AudioSource audioSource, AudioClip newClip, bool isLoop)

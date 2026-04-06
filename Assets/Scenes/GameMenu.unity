@@ -556,6 +556,11 @@ PrefabInstance:
       propertyPath: m_MatchWidthOrHeight
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 131954106307959205, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 615378057835559261, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
       propertyPath: m_AnchorMax.y
@@ -1061,8 +1066,14 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8396620283632768415, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
+        type: 3}
+      propertyPath: m_Alpha
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 4790951026701425734, guid: c9fdc9172645c2c4faf2c7a9ce041eeb, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 5870971706457223547, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}

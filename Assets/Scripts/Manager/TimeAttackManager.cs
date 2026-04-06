@@ -144,4 +144,35 @@ public class TimeAttackManager : MonoBehaviour
             canvas.ShowLosePopup(null); 
         }
     }
+
+    public void AddTime(float amount)
+    {
+        if (!_isTimeAttackMode) return;
+
+        _currentTime += amount;
+        
+        _isRunning = true; 
+        _lastDisplayedSecond = -1;
+
+        if (timerText != null)
+        {
+            timerText.transform.DOKill(true);
+            timerText.transform.localScale = Vector3.one;
+            timerText.transform.DOPunchScale(Vector3.one * 0.5f, 0.5f, 10, 1).SetUpdate(true);
+            timerText.DOColor(bonusColor, 0.3f).SetUpdate(true).OnComplete(() => {
+                
+                if (_currentTime > 10f) 
+                {
+                    timerText.color = normalColor;
+                    timerText.transform.DOKill();
+                    timerText.transform.localScale = Vector3.one;
+                }
+                else 
+                {
+                    timerText.color = warningColor;
+                    timerText.transform.DOScale(1.2f, 0.5f).SetLoops(-1, LoopType.Yoyo).SetUpdate(true);
+                }
+            });
+        }
+    }
 }

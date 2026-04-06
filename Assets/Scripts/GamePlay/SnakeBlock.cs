@@ -221,7 +221,7 @@ public class SnakeBlock : MonoBehaviour
         int _lastProcessedGrid = 0;
         outed = false;
 
-        float exitDistance = 100f; 
+        float exitDistance = 150f; 
         float finalTargetShift = exitDistance * _nodesPerUnit;
 
         while (true)
@@ -300,14 +300,18 @@ public class SnakeBlock : MonoBehaviour
 
     private IEnumerator HandleCollision(Vector3 dir, float dist, int lastProcessedGrid)
     {
-        float targetShift = dist * _nodesPerUnit;
+        // --- 1. GIAI ĐOẠN RƯỚN (BUMP IN) ---
+        // Thêm độ lún 35% ô lưới để hình ảnh mũi tên đâm sát vào vật cản
+        float bumpFraction = 0.35f; 
+        float peakShift = (dist + bumpFraction) * _nodesPerUnit;
         int _lastBounceGrid = lastProcessedGrid;
 
-        while (_accumulatedShift < targetShift)
+        // Trườn rướn lên phía trước
+        while (_accumulatedShift < peakShift)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
             float forwardStep = _currentMoveSpeed * _nodesPerUnit * safeDeltaTime;
-            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, forwardStep);
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, peakShift, forwardStep);
             
             UpdateSnakePosition(_accumulatedShift, dir);
             
@@ -320,6 +324,7 @@ public class SnakeBlock : MonoBehaviour
             yield return null;
         }
 
+        // --- 2. GIAI ĐOẠN IMPACT (XỬ LÝ VA CHẠM) ---
         if (!_hasDealtDamage) 
         { 
             if (MessageManager.Instance != null) MessageManager.Instance.SendMessage(ManhMessageType.OnTakeDamage, this); 
@@ -335,6 +340,7 @@ public class SnakeBlock : MonoBehaviour
             SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);   
         }
         
+        // --- 3. GIAI ĐOẠN ĐÀN HỒI (BOUNCE BACK) ---
         while (_accumulatedShift > 0f)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
