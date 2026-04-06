@@ -10,6 +10,8 @@ public class LevelLoader : MonoBehaviour
     [Header("Prefabs (Data-Driven)")]
     public GameObject snakePrefab; 
     public GameObject dotPrefab;   
+    public GameObject keycardPrefab;
+    public GameObject gatePrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -25,38 +27,26 @@ public class LevelLoader : MonoBehaviour
         if (!editorMode && GameManager.Instance != null)
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
 
-        // 1. KHÓA GAMEPLAY NGAY LẬP TỨC
         CameraController.IsGameplayBlocking = true;
 
-        // ========================================================
-        // BẢN VÁ: KHÔI PHỤC FEEDBACK TEXT GIỚI THIỆU MÀN CHƠI
-        // ========================================================
         bool isTextDone = false;
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         
         if (canvas != null && levelToPlay != null)
         {
-            // Cài đặt hiển thị UI (Tim/Timer) dựa trên Mode
             canvas.SetupModeUI(levelToPlay.gameMode);
-
             string modeName = levelToPlay.gameMode.ToString().ToUpper();
-            // Gọi hàm ShowText và truyền Callback để biết khi nào Animation chữ chạy xong
             canvas.ShowText(modeName, Color.cyan, () => isTextDone = true);
         }
         else
         {
-            // Nếu không có Canvas (chạy test), bỏ qua đoạn chờ
             isTextDone = true; 
         }
 
-        // Chờ đến khi cờ isTextDone được bật lên bởi Callback của GameCanvas
         yield return new WaitUntil(() => isTextDone);
-        // ========================================================
 
-        // 2. CHỮ BAY XONG -> BẮT ĐẦU LOAD RẮN THEO DATA-DRIVEN
         LoadGameInternal();
 
-        // 3. ĐIỀU PHỐI ĐỒNG HỒ ĐẾM NGƯỢC
         if (TimeAttackManager.Instance != null)
         {
             if (levelToPlay != null && levelToPlay.gameMode == GameMode.TimeAttack)
@@ -65,7 +55,6 @@ public class LevelLoader : MonoBehaviour
                 TimeAttackManager.Instance.DisableTimer();
         }
 
-        // 4. KÍCH HOẠT HIỆU ỨNG CAMERA (Camera Intro xong mới mở khóa Input)
         CameraController camController = Camera.main.GetComponent<CameraController>();
         if (camController != null) camController.StartIntro();
         else CameraController.IsGameplayBlocking = false;
@@ -87,6 +76,28 @@ public class LevelLoader : MonoBehaviour
             for (int i = childCount - 1; i >= 0; i--)
             {
                 DestroyImmediate(gameContainer.GetChild(i).gameObject);
+            }
+        }
+
+        if (levelToPlay.keycards != null)
+        {
+            foreach (var k in levelToPlay.keycards)
+            {
+                GameObject obj = Instantiate(keycardPrefab, new Vector3(k.position.x, k.position.y, 0), Quaternion.identity, gameContainer);
+                if (obj.TryGetComponent(out GridKeycard script)) script.keyColor = k.color;
+                SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.color = k.color;
+            }
+        }
+
+        if (levelToPlay.gates != null)
+        {
+            foreach (var g in levelToPlay.gates)
+            {
+                GameObject obj = Instantiate(gatePrefab, new Vector3(g.position.x, g.position.y, 0), Quaternion.identity, gameContainer);
+                if (obj.TryGetComponent(out GridLaserGate script)) script.gateColor = g.color;
+                SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.color = g.color;
             }
         }
 

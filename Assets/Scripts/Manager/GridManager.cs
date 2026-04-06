@@ -1,12 +1,24 @@
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 
 public class GridManager : MonoBehaviour
 {
     public static GridManager Instance;
 
-    // SỔ CÁI: Lưu trữ [Tọa độ Grid] -> [Thuộc về con rắn nào]
     public Dictionary<Vector2Int, SnakeBlock> GridMap = new Dictionary<Vector2Int, SnakeBlock>();
+    public Dictionary<Vector2Int, GridKeycard> KeycardMap = new Dictionary<Vector2Int, GridKeycard>();
+    public Dictionary<Vector2Int, GridLaserGate> GateMap = new Dictionary<Vector2Int, GridLaserGate>();
+
+    public Action<Color> OnKeyCollectedEvent;
+
+    public void RaiseKeyCollected(Color keyColor)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.LogWarning($"[GridManager] RaiseKeyCollected color={keyColor} instanceId={GetInstanceID()}");
+#endif
+        OnKeyCollectedEvent?.Invoke(keyColor);
+    }
 
     private void Awake()
     {
@@ -14,14 +26,10 @@ public class GridManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    /// <summary>
-    /// Đóng dấu chủ quyền lên tất cả các ô mà thân rắn đang đè lên (Thuần Dữ Liệu)
-    /// </summary>
     public void RegisterSnake(SnakeBlock snake)
     {
         if (snake == null || snake.LogicNodes == null) return;
         
-        // Vòng lặp siêu nhẹ: Chỉ đọc con số, không đụng tới GameObject
         foreach (Vector3 nodePos in snake.LogicNodes)
         {
             Vector2Int pos = new Vector2Int(Mathf.RoundToInt(nodePos.x), Mathf.RoundToInt(nodePos.y));
@@ -29,9 +37,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Xóa toàn bộ dấu vết của con rắn khỏi Sổ cái
-    /// </summary>
     public void UnregisterSnake(SnakeBlock snake)
     {
         if (snake == null) return;
@@ -44,9 +49,6 @@ public class GridManager : MonoBehaviour
         foreach (var key in keysToRemove) GridMap.Remove(key);
     }
 
-    /// <summary>
-    /// Tra cứu xem có ai đang đứng ở ô này không.
-    /// </summary>
     public SnakeBlock GetSnakeAt(Vector2Int pos)
     {
         if (GridMap.TryGetValue(pos, out SnakeBlock snake)) return snake;

@@ -9,20 +9,23 @@ using System.Linq;
 using UnityEditor;
 #endif
 
-public enum EditorToolType { Draw, Erase, Paint, Select }
+public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate }
 
 public class LevelEditor : MonoBehaviour
 {
     [Header("Assets (Data-Driven)")]
     public GameObject snakePrefab;
     public GameObject selectionGlowPrefab;
+    public GameObject portalPrefab;
+    public GameObject keycardPrefab;
+    public GameObject gatePrefab;
     public Color highlightColor = Color.yellow;
 
     [Header("Data")]
     public LevelDataSO currentData;
     public Transform levelContainer;
 
-    [Header("Level Selector UI (New)")]
+    [Header("Level Selector UI")]
     public GameObject levelButtonPrefab; 
     public Transform levelScrollContent; 
     public GameObject levelSelectorPanel; 
@@ -48,8 +51,14 @@ public class LevelEditor : MonoBehaviour
     private EditorSnakeVisual selectedSnakeToModify;
     private GameObject currentSelectionGlowObj; 
     private EditorSnakeVisual currentSelectionGlowScript;
+    
     private List<Vector2Int> currentDraftNodes = new List<Vector2Int>();
     private Stack<GameObject> finishedSnakesHistory = new Stack<GameObject>();
+
+    private bool isPlacingPortalExit = false;
+    private Vector2Int draftPortalEntrance;
+    private List<PortalData> currentDraftPortals = new List<PortalData>();
+    private List<GameObject> spawnedPortalVisuals = new List<GameObject>();
 
     private Camera mainCam;
     private Vector2Int lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -62,19 +71,19 @@ public class LevelEditor : MonoBehaviour
 
     private void Update()
     {
-        // 1. PHÍM TẮT CHỌN TOOL (1, 2, 3, 4)
         if (Input.GetKeyDown(KeyCode.Alpha1)) UI_SetTool(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) UI_SetTool(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) UI_SetTool(2);
         if (Input.GetKeyDown(KeyCode.Alpha4)) UI_SetTool(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) UI_SetTool(4);
+        if (Input.GetKeyDown(KeyCode.Alpha6)) UI_SetTool(5);
+        if (Input.GetKeyDown(KeyCode.Alpha7)) UI_SetTool(6);
 
-        // 2. PHÍM TẮT HƯỚNG (W-A-S-D hoặc Arrow Keys)
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) UI_SetDirection(0);
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) UI_SetDirection(1);
         if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow)) UI_SetDirection(2);
         if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow)) UI_SetDirection(3);
 
-        // 3. CÁC PHÍM CHỨC NĂNG
         if (Input.GetKeyDown(KeyCode.Space)) UI_FinishSnake();
         if (Input.GetKeyDown(KeyCode.R)) RotateDirection();
         if (Input.GetKeyDown(KeyCode.Z)) UndoLastSegment();
@@ -89,6 +98,9 @@ public class LevelEditor : MonoBehaviour
             else if (currentTool == EditorToolType.Erase) HandleEraseClick();
             else if (currentTool == EditorToolType.Paint) HandlePaintClick();
             else if (currentTool == EditorToolType.Select) HandleSelectClick();
+            else if (currentTool == EditorToolType.Portal) HandlePortalClick();
+            else if (currentTool == EditorToolType.Keycard) HandleObjectPlacement<GridKeycard>(keycardPrefab);
+            else if (currentTool == EditorToolType.Gate) HandleObjectPlacement<GridLaserGate>(gatePrefab);
         }
         else if (Input.GetMouseButton(0)) 
         {
@@ -97,16 +109,12 @@ public class LevelEditor : MonoBehaviour
         }
     }
 
-    // --- LOGIC CHỌN LEVEL TỪ RESOURCES ---
     public void UI_OpenLevelSelector()
     {
         if (levelSelectorPanel != null) levelSelectorPanel.SetActive(true);
-        
         foreach (Transform child in levelScrollContent) Destroy(child.gameObject);
-
         LevelDataSO[] allLevels = Resources.LoadAll<LevelDataSO>("Levels");
         var sortedLevels = allLevels.OrderBy(l => l.name).ToList();
-
         foreach (LevelDataSO level in sortedLevels)
         {
             GameObject btnObj = Instantiate(levelButtonPrefab, levelScrollContent);
@@ -120,15 +128,14 @@ public class LevelEditor : MonoBehaviour
         currentData = selectedLevel;
         if (levelSelectorPanel != null) levelSelectorPanel.SetActive(false);
         LoadLevelToEdit();
-        Debug.Log($"<color=cyan>[Editor] Đã tải Level: {selectedLevel.name}</color>");
     }
 
-    // --- CÁC HÀM UI SETTINGS ---
     public void UI_SetTool(int toolIndex) 
     { 
         currentTool = (EditorToolType)toolIndex; 
         UpdateToolText(); 
         if (currentTool != EditorToolType.Select) ClearSelectionHighlight();
+        if (currentTool != EditorToolType.Portal) isPlacingPortalExit = false;
     }
 
     public void UI_SetDirection(int dirIndex)
@@ -184,7 +191,6 @@ public class LevelEditor : MonoBehaviour
         if (textCurrentTool != null) textCurrentTool.text = $"{currentTool} - {currentDir}";
     }
 
-    // --- LOGIC XỬ LÝ RẮN VÀ VA CHẠM ---
     private EditorSnakeVisual GetSnakeAtGridPos(Vector2Int pos)
     {
         foreach (Transform snakeParent in levelContainer)
@@ -204,7 +210,13 @@ public class LevelEditor : MonoBehaviour
     private bool IsPositionOccupied(Vector2Int pos)
     {
         foreach (var node in currentDraftNodes) if (node == pos) return true;
-        return GetSnakeAtGridPos(pos) != null;
+        if (GetSnakeAtGridPos(pos) != null) return true;
+        foreach (Transform child in levelContainer)
+        {
+            if (child.TryGetComponent(out GridKeycard k) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridLaserGate g) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+        }
+        return false;
     }
 
     private bool IsTooCloseToOtherSnakes(Vector2Int pos)
@@ -251,6 +263,21 @@ public class LevelEditor : MonoBehaviour
         }
     }
 
+    private void HandleObjectPlacement<T>(GameObject prefab) where T : MonoBehaviour
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        if (IsPositionOccupied(gridPos) || prefab == null) return;
+
+        GameObject obj = Instantiate(prefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
+        SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+        if (sr != null) sr.color = currentColor;
+
+        if (obj.TryGetComponent(out GridKeycard k)) k.keyColor = currentColor;
+        if (obj.TryGetComponent(out GridLaserGate g)) g.gateColor = currentColor;
+        
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
     private void HandleEraseClick()
     {
         Vector2Int gridPos = GetMouseGridPosition();
@@ -260,6 +287,28 @@ public class LevelEditor : MonoBehaviour
             if (sb.gameObject == currentSnakeObj) { currentSnakeObj = null; currentSnakeScript = null; currentDraftNodes.Clear(); }
             Destroy(sb.gameObject);
             lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+            return;
+        }
+
+        foreach (Transform child in levelContainer)
+        {
+            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null) && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
+            {
+                Destroy(child.gameObject);
+                lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+                return;
+            }
+        }
+
+        for (int i = currentDraftPortals.Count - 1; i >= 0; i--)
+        {
+            if (currentDraftPortals[i].entrance == gridPos || currentDraftPortals[i].exit == gridPos)
+            {
+                currentDraftPortals.RemoveAt(i);
+                RefreshPortalVisuals();
+                lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+                return;
+            }
         }
     }
 
@@ -268,6 +317,25 @@ public class LevelEditor : MonoBehaviour
         Vector2Int gridPos = GetMouseGridPosition();
         EditorSnakeVisual sb = GetSnakeAtGridPos(gridPos);
         if (sb != null) sb.SetColorImmediatePublic(currentColor);
+
+        foreach (Transform child in levelContainer)
+        {
+            if (Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
+            {
+                if (child.TryGetComponent(out GridKeycard k)) { k.keyColor = currentColor; child.GetComponent<SpriteRenderer>().color = currentColor; }
+                if (child.TryGetComponent(out GridLaserGate g)) { g.gateColor = currentColor; child.GetComponent<SpriteRenderer>().color = currentColor; }
+            }
+        }
+        
+        for (int i = 0; i < currentDraftPortals.Count; i++)
+        {
+            if (currentDraftPortals[i].entrance == gridPos || currentDraftPortals[i].exit == gridPos)
+            {
+                currentDraftPortals[i].portalColor = currentColor;
+                RefreshPortalVisuals();
+                return;
+            }
+        }
     }
 
     private void HandleSelectClick()
@@ -284,6 +352,48 @@ public class LevelEditor : MonoBehaviour
             UpdateSelectionHighlight(sb);
         }
         else { selectedSnakeToModify = null; ClearSelectionHighlight(); }
+    }
+
+    private void HandlePortalClick()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        if (IsPositionOccupied(gridPos)) return;
+
+        if (!isPlacingPortalExit)
+        {
+            draftPortalEntrance = gridPos;
+            isPlacingPortalExit = true;
+        }
+        else
+        {
+            if (gridPos == draftPortalEntrance) return;
+            PortalData newPortal = new PortalData();
+            newPortal.entrance = draftPortalEntrance;
+            newPortal.exit = gridPos;
+            newPortal.portalColor = currentColor;
+            currentDraftPortals.Add(newPortal);
+            isPlacingPortalExit = false;
+            RefreshPortalVisuals();
+        }
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void RefreshPortalVisuals()
+    {
+        foreach(var obj in spawnedPortalVisuals) Destroy(obj);
+        spawnedPortalVisuals.Clear();
+        if (portalPrefab == null) return;
+        foreach(var p in currentDraftPortals)
+        {
+            GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), Quaternion.identity, levelContainer);
+            GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), Quaternion.identity, levelContainer);
+            SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
+            if(inSr) inSr.color = p.portalColor;
+            SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
+            if(outSr) outSr.color = p.portalColor;
+            spawnedPortalVisuals.Add(inObj);
+            spawnedPortalVisuals.Add(outObj);
+        }
     }
 
     private void UpdateSelectionHighlight(EditorSnakeVisual target)
@@ -319,6 +429,13 @@ public class LevelEditor : MonoBehaviour
 
     public void UndoLastSegment()
     {
+        if (currentTool == EditorToolType.Portal && isPlacingPortalExit)
+        {
+            isPlacingPortalExit = false;
+            lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+            return;
+        }
+
         if (currentSnakeObj != null && currentDraftNodes.Count > 0)
         {
             currentDraftNodes.RemoveAt(currentDraftNodes.Count - 1);
@@ -348,8 +465,10 @@ public class LevelEditor : MonoBehaviour
         if (previewCursor == null) return;
         Vector2Int gridPos = GetMouseGridPosition();
         previewCursor.transform.position = new Vector3(gridPos.x, gridPos.y, -1f); 
+        
         if (gridPos == lastCalculatedGridPos) return;
         lastCalculatedGridPos = gridPos; 
+
         if (currentTool == EditorToolType.Draw)
         {
             bool invalid = IsPositionOccupied(gridPos) || IsTooCloseToOtherSnakes(gridPos);
@@ -357,6 +476,8 @@ public class LevelEditor : MonoBehaviour
         }
         else if (currentTool == EditorToolType.Erase) previewCursor.color = new Color(1, 0, 0, 0.5f);
         else if (currentTool == EditorToolType.Select) previewCursor.color = new Color(1, 1, 0, 0.3f);
+        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate) 
+            previewCursor.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.8f);
     }
 
     private Vector2Int GetMouseGridPosition()
@@ -365,7 +486,6 @@ public class LevelEditor : MonoBehaviour
         return new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
     }
 
-    // --- LƯU VÀ TẢI LEVEL ---
     public void UI_SaveLevel() { SaveLevel(); }
     public void UI_LoadLevel() { LoadLevelToEdit(); }
 
@@ -376,18 +496,30 @@ public class LevelEditor : MonoBehaviour
         if (inputTimeLimit != null) float.TryParse(inputTimeLimit.text, out currentData.timeLimit);
         if (inputRewardCoins != null) float.TryParse(inputRewardCoins.text, out currentData.rewardCoins);
         if (inputRewardDiamonds != null) float.TryParse(inputRewardDiamonds.text, out currentData.rewardDiamonds);
+        
         currentData.snakes.Clear();
+        currentData.keycards.Clear();
+        currentData.gates.Clear();
+
         foreach (Transform s in levelContainer) {
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
             if (sb != null && sb.gameObject != currentSelectionGlowObj && sb.LogicNodes != null && sb.LogicNodes.Count > 0) {
                 SnakeSaveData d = new SnakeSaveData { direction = sb.direction, arrowColor = sb.snakeColor, segmentPositions = new List<Vector2Int>(sb.LogicNodes) };
                 currentData.snakes.Add(d);
             }
+
+            if (s.TryGetComponent(out GridKeycard k))
+                currentData.keycards.Add(new KeycardSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = k.keyColor });
+            
+            if (s.TryGetComponent(out GridLaserGate g))
+                currentData.gates.Add(new GateSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = g.gateColor });
         }
+
+        currentData.portals = new List<PortalData>(currentDraftPortals);
+
 #if UNITY_EDITOR
         EditorUtility.SetDirty(currentData); AssetDatabase.SaveAssets();
 #endif
-        Debug.Log("<color=green>Đã lưu Level!</color>");
     }
 
     private void LoadLevelToEdit()
@@ -395,14 +527,39 @@ public class LevelEditor : MonoBehaviour
         if (currentData == null) return;
         for (int i = levelContainer.childCount - 1; i >= 0; i--) DestroyImmediate(levelContainer.GetChild(i).gameObject);
         finishedSnakesHistory.Clear(); ClearSelectionHighlight();
+        
         if (inputTimeLimit != null) inputTimeLimit.text = currentData.timeLimit.ToString();
         if (inputRewardCoins != null) inputRewardCoins.text = currentData.rewardCoins.ToString();
         if (inputRewardDiamonds != null) inputRewardDiamonds.text = currentData.rewardDiamonds.ToString();
+        
         foreach (var d in currentData.snakes) {
             GameObject s = Instantiate(snakePrefab, levelContainer);
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
             sb.Initialize(d.direction, d.segmentPositions, d.arrowColor);
             finishedSnakesHistory.Push(s);
         }
+
+        if (currentData.keycards != null) {
+            foreach (var kData in currentData.keycards) {
+                GameObject k = Instantiate(keycardPrefab, new Vector3(kData.position.x, kData.position.y, 0), Quaternion.identity, levelContainer);
+                if (k.TryGetComponent(out GridKeycard script)) script.keyColor = kData.color;
+                k.GetComponent<SpriteRenderer>().color = kData.color;
+            }
+        }
+
+        if (currentData.gates != null) {
+            foreach (var gData in currentData.gates) {
+                GameObject g = Instantiate(gatePrefab, new Vector3(gData.position.x, gData.position.y, 0), Quaternion.identity, levelContainer);
+                if (g.TryGetComponent(out GridLaserGate script)) script.gateColor = gData.color;
+                g.GetComponent<SpriteRenderer>().color = gData.color;
+            }
+        }
+
+        currentDraftPortals.Clear();
+        if (currentData.portals != null)
+        {
+            foreach(var p in currentData.portals) currentDraftPortals.Add(p);
+        }
+        RefreshPortalVisuals();
     }
 }

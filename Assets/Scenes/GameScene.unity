@@ -180,6 +180,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -331,6 +332,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -976,6 +978,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -2665,6 +2668,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -3249,6 +3253,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -4437,6 +4442,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -4861,6 +4867,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -10498,6 +10505,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -10771,6 +10779,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -12559,6 +12568,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -13733,6 +13743,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -15793,6 +15804,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -15904,6 +15916,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -16486,6 +16499,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -16698,6 +16712,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -22494,6 +22509,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interactable: 1
+  sfx: 0
   onClick:
     m_PersistentCalls:
       m_Calls:
@@ -23841,6 +23857,12 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
+      propertyPath: gatePrefab
+      value: 
+      objectReference: {fileID: 256930744572596102, guid: 293b81f1819a87a45ab2057a7ef978c1,
+        type: 3}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
       propertyPath: snakePrefab
       value: 
       objectReference: {fileID: 4484580423729698483, guid: c7cdd4e76768e4a4f94781dcb6154586,
@@ -23850,6 +23872,12 @@ PrefabInstance:
       propertyPath: gameContainer
       value: 
       objectReference: {fileID: 1087363345}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
+      propertyPath: keycardPrefab
+      value: 
+      objectReference: {fileID: 8294828320017415616, guid: f00451f990bd9e34ba76d786c933ebfb,
+        type: 3}
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
       propertyPath: subNodesCount

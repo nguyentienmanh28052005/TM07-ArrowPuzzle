@@ -9,6 +9,7 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 {
     [Header("State")]
     public bool interactable = true;
+    public bool sfx;
     public UnityEvent onClick;
 
     [Header("Visual Settings")]
@@ -146,8 +147,10 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!interactable) return;
-        
-        AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
+        if (sfx && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
+        }
         onClick?.Invoke();
     }
 }

@@ -38,7 +38,6 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1093,6 +1092,11 @@ MonoBehaviour:
   snakePrefab: {fileID: 4484580423729698483, guid: 41b60e858482c3f419cc970c6c79909a,
     type: 3}
   selectionGlowPrefab: {fileID: 4484580423729698483, guid: 18a025610b87b0b4f82cc65e973c20ff,
+    type: 3}
+  portalPrefab: {fileID: 0}
+  keycardPrefab: {fileID: 8294828320017415616, guid: f00451f990bd9e34ba76d786c933ebfb,
+    type: 3}
+  gatePrefab: {fileID: 256930744572596102, guid: 293b81f1819a87a45ab2057a7ef978c1,
     type: 3}
   highlightColor: {r: 1, g: 1, b: 1, a: 1}
   currentData: {fileID: 11400000, guid: 88f90cfb47ca8a34fb679296c2d85621, type: 2}
@@ -2688,6 +2692,10 @@ MonoBehaviour:
   starFills: []
   gameOverPanel: {fileID: 0}
   gameOverContent: {fileID: 0}
+  hearthRevive1: {fileID: 0}
+  hearthRevive2: {fileID: 0}
+  timeRevive1: {fileID: 0}
+  timeRevive2: {fileID: 0}
   flyingCoinPrefab: {fileID: 0}
   flyingDiamondPrefab: {fileID: 0}
   maxFlyingItems: 12

@@ -236,6 +236,8 @@ public class SnakeBlock : MonoBehaviour
             int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
             while (_lastProcessedGrid < currentGridProgress)
             {
+                TryCollectKeycardAtGridProgress(_lastProcessedGrid + 1);
+
                 Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
                 if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
                 {
@@ -257,6 +259,19 @@ public class SnakeBlock : MonoBehaviour
             }
             
             yield return null;
+        }
+    }
+
+    private void TryCollectKeycardAtGridProgress(int gridProgress)
+    {
+        if (GridManager.Instance == null) return;
+        if (GridManager.Instance.KeycardMap == null) return;
+
+        float headTrackIdx = -(gridProgress * _nodesPerUnit);
+        Vector2Int headCell = GetGridPosFromTrackIndex(headTrackIdx);
+        if (GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card))
+        {
+            card.Collect();
         }
     }
 
@@ -285,6 +300,7 @@ public class SnakeBlock : MonoBehaviour
             while (_lastProcessedGrid < currentGridProgress)
             {
                 UpdateGridOccupancy(); 
+                TryCollectKeycardAtGridProgress(_lastProcessedGrid + 1);
                 
                 Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
                 if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate))
@@ -414,6 +430,12 @@ public class SnakeBlock : MonoBehaviour
         {
             GridManager.Instance.GridMap[cell] = this;
         }
+
+        Vector2Int headCell = GetGridPosFromTrackIndex(headIdx);
+        if (GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card))
+        {
+            card.Collect();
+        }
     }
 
     private Vector2Int GetGridPosFromTrackIndex(float trackIndex)
@@ -447,10 +469,9 @@ public class SnakeBlock : MonoBehaviour
             if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) return float.MaxValue;
 
             SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(checkPos);
-            if (obstacle != null && obstacle != this) 
-            {
-                return d - 1; 
-            }
+            if (obstacle != null && obstacle != this) return d - 1; 
+
+            if (GridManager.Instance.GateMap.ContainsKey(checkPos)) return d - 1; 
         }
         return float.MaxValue;
     }
