@@ -57,6 +57,7 @@ public class LevelEditor : MonoBehaviour
 
     private bool isPlacingPortalExit = false;
     private Vector2Int draftPortalEntrance;
+    private ArrowDir draftPortalEntranceDir;
     private List<PortalData> currentDraftPortals = new List<PortalData>();
     private List<GameObject> spawnedPortalVisuals = new List<GameObject>();
 
@@ -362,6 +363,7 @@ public class LevelEditor : MonoBehaviour
         if (!isPlacingPortalExit)
         {
             draftPortalEntrance = gridPos;
+            draftPortalEntranceDir = currentDir;
             isPlacingPortalExit = true;
         }
         else
@@ -369,7 +371,9 @@ public class LevelEditor : MonoBehaviour
             if (gridPos == draftPortalEntrance) return;
             PortalData newPortal = new PortalData();
             newPortal.entrance = draftPortalEntrance;
+            newPortal.entranceDir = draftPortalEntranceDir;
             newPortal.exit = gridPos;
+            newPortal.exitDir = currentDir;
             newPortal.portalColor = currentColor;
             currentDraftPortals.Add(newPortal);
             isPlacingPortalExit = false;
@@ -383,17 +387,82 @@ public class LevelEditor : MonoBehaviour
         foreach(var obj in spawnedPortalVisuals) Destroy(obj);
         spawnedPortalVisuals.Clear();
         if (portalPrefab == null) return;
-        foreach(var p in currentDraftPortals)
+        for (int i = 0; i < currentDraftPortals.Count; i++)
         {
-            GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), Quaternion.identity, levelContainer);
-            GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), Quaternion.identity, levelContainer);
+            var p = currentDraftPortals[i];
+            string pairLabel = GetPortalPairLabel(i);
+            GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), levelContainer);
+            GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), levelContainer);
             SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
             if(inSr) inSr.color = p.portalColor;
             SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
             if(outSr) outSr.color = p.portalColor;
+
+            AttachPortalPairLabel(inObj, pairLabel);
+            AttachPortalPairLabel(outObj, pairLabel);
             spawnedPortalVisuals.Add(inObj);
             spawnedPortalVisuals.Add(outObj);
         }
+    }
+
+    private static Quaternion GetRotationForDir(ArrowDir dir)
+    {
+        float angle = 0f;
+        switch (dir)
+        {
+            case ArrowDir.Up: angle = 0f; break;
+            case ArrowDir.Down: angle = 180f; break;
+            case ArrowDir.Left: angle = 90f; break;
+            case ArrowDir.Right: angle = -90f; break;
+        }
+        return Quaternion.Euler(0f, 0f, angle);
+    }
+
+    private static void AttachPortalPairLabel(GameObject portalObj, string pairLabel)
+    {
+        if (portalObj == null) return;
+
+        GameObject labelObj = new GameObject("PortalPairLabel");
+        labelObj.transform.SetParent(portalObj.transform, false);
+        labelObj.transform.localPosition = new Vector3(0f, 0f, -0.05f);
+        // Keep text upright in world space (do NOT rotate with the portal).
+        labelObj.transform.rotation = Quaternion.identity;
+        labelObj.transform.localScale = Vector3.one;
+
+        TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
+        tmp.text = pairLabel;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontSize = 6.5f;
+        tmp.color = Color.white;
+        tmp.raycastTarget = false;
+
+        MeshRenderer mr = labelObj.GetComponent<MeshRenderer>();
+        if (mr != null)
+        {
+            SpriteRenderer sr = portalObj.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                mr.sortingLayerID = sr.sortingLayerID;
+                mr.sortingOrder = sr.sortingOrder + 1;
+            }
+        }
+    }
+
+    private static string GetPortalPairLabel(int indexZeroBased)
+    {
+        // 0->A, 1->B, ... 25->Z, 26->AA ...
+        int n = indexZeroBased;
+        if (n < 0) return "?";
+
+        string s = string.Empty;
+        do
+        {
+            int r = n % 26;
+            s = (char)('A' + r) + s;
+            n = (n / 26) - 1;
+        } while (n >= 0);
+
+        return s;
     }
 
     private void UpdateSelectionHighlight(EditorSnakeVisual target)
@@ -518,7 +587,8 @@ public class LevelEditor : MonoBehaviour
         currentData.portals = new List<PortalData>(currentDraftPortals);
 
 #if UNITY_EDITOR
-        EditorUtility.SetDirty(currentData); AssetDatabase.SaveAssets();
+        UnityEditor.EditorUtility.SetDirty(currentData); 
+        UnityEditor.AssetDatabase.SaveAssets();
 #endif
     }
 

@@ -27,15 +27,17 @@ public partial class GateSaveData
     public Color color;
 }
 
-// ==========================================
-// BẢN VÁ: KHÔI PHỤC LẠI DỮ LIỆU HỐ ĐEN (PORTAL)
-// ==========================================
+// BẢN VÁ: THÊM HƯỚNG VÀO HỐ ĐEN
 [System.Serializable]
 [MemoryPackable]
 public partial class PortalData
 {
     public Vector2Int entrance;
+    // Hướng mũi tên sẽ đi tiếp sau khi chui ra ở đầu 'entrance'
+    public ArrowDir entranceDir; 
     public Vector2Int exit;
+    // Hướng mũi tên sẽ đi tiếp sau khi chui ra ở đầu 'exit'
+    public ArrowDir exitDir;
     public Color portalColor;
 }
 
@@ -53,7 +55,5 @@ public class LevelDataSO : ScriptableObject
     public List<SnakeSaveData> snakes = new List<SnakeSaveData>();
     public List<KeycardSaveData> keycards = new List<KeycardSaveData>();
     public List<GateSaveData> gates = new List<GateSaveData>();
-    
-    // BẢN VÁ: Khôi phục danh sách lưu Hố Đen
     public List<PortalData> portals = new List<PortalData>(); 
 }

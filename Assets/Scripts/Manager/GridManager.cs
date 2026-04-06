@@ -6,9 +6,16 @@ public class GridManager : MonoBehaviour
 {
     public static GridManager Instance;
 
+    public struct PortalLink
+    {
+        public Vector2Int exit;
+        public ArrowDir exitDir;
+    }
+
     public Dictionary<Vector2Int, SnakeBlock> GridMap = new Dictionary<Vector2Int, SnakeBlock>();
     public Dictionary<Vector2Int, GridKeycard> KeycardMap = new Dictionary<Vector2Int, GridKeycard>();
     public Dictionary<Vector2Int, GridLaserGate> GateMap = new Dictionary<Vector2Int, GridLaserGate>();
+    public Dictionary<Vector2Int, PortalLink> PortalMap = new Dictionary<Vector2Int, PortalLink>();
 
     public Action<Color> OnKeyCollectedEvent;
 

@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class LevelLoader : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class LevelLoader : MonoBehaviour
     public GameObject dotPrefab;   
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
+    public GameObject portalPrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -101,6 +103,34 @@ public class LevelLoader : MonoBehaviour
             }
         }
 
+        if (levelToPlay.portals != null)
+        {
+            for (int i = 0; i < levelToPlay.portals.Count; i++)
+            {
+                var p = levelToPlay.portals[i];
+                string pairLabel = GetPortalPairLabel(i);
+
+                if (GridManager.Instance != null)
+                {
+                    GridManager.Instance.PortalMap[p.entrance] = new GridManager.PortalLink { exit = p.exit, exitDir = p.exitDir };
+                    GridManager.Instance.PortalMap[p.exit] = new GridManager.PortalLink { exit = p.entrance, exitDir = p.entranceDir };
+                }
+
+                if (portalPrefab != null)
+                {
+                    GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), gameContainer);
+                    SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
+                    if (inSr != null) inSr.color = p.portalColor;
+                    AttachPortalPairLabel(inObj, pairLabel);
+
+                    GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), gameContainer);
+                    SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
+                    if (outSr != null) outSr.color = p.portalColor;
+                    AttachPortalPairLabel(outObj, pairLabel);
+                }
+            }
+        }
+
         foreach (var snakeData in levelToPlay.snakes)
         {
             if (snakeData.segmentPositions.Count == 0) continue;
@@ -125,5 +155,65 @@ public class LevelLoader : MonoBehaviour
 
             if (GridManager.Instance != null) GridManager.Instance.RegisterSnake(snakeScript);
         }
+    }
+
+    private static Quaternion GetRotationForDir(ArrowDir dir)
+    {
+        float angle = 0f;
+        switch (dir)
+        {
+            case ArrowDir.Up: angle = 0f; break;
+            case ArrowDir.Down: angle = 180f; break;
+            case ArrowDir.Left: angle = 90f; break;
+            case ArrowDir.Right: angle = -90f; break;
+        }
+        return Quaternion.Euler(0f, 0f, angle);
+    }
+
+    private static void AttachPortalPairLabel(GameObject portalObj, string pairLabel)
+    {
+        if (portalObj == null) return;
+
+        GameObject labelObj = new GameObject("PortalPairLabel");
+        labelObj.transform.SetParent(portalObj.transform, false);
+        labelObj.transform.localPosition = new Vector3(0f, 0f, -0.05f);
+        // Keep text upright in world space (do NOT rotate with the portal).
+        labelObj.transform.rotation = Quaternion.identity;
+        labelObj.transform.localScale = Vector3.one;
+
+        TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
+        tmp.text = pairLabel;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontSize = 6.5f;
+        tmp.color = Color.white;
+        tmp.raycastTarget = false;
+
+        MeshRenderer mr = labelObj.GetComponent<MeshRenderer>();
+        if (mr != null)
+        {
+            SpriteRenderer sr = portalObj.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                mr.sortingLayerID = sr.sortingLayerID;
+                mr.sortingOrder = sr.sortingOrder + 1;
+            }
+        }
+    }
+
+    private static string GetPortalPairLabel(int indexZeroBased)
+    {
+        // 0->A, 1->B, ... 25->Z, 26->AA ...
+        int n = indexZeroBased;
+        if (n < 0) return "?";
+
+        string s = string.Empty;
+        do
+        {
+            int r = n % 26;
+            s = (char)('A' + r) + s;
+            n = (n / 26) - 1;
+        } while (n >= 0);
+
+        return s;
     }
 }
