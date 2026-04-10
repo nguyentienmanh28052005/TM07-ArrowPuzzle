@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: Level_8
   m_EditorClassIdentifier: 
   gameMode: 0
-  levelDifficulty: 0
+  levelDifficulty: 2
+  timeLimit: 60
   rewardCoins: 100
   rewardDiamonds: 5
   snakes:
@@ -345,3 +346,6 @@ MonoBehaviour:
     - {x: -3, y: -13}
     - {x: -4, y: -13}
     - {x: -5, y: -13}
+  keycards: []
+  gates: []
+  portals: []

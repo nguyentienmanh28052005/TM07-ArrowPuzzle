@@ -203,6 +203,13 @@ public class SnakeInput : MonoBehaviour
                 if (!isHolding) 
                 {
                     bool success = parentScript.OnHeadClicked();
+
+                    // Tutorial: hide hand/instructions after the first arrow press.
+                    if (TutorialManager.Instance != null)
+                    {
+                        TutorialManager.Instance.NotifyFirstArrowPressed();
+                    }
+
                     if (success)
                     {
                         if (AudioManager.Instance != null) 

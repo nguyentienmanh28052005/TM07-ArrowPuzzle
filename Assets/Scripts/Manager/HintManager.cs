@@ -11,6 +11,10 @@ public class HintManager : MonoBehaviour
     [Header("Hint Settings")]
     public Color hintGlowColor = Color.yellow;
     [SerializeField] private float hintDuration = 2f;
+
+    [Header("Hint Camera")]
+    [SerializeField] private bool moveCameraToHintTarget = true;
+    [SerializeField] private float hintCameraMoveDuration = 0.35f;
     
     private bool _isHinting = false;
     private Sequence _currentHintSeq; 
@@ -87,6 +91,15 @@ public class HintManager : MonoBehaviour
     private void PlayHintAnimation(SnakeBlock snake)
     {
         _isHinting = true;
+
+        if (moveCameraToHintTarget)
+        {
+            CameraController camController = FindObjectOfType<CameraController>();
+            if (camController != null)
+            {
+                camController.FocusOnWorldPosition(snake.HeadPosition, hintCameraMoveDuration, blockCameraInput: true);
+            }
+        }
         
         var guideline = snake.GetComponent<ArrowGuideline>();
         Color originalColor = snake.snakeColor;

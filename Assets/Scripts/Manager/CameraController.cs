@@ -7,6 +7,7 @@ using DG.Tweening;
 public class CameraController : MonoBehaviour
 {
     public static bool IsGameplayBlocking = false;
+    public static bool IsCameraInputBlocked = false;
     
     public static bool IsCameraGestureActive = false; 
     public static event System.Action OnIntroFinished;
@@ -45,9 +46,39 @@ public class CameraController : MonoBehaviour
     private bool isEndGame = false;
     private bool wasZoomingLastFrame = false;
 
+    private Tween _focusTween;
+
     private void Start()
     {
         cam = GetComponent<Camera>();
+    }
+
+    public void FocusOnWorldPosition(Vector3 worldPosition, float duration = 0.35f, bool blockCameraInput = true, Ease ease = Ease.InOutSine)
+    {
+        if (cam == null) cam = GetComponent<Camera>();
+
+        Vector3 target = new Vector3(worldPosition.x, worldPosition.y, transform.position.z);
+
+        if (useLimits)
+        {
+            target.x = Mathf.Clamp(target.x, minPosition.x, maxPosition.x);
+            target.y = Mathf.Clamp(target.y, minPosition.y, maxPosition.y);
+        }
+
+        if (_focusTween != null && _focusTween.IsActive()) _focusTween.Kill();
+
+        panVelocity = Vector3.zero;
+        IsCameraGestureActive = false;
+
+        if (blockCameraInput) IsCameraInputBlocked = true;
+
+        _focusTween = transform.DOMove(target, duration)
+            .SetEase(ease)
+            .OnComplete(() =>
+            {
+                if (blockCameraInput) IsCameraInputBlocked = false;
+            })
+            .SetLink(gameObject);
     }
 
     public void StartIntro()
@@ -136,7 +167,7 @@ public class CameraController : MonoBehaviour
     }
     void LateUpdate() 
     {
-        if (IsGameplayBlocking)
+        if (IsGameplayBlocking || IsCameraInputBlocked)
         {
             IsCameraGestureActive = false;
             return; 

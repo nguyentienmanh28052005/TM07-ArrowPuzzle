@@ -34,6 +34,8 @@ public class GameMenuCanvas : MonoBehaviour
 
     private bool _hasStarted = false;
     private CanvasGroup _currentPanel; 
+
+    [SerializeField] private TMP_InputField levelReset;
     #endregion
 
     #region [ LIFECYCLE ]
@@ -139,7 +141,7 @@ public class GameMenuCanvas : MonoBehaviour
     #region [ LEVEL GENERATION LOGIC ]
     public void ResetGame()
     {
-        GameManager.Instance.level = 1;
+        GameManager.Instance.level = levelReset.text != "" ? int.Parse(levelReset.text) : 1;
         SceneController.Instance.LoadScene("GameMenu", false, false);
     }
 

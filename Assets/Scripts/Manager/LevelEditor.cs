@@ -425,11 +425,11 @@ public class LevelEditor : MonoBehaviour
         GameObject labelObj = new GameObject("PortalPairLabel");
         labelObj.transform.SetParent(portalObj.transform, false);
         labelObj.transform.localPosition = new Vector3(0f, 0f, -0.05f);
-        // Keep text upright in world space (do NOT rotate with the portal).
         labelObj.transform.rotation = Quaternion.identity;
         labelObj.transform.localScale = Vector3.one;
 
         TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
+        tmp.sortingOrder = 5;
         tmp.text = pairLabel;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.fontSize = 6.5f;

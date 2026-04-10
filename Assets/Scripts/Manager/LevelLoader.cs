@@ -22,7 +22,16 @@ public class LevelLoader : MonoBehaviour
     [Range(0, 20)]
     public int subNodesCount = 8;
 
+    [Header("Optimization")]
+    public int snakesPerFrame = 2; 
+
     public bool editorMode = false;
+
+    private List<SnakeBlock> _preloadedSnakes = new List<SnakeBlock>();
+    private List<SnakeSaveData> _preloadedSnakeSaveData = new List<SnakeSaveData>();
+    private GameObject _dotsContainer; 
+    private GameObject _obstaclesContainer;
+    private bool _isTextDone = false; 
 
     private IEnumerator Start()
     {
@@ -30,24 +39,28 @@ public class LevelLoader : MonoBehaviour
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
 
         CameraController.IsGameplayBlocking = true;
+        _isTextDone = false;
 
-        bool isTextDone = false;
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
-        
         if (canvas != null && levelToPlay != null)
         {
             canvas.SetupModeUI(levelToPlay.gameMode);
             string modeName = levelToPlay.gameMode.ToString().ToUpper();
-            canvas.ShowText(modeName, Color.cyan, () => isTextDone = true);
+            canvas.ShowText(modeName, Color.cyan, () => _isTextDone = true);
         }
         else
         {
-            isTextDone = true; 
+            _isTextDone = true; 
         }
 
-        yield return new WaitUntil(() => isTextDone);
+        ClearContainer();
+        SpawnStaticObstacles();
 
-        LoadGameInternal();
+        yield return StartCoroutine(PreSpawnSnakesCoroutine());
+
+        yield return new WaitUntil(() => _isTextDone);
+
+        ActivateAndInitializeSnakes();
 
         if (TimeAttackManager.Instance != null)
         {
@@ -60,18 +73,26 @@ public class LevelLoader : MonoBehaviour
         CameraController camController = Camera.main.GetComponent<CameraController>();
         if (camController != null) camController.StartIntro();
         else CameraController.IsGameplayBlocking = false;
+
+        if (TutorialManager.Instance != null) TutorialManager.Instance.CheckAndStartTutorial(levelToPlay);
     }
 
-    [ContextMenu("Reload Level")]
+    [ContextMenu("Reload Level (Instant)")]
     public void LoadGame()
     {
-        LoadGameInternal();
+        _isTextDone = true; 
+        ClearContainer();
+        SpawnStaticObstacles();
+        
+        foreach (var SnakeSaveData in levelToPlay.snakes)
+        {
+            PreSpawnSingleSnake(SnakeSaveData);
+        }
+        ActivateAndInitializeSnakes();
     }
 
-    private void LoadGameInternal()
+    private void ClearContainer()
     {
-        if (levelToPlay == null) return;
-
         if (gameContainer != null)
         {
             int childCount = gameContainer.childCount;
@@ -80,12 +101,39 @@ public class LevelLoader : MonoBehaviour
                 DestroyImmediate(gameContainer.GetChild(i).gameObject);
             }
         }
+        
+        if (_dotsContainer != null) 
+        {
+            DestroyImmediate(_dotsContainer);
+            _dotsContainer = null;
+        }
+
+        if (_obstaclesContainer != null) 
+        {
+            DestroyImmediate(_obstaclesContainer);
+            _obstaclesContainer = null;
+        }
+
+        _preloadedSnakes.Clear();
+        _preloadedSnakeSaveData.Clear();
+    }
+
+    private void SpawnStaticObstacles()
+    {
+        if (levelToPlay == null) return;
+
+        if (_obstaclesContainer == null)
+        {
+            _obstaclesContainer = new GameObject("Obstacles_Container");
+            _obstaclesContainer.transform.SetParent(gameContainer);
+            _obstaclesContainer.SetActive(false); 
+        }
 
         if (levelToPlay.keycards != null)
         {
             foreach (var k in levelToPlay.keycards)
             {
-                GameObject obj = Instantiate(keycardPrefab, new Vector3(k.position.x, k.position.y, 0), Quaternion.identity, gameContainer);
+                GameObject obj = Instantiate(keycardPrefab, new Vector3(k.position.x, k.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
                 if (obj.TryGetComponent(out GridKeycard script)) script.keyColor = k.color;
                 SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
                 if (sr != null) sr.color = k.color;
@@ -96,7 +144,7 @@ public class LevelLoader : MonoBehaviour
         {
             foreach (var g in levelToPlay.gates)
             {
-                GameObject obj = Instantiate(gatePrefab, new Vector3(g.position.x, g.position.y, 0), Quaternion.identity, gameContainer);
+                GameObject obj = Instantiate(gatePrefab, new Vector3(g.position.x, g.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
                 if (obj.TryGetComponent(out GridLaserGate script)) script.gateColor = g.color;
                 SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
                 if (sr != null) sr.color = g.color;
@@ -118,43 +166,97 @@ public class LevelLoader : MonoBehaviour
 
                 if (portalPrefab != null)
                 {
-                    GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), gameContainer);
+                    GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), _obstaclesContainer.transform);
                     SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
                     if (inSr != null) inSr.color = p.portalColor;
                     AttachPortalPairLabel(inObj, pairLabel);
 
-                    GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), gameContainer);
+                    GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), _obstaclesContainer.transform);
                     SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
                     if (outSr != null) outSr.color = p.portalColor;
                     AttachPortalPairLabel(outObj, pairLabel);
                 }
             }
         }
+    }
 
-        foreach (var snakeData in levelToPlay.snakes)
+    private IEnumerator PreSpawnSnakesCoroutine()
+    {
+        if (levelToPlay == null || levelToPlay.snakes == null) yield break;
+
+        for (int i = 0; i < levelToPlay.snakes.Count; i++)
         {
-            if (snakeData.segmentPositions.Count == 0) continue;
+            PreSpawnSingleSnake(levelToPlay.snakes[i]);
 
-            GameObject snakeObj = Instantiate(snakePrefab, gameContainer);
-            snakeObj.name = "Snake";
-            SnakeBlock snakeScript = snakeObj.GetComponent<SnakeBlock>();
-
-            for (int i = 0; i < snakeData.segmentPositions.Count; i++)
+            if (!_isTextDone && (i + 1) % snakesPerFrame == 0)
             {
-                Vector2Int pos = snakeData.segmentPositions[i];
-                Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
+                yield return null; 
+            }
+        }
+    }
 
-                if (dotPrefab != null && i % 2 == 0)
-                {
-                    Instantiate(dotPrefab, currentPos, Quaternion.identity, gameContainer);
-                }
+    private void PreSpawnSingleSnake(SnakeSaveData SnakeSaveData)
+    {
+        if (SnakeSaveData.segmentPositions.Count == 0) return;
+
+        GameObject snakeObj = Instantiate(snakePrefab, gameContainer);
+        snakeObj.name = "Snake_Preloaded";
+        snakeObj.SetActive(false); 
+        
+        SnakeBlock snakeScript = snakeObj.GetComponent<SnakeBlock>();
+        
+        if (dotPrefab != null)
+        {
+            if (_dotsContainer == null)
+            {
+                _dotsContainer = new GameObject("Dots_Container");
+                _dotsContainer.transform.SetParent(gameContainer);
+                _dotsContainer.SetActive(false); 
             }
 
-            int resolution = subNodesCount + 1;
-            snakeScript.Initialize(snakeData.direction, snakeData.segmentPositions, resolution, snakeData.arrowColor);
-
-            if (GridManager.Instance != null) GridManager.Instance.RegisterSnake(snakeScript);
+            for (int i = 0; i < SnakeSaveData.segmentPositions.Count; i++)
+            {
+                if (i % 2 == 0)
+                {
+                    Vector2Int pos = SnakeSaveData.segmentPositions[i];
+                    Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
+                    Instantiate(dotPrefab, currentPos, Quaternion.identity, _dotsContainer.transform);
+                }
+            }
         }
+
+        _preloadedSnakes.Add(snakeScript);
+        _preloadedSnakeSaveData.Add(SnakeSaveData);
+    }
+
+    private void ActivateAndInitializeSnakes()
+    {
+        int resolution = subNodesCount + 1;
+
+        for (int i = 0; i < _preloadedSnakes.Count; i++)
+        {
+            SnakeBlock snakeScript = _preloadedSnakes[i];
+            SnakeSaveData data = _preloadedSnakeSaveData[i];
+
+            snakeScript.gameObject.SetActive(true);
+            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.arrowColor);
+
+            if (GridManager.Instance != null) 
+                GridManager.Instance.RegisterSnake(snakeScript);
+        }
+
+        if (_dotsContainer != null) 
+        {
+            _dotsContainer.SetActive(true);
+        }
+
+        if (_obstaclesContainer != null)
+        {
+            _obstaclesContainer.SetActive(true);
+        }
+
+        _preloadedSnakes.Clear();
+        _preloadedSnakeSaveData.Clear();
     }
 
     private static Quaternion GetRotationForDir(ArrowDir dir)
@@ -177,11 +279,11 @@ public class LevelLoader : MonoBehaviour
         GameObject labelObj = new GameObject("PortalPairLabel");
         labelObj.transform.SetParent(portalObj.transform, false);
         labelObj.transform.localPosition = new Vector3(0f, 0f, -0.05f);
-        // Keep text upright in world space (do NOT rotate with the portal).
         labelObj.transform.rotation = Quaternion.identity;
         labelObj.transform.localScale = Vector3.one;
 
         TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
+        tmp.sortingOrder = 5;
         tmp.text = pairLabel;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.fontSize = 6.5f;
@@ -202,7 +304,6 @@ public class LevelLoader : MonoBehaviour
 
     private static string GetPortalPairLabel(int indexZeroBased)
     {
-        // 0->A, 1->B, ... 25->Z, 26->AA ...
         int n = indexZeroBased;
         if (n < 0) return "?";
 
