@@ -35,6 +35,7 @@ public class SnakeBlock : MonoBehaviour
 
     private List<Vector3> _renderPointsCache = new List<Vector3>(100);
     private List<Vector3> _smoothedPointsCache = new List<Vector3>(200);
+    private List<float> _renderTrackIdxCache = new List<float>(100);
 
     private List<Vector3> _logicNodes = new List<Vector3>();
     private Vector3[] _originalState;
@@ -69,6 +70,8 @@ public class SnakeBlock : MonoBehaviour
         public float rawDistFromHead0;
         public Vector3 teleportOffset;
         public ArrowDir exitDir;
+        public Vector3 portalWorldPos;
+        public Vector3 exitWorldPos;
     }
     private List<WarpEvent> _activeWarps = new List<WarpEvent>();
     private int _lastPassedPortalIndex = -1;
@@ -433,7 +436,7 @@ public class SnakeBlock : MonoBehaviour
         if (GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
     }
 
-    private Vector3 GetPositionAtTrackIndex(float trackIndex)
+    private Vector3 GetPositionAtTrackIndex(float trackIndex, bool snapToPortalEntryForRender = false)
     {
         Vector3 rawPos;
         float distForward = 0f;
@@ -441,7 +444,7 @@ public class SnakeBlock : MonoBehaviour
         if (trackIndex <= 0)
         {
             distForward = Mathf.Abs(trackIndex) / _nodesPerUnit;
-            rawPos = GetForwardPositionWithWarps(distForward);
+            rawPos = GetForwardPositionWithWarps(distForward, snapToPortalEntryForRender);
         }
         else if (trackIndex >= _totalPoints - 1)
         {
@@ -459,7 +462,7 @@ public class SnakeBlock : MonoBehaviour
         return rawPos;
     }
 
-    private Vector3 GetForwardPositionWithWarps(float distForward)
+    private Vector3 GetForwardPositionWithWarps(float distForward, bool snapToPortalEntryForRender)
     {
         Vector3 pos = _originalState[0];
         Vector3 dirVec = GetDirVector(direction);
@@ -470,10 +473,24 @@ public class SnakeBlock : MonoBehaviour
         }
 
         float prevDist = 0f;
+        float snapDist = 0f;
+        if (snapToPortalEntryForRender)
+        {
+            // Keep the tail visually glued to portal center before teleport.
+            // A wider snap window avoids "cut at rim" artifacts with low/high sampling rates.
+            snapDist = Mathf.Clamp(Mathf.Max(1f / Mathf.Max(1, _nodesPerUnit), 0.6f), 0.05f, 0.95f);
+        }
         for (int i = 0; i < _activeWarps.Count; i++)
         {
             WarpEvent warp = _activeWarps[i];
-            if (warp.rawDistFromHead0 > distForward + 0.0001f) break;
+            if (warp.rawDistFromHead0 > distForward + 0.0001f)
+            {
+                if (snapToPortalEntryForRender && (warp.rawDistFromHead0 - distForward) <= snapDist)
+                {
+                    return new Vector3(warp.portalWorldPos.x, warp.portalWorldPos.y, pos.z);
+                }
+                break;
+            }
 
             float segmentDist = Mathf.Max(0f, warp.rawDistFromHead0 - prevDist);
             pos += dirVec * segmentDist;
@@ -518,7 +535,9 @@ public class SnakeBlock : MonoBehaviour
                 _activeWarps.Add(new WarpEvent {
                     rawDistFromHead0 = d,
                     teleportOffset = offset,
-                    exitDir = link.exitDir
+                    exitDir = link.exitDir,
+                    portalWorldPos = new Vector3(checkPos.x, checkPos.y, 0f),
+                    exitWorldPos = new Vector3(link.exit.x, link.exit.y, 0f)
                 });
 
                 currentPos = link.exit;
@@ -652,6 +671,21 @@ public class SnakeBlock : MonoBehaviour
             if (headDist >= _activeWarps[i].rawDistFromHead0) passedCount = i;
         }
         if (passedCount > _lastPassedPortalIndex) {
+            for (int i = _lastPassedPortalIndex + 1; i <= passedCount; i++)
+            {
+                if (i < 0 || i >= _activeWarps.Count) continue;
+
+                Vector2Int entryCell = new Vector2Int(
+                    Mathf.RoundToInt(_activeWarps[i].portalWorldPos.x),
+                    Mathf.RoundToInt(_activeWarps[i].portalWorldPos.y));
+                Vector2Int exitCell = new Vector2Int(
+                    Mathf.RoundToInt(_activeWarps[i].exitWorldPos.x),
+                    Mathf.RoundToInt(_activeWarps[i].exitWorldPos.y));
+
+                GridPortalVisual.PlayPulseAtCell(entryCell);
+                GridPortalVisual.PlayPulseAtCell(exitCell);
+            }
+
             _lastPassedPortalIndex = passedCount;
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.5f, 1.8f);
             if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.LightImpact);
@@ -730,7 +764,10 @@ public class SnakeBlock : MonoBehaviour
         }
 
         _renderPointsCache.Clear();
+        _renderTrackIdxCache.Clear();
+
         _renderPointsCache.Add(GetPositionAtTrackIndex(headTrackIdx));
+        _renderTrackIdxCache.Add(headTrackIdx);
 
         int firstStatic = Mathf.CeilToInt(headTrackIdx);
         int lastStatic = Mathf.FloorToInt(tailTrackIdx);
@@ -740,41 +777,87 @@ public class SnakeBlock : MonoBehaviour
             if (i > headTrackIdx + 0.001f && i < tailTrackIdx - 0.001f)
             {
                 if (i < _totalPoints) _renderPointsCache.Add(GetPositionAtTrackIndex(i)); 
+                if (i < _totalPoints) _renderTrackIdxCache.Add(i);
             }
         }
 
         if (tailTrackIdx > headTrackIdx + 0.001f)
-            _renderPointsCache.Add(GetPositionAtTrackIndex(tailTrackIdx));
-
-        if (_renderPointsCache.Count > 2 && cornerRadius > 0f)
-            BuildSmoothedPositionsForRenderCached(_renderPointsCache, _smoothedPointsCache);
-        else
         {
-            _smoothedPointsCache.Clear();
-            _smoothedPointsCache.AddRange(_renderPointsCache);
+            _renderPointsCache.Add(GetPositionAtTrackIndex(tailTrackIdx));
+            _renderTrackIdxCache.Add(tailTrackIdx);
         }
 
+        // Deterministic portal split points: if a warp boundary lies inside the visible track range,
+        // always insert portal-center and exit-center nodes at that boundary.
+        if (_activeWarps != null && _activeWarps.Count > 0 && _renderPointsCache.Count > 1)
+        {
+            const float epsilonTrack = 0.0001f;
+            for (int w = 0; w < _activeWarps.Count; w++)
+            {
+                float warpTrackIdx = -_activeWarps[w].rawDistFromHead0 * _nodesPerUnit;
+                if (warpTrackIdx <= headTrackIdx + epsilonTrack || warpTrackIdx >= tailTrackIdx - epsilonTrack)
+                    continue;
+
+                int insertAt = _renderTrackIdxCache.Count;
+                for (int k = 0; k < _renderTrackIdxCache.Count; k++)
+                {
+                    if (_renderTrackIdxCache[k] > warpTrackIdx)
+                    {
+                        insertAt = k;
+                        break;
+                    }
+                }
+
+                Vector3 portalCenter = _activeWarps[w].portalWorldPos;
+                portalCenter.z = _renderPointsCache[0].z;
+                Vector3 exitCenter = _activeWarps[w].exitWorldPos;
+                exitCenter.z = _renderPointsCache[0].z;
+
+                _renderTrackIdxCache.Insert(insertAt, warpTrackIdx - epsilonTrack);
+                _renderPointsCache.Insert(insertAt, exitCenter);
+
+                _renderTrackIdxCache.Insert(insertAt + 1, warpTrackIdx + epsilonTrack);
+                _renderPointsCache.Insert(insertAt + 1, portalCenter);
+            }
+        }
+
+        // IMPORTANT: Split first, then smooth each segment.
+        // Smoothing across a teleport gap (portal) can make the tail end at the rim instead of the center,
+        // and produces incorrect extra LineSegment_* geometry.
         List<List<Vector3>> visualSegments = new List<List<Vector3>>();
         List<Vector3> currentSegment = new List<Vector3>();
 
-        for (int i = 0; i < _smoothedPointsCache.Count; i++)
+        for (int i = 0; i < _renderPointsCache.Count; i++)
         {
             if (currentSegment.Count == 0)
             {
-                currentSegment.Add(_smoothedPointsCache[i]);
+                currentSegment.Add(_renderPointsCache[i]);
             }
             else
             {
-                float dist = Vector3.Distance(currentSegment[currentSegment.Count - 1], _smoothedPointsCache[i]);
-                if (dist > 1.5f) 
+                float dist = Vector3.Distance(currentSegment[currentSegment.Count - 1], _renderPointsCache[i]);
+                if (dist > 1.5f)
                 {
-                    visualSegments.Add(currentSegment);
+                    if (currentSegment.Count > 1) visualSegments.Add(currentSegment);
                     currentSegment = new List<Vector3>();
                 }
-                currentSegment.Add(_smoothedPointsCache[i]);
+                currentSegment.Add(_renderPointsCache[i]);
             }
         }
-        if (currentSegment.Count > 0) visualSegments.Add(currentSegment);
+        if (currentSegment.Count > 1) visualSegments.Add(currentSegment);
+
+        // Smooth each segment independently (never across portal gap).
+        if (cornerRadius > 0f)
+        {
+            for (int s = 0; s < visualSegments.Count; s++)
+            {
+                if (visualSegments[s].Count <= 2) continue;
+
+                BuildSmoothedPositionsForRenderCached(visualSegments[s], _smoothedPointsCache);
+                // Copy smoothed points into a fresh list so we don't share _smoothedPointsCache.
+                visualSegments[s] = new List<Vector3>(_smoothedPointsCache);
+            }
+        }
 
         EnsureLineRenderersCount(visualSegments.Count);
 

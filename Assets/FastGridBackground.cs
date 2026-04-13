@@ -1,5 +1,9 @@
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 [ExecuteAlways]
 [RequireComponent(typeof(SpriteRenderer))]
 public class FastGridBackground : MonoBehaviour
@@ -19,14 +23,69 @@ public class FastGridBackground : MonoBehaviour
 
     private SpriteRenderer sr;
     private Texture2D tex;
+    private Sprite sprite;
+    private bool generationQueued;
 
     private void OnEnable()
     {
-        GenerateGrid();
+        RequestGenerateGrid();
     }
 
     private void OnValidate()
     {
+        RequestGenerateGrid();
+    }
+
+    private void OnDisable()
+    {
+        generationQueued = false;
+
+        // Prevent leaked runtime/editor objects across scene reloads.
+        if (sprite != null)
+        {
+            if (Application.isPlaying) Destroy(sprite);
+            else DestroyImmediate(sprite);
+            sprite = null;
+        }
+
+        if (tex != null)
+        {
+            if (Application.isPlaying) Destroy(tex);
+            else DestroyImmediate(tex);
+            tex = null;
+        }
+    }
+
+    private void RequestGenerateGrid()
+    {
+        if (generationQueued) return;
+        generationQueued = true;
+
+        // Avoid Unity warning: "SendMessage cannot be called during Awake/OnValidate".
+        // Setting SpriteRenderer.size triggers internal messages, so defer to the next tick.
+        if (Application.isPlaying)
+        {
+            StartCoroutine(GenerateNextFrame());
+            return;
+        }
+
+#if UNITY_EDITOR
+        EditorApplication.delayCall += () =>
+        {
+            if (this == null) return;
+            generationQueued = false;
+            GenerateGrid();
+        };
+#else
+        generationQueued = false;
+        GenerateGrid();
+#endif
+    }
+
+    private System.Collections.IEnumerator GenerateNextFrame()
+    {
+        yield return null;
+        generationQueued = false;
         GenerateGrid();
     }
 
@@ -65,9 +124,13 @@ public class FastGridBackground : MonoBehaviour
         tex.SetPixel(0, 1, color2);
         tex.Apply();
 
-        // Đưa Pivot về lại 0.5 để lưới tỏa ra đều 4 hướng (Tiled mode hoạt động ổn định nhất)
-        Sprite sprite = Sprite.Create(tex, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 1f, 0, SpriteMeshType.FullRect);
-        sprite.hideFlags = HideFlags.HideAndDontSave;
+        // Create the sprite once and reuse it; updating the texture updates the visuals.
+        if (sprite == null)
+        {
+            // Đưa Pivot về lại 0.5 để lưới tỏa ra đều 4 hướng (Tiled mode hoạt động ổn định nhất)
+            sprite = Sprite.Create(tex, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 1f, 0, SpriteMeshType.FullRect);
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+        }
 
         sr.sprite = sprite;
         sr.drawMode = SpriteDrawMode.Tiled;

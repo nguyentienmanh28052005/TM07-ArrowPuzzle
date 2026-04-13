@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
 
 public class LevelLoader : MonoBehaviour
 {
@@ -35,6 +34,13 @@ public class LevelLoader : MonoBehaviour
 
     private IEnumerator Start()
     {
+        if (PlaytestSession.IsPlaytesting)
+        {
+            editorMode = true;
+            levelToPlay = PlaytestSession.LevelData;
+            PlaytestExitListener.EnsureExists();
+        }
+
         if (!editorMode && GameManager.Instance != null)
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
 
@@ -156,7 +162,6 @@ public class LevelLoader : MonoBehaviour
             for (int i = 0; i < levelToPlay.portals.Count; i++)
             {
                 var p = levelToPlay.portals[i];
-                string pairLabel = GetPortalPairLabel(i);
 
                 if (GridManager.Instance != null)
                 {
@@ -167,14 +172,14 @@ public class LevelLoader : MonoBehaviour
                 if (portalPrefab != null)
                 {
                     GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), _obstaclesContainer.transform);
+                    if (inObj.GetComponent<GridPortalVisual>() == null) inObj.AddComponent<GridPortalVisual>();
                     SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
                     if (inSr != null) inSr.color = p.portalColor;
-                    AttachPortalPairLabel(inObj, pairLabel);
 
                     GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), _obstaclesContainer.transform);
+                    if (outObj.GetComponent<GridPortalVisual>() == null) outObj.AddComponent<GridPortalVisual>();
                     SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
                     if (outSr != null) outSr.color = p.portalColor;
-                    AttachPortalPairLabel(outObj, pairLabel);
                 }
             }
         }
@@ -272,49 +277,4 @@ public class LevelLoader : MonoBehaviour
         return Quaternion.Euler(0f, 0f, angle);
     }
 
-    private static void AttachPortalPairLabel(GameObject portalObj, string pairLabel)
-    {
-        if (portalObj == null) return;
-
-        GameObject labelObj = new GameObject("PortalPairLabel");
-        labelObj.transform.SetParent(portalObj.transform, false);
-        labelObj.transform.localPosition = new Vector3(0f, 0f, -0.05f);
-        labelObj.transform.rotation = Quaternion.identity;
-        labelObj.transform.localScale = Vector3.one;
-
-        TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
-        tmp.sortingOrder = 5;
-        tmp.text = pairLabel;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.fontSize = 6.5f;
-        tmp.color = Color.white;
-        tmp.raycastTarget = false;
-
-        MeshRenderer mr = labelObj.GetComponent<MeshRenderer>();
-        if (mr != null)
-        {
-            SpriteRenderer sr = portalObj.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                mr.sortingLayerID = sr.sortingLayerID;
-                mr.sortingOrder = sr.sortingOrder + 1;
-            }
-        }
-    }
-
-    private static string GetPortalPairLabel(int indexZeroBased)
-    {
-        int n = indexZeroBased;
-        if (n < 0) return "?";
-
-        string s = string.Empty;
-        do
-        {
-            int r = n % 26;
-            s = (char)('A' + r) + s;
-            n = (n / 26) - 1;
-        } while (n >= 0);
-
-        return s;
-    }
 }

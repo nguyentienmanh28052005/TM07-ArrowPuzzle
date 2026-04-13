@@ -233,6 +233,9 @@ public class GameCanvas : MonoBehaviour
 
     private void Update()
     {
+        // During editor playtest, Escape is reserved for exiting back to the level editor.
+        if (PlaytestSession.IsActive) return;
+
         if (Input.GetKeyDown(KeyCode.Escape) && !_isTransitioning)
         {
             if (_currentPopup == PopupState.Pause) ClosePause();

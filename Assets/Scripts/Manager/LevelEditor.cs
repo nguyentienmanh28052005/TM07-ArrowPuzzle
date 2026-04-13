@@ -4,15 +4,20 @@ using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditor.SceneManagement;
 #endif
 
 public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate }
 
 public class LevelEditor : MonoBehaviour
 {
+    private const string BootstrapScenePath = "Assets/Scenes/Boostrap.unity";
+    private const string GameScenePath = "Assets/Scenes/GameScene.unity";
+
     [Header("Assets (Data-Driven)")]
     public GameObject snakePrefab;
     public GameObject selectionGlowPrefab;
@@ -51,6 +56,7 @@ public class LevelEditor : MonoBehaviour
     private EditorSnakeVisual selectedSnakeToModify;
     private GameObject currentSelectionGlowObj; 
     private EditorSnakeVisual currentSelectionGlowScript;
+    private Transform selectionOverlayContainer;
     
     private List<Vector2Int> currentDraftNodes = new List<Vector2Int>();
     private Stack<GameObject> finishedSnakesHistory = new Stack<GameObject>();
@@ -58,6 +64,7 @@ public class LevelEditor : MonoBehaviour
     private bool isPlacingPortalExit = false;
     private Vector2Int draftPortalEntrance;
     private ArrowDir draftPortalEntranceDir;
+    private Color draftPortalColor = Color.white;
     private List<PortalData> currentDraftPortals = new List<PortalData>();
     private List<GameObject> spawnedPortalVisuals = new List<GameObject>();
 
@@ -66,12 +73,50 @@ public class LevelEditor : MonoBehaviour
 
     private void Start()
     {
-        mainCam = Camera.main;
+        mainCam = GetCameraInMyScene();
+        EnsureSelectionOverlayContainer();
         LoadLevelToEdit();
+    }
+
+    private void EnsureSelectionOverlayContainer()
+    {
+        if (selectionOverlayContainer != null) return;
+
+        GameObject go = new GameObject("SelectionOverlay");
+        selectionOverlayContainer = go.transform;
+        // Keep it outside levelContainer so SaveLevel() never picks it up as level content.
+        selectionOverlayContainer.SetParent(transform, false);
+        selectionOverlayContainer.localPosition = Vector3.zero;
+        selectionOverlayContainer.localRotation = Quaternion.identity;
+        selectionOverlayContainer.localScale = Vector3.one;
+    }
+
+    private Camera GetCameraInMyScene()
+    {
+        // Avoid Camera.main during scene transitions: Buffer/loading scenes can temporarily provide
+        // a MainCamera-tagged camera. When Buffer unloads, cached references become destroyed.
+        if (mainCam != null && mainCam.gameObject.scene == gameObject.scene)
+            return mainCam;
+
+        Camera[] cameras = FindObjectsOfType<Camera>();
+        foreach (Camera camera in cameras)
+        {
+            if (camera == null) continue;
+            if (!camera.enabled) continue;
+            if (camera.gameObject.scene != gameObject.scene) continue;
+            mainCam = camera;
+            return mainCam;
+        }
+
+        // Fallback (should be rare).
+        mainCam = Camera.main;
+        return mainCam;
     }
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.F5)) UI_Playtest();
+
         if (Input.GetKeyDown(KeyCode.Alpha1)) UI_SetTool(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) UI_SetTool(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) UI_SetTool(2);
@@ -282,10 +327,91 @@ public class LevelEditor : MonoBehaviour
     private void HandleEraseClick()
     {
         Vector2Int gridPos = GetMouseGridPosition();
+
+        // Erase behavior:
+        // - Click: trim from clicked node to tail (current behavior, but partial).
+        // - Shift + Click: trim from head to clicked node.
+        bool trimFromHead = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        // If we're currently drawing a snake, allow trimming it from the clicked node onward.
+        if (currentSnakeObj != null && currentDraftNodes != null && currentDraftNodes.Count > 0)
+        {
+            int draftIndex = currentDraftNodes.FindIndex(n => n == gridPos);
+            if (draftIndex >= 0)
+            {
+                if (trimFromHead)
+                {
+                    currentDraftNodes.RemoveRange(0, draftIndex + 1);
+                }
+                else
+                {
+                    int removeCount = currentDraftNodes.Count - draftIndex;
+                    currentDraftNodes.RemoveRange(draftIndex, removeCount);
+                }
+
+                if (currentDraftNodes.Count == 0)
+                {
+                    Destroy(currentSnakeObj);
+                    currentSnakeObj = null;
+                    currentSnakeScript = null;
+                }
+                else
+                {
+                    // If we trimmed from the head, move the snake object and arrow to the new head.
+                    if (trimFromHead)
+                    {
+                        Vector2Int newHead = currentDraftNodes[0];
+                        currentSnakeObj.transform.position = new Vector3(newHead.x, newHead.y, 0);
+                        if (currentSnakeScript != null) currentSnakeScript.SetArrowWorldPosition(newHead);
+                    }
+                    UpdateSnakeLinePreview();
+                }
+
+                lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+                return;
+            }
+        }
+
         EditorSnakeVisual sb = GetSnakeAtGridPos(gridPos);
         if (sb != null)
         {
-            if (sb.gameObject == currentSnakeObj) { currentSnakeObj = null; currentSnakeScript = null; currentDraftNodes.Clear(); }
+            // Trim finished snakes instead of deleting the entire snake.
+            if (sb.LogicNodes != null)
+            {
+                int index = sb.LogicNodes.FindIndex(n => n == gridPos);
+                if (index >= 0)
+                {
+                    if (trimFromHead)
+                    {
+                        sb.LogicNodes.RemoveRange(0, index + 1);
+                    }
+                    else
+                    {
+                        int removeCount = sb.LogicNodes.Count - index;
+                        sb.LogicNodes.RemoveRange(index, removeCount);
+                    }
+
+                    if (sb.LogicNodes.Count == 0)
+                    {
+                        if (selectedSnakeToModify == sb) { selectedSnakeToModify = null; ClearSelectionHighlight(); }
+                        Destroy(sb.gameObject);
+                    }
+                    else
+                    {
+                        sb.Initialize(sb.direction, new List<Vector2Int>(sb.LogicNodes), sb.snakeColor);
+                        if (selectedSnakeToModify == sb)
+                        {
+                            UpdateSelectionHighlight(sb);
+                        }
+                    }
+
+                    lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+                    return;
+                }
+            }
+
+            // Fallback: if something unexpected happened, keep old behavior.
+            if (selectedSnakeToModify == sb) { selectedSnakeToModify = null; ClearSelectionHighlight(); }
             Destroy(sb.gameObject);
             lastCalculatedGridPos = new Vector2Int(-9999, -9999);
             return;
@@ -319,12 +445,46 @@ public class LevelEditor : MonoBehaviour
         EditorSnakeVisual sb = GetSnakeAtGridPos(gridPos);
         if (sb != null) sb.SetColorImmediatePublic(currentColor);
 
+        bool hasLinkedGroupColor = false;
+        Color linkedGroupColor = Color.white;
+
         foreach (Transform child in levelContainer)
         {
             if (Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
-                if (child.TryGetComponent(out GridKeycard k)) { k.keyColor = currentColor; child.GetComponent<SpriteRenderer>().color = currentColor; }
-                if (child.TryGetComponent(out GridLaserGate g)) { g.gateColor = currentColor; child.GetComponent<SpriteRenderer>().color = currentColor; }
+                if (child.TryGetComponent(out GridKeycard k))
+                {
+                    hasLinkedGroupColor = true;
+                    linkedGroupColor = k.keyColor;
+                    break;
+                }
+
+                if (child.TryGetComponent(out GridLaserGate g))
+                {
+                    hasLinkedGroupColor = true;
+                    linkedGroupColor = g.gateColor;
+                    break;
+                }
+            }
+        }
+
+        if (hasLinkedGroupColor)
+        {
+            foreach (Transform child in levelContainer)
+            {
+                if (child.TryGetComponent(out GridKeycard k) && AreColorsEquivalent(k.keyColor, linkedGroupColor))
+                {
+                    k.keyColor = currentColor;
+                    SpriteRenderer keySr = child.GetComponent<SpriteRenderer>();
+                    if (keySr != null) keySr.color = currentColor;
+                }
+
+                if (child.TryGetComponent(out GridLaserGate g) && AreColorsEquivalent(g.gateColor, linkedGroupColor))
+                {
+                    g.gateColor = currentColor;
+                    SpriteRenderer gateSr = child.GetComponent<SpriteRenderer>();
+                    if (gateSr != null) gateSr.color = currentColor;
+                }
             }
         }
         
@@ -337,6 +497,14 @@ public class LevelEditor : MonoBehaviour
                 return;
             }
         }
+    }
+
+    private static bool AreColorsEquivalent(Color a, Color b)
+    {
+        return Mathf.Abs(a.r - b.r) < 0.01f
+            && Mathf.Abs(a.g - b.g) < 0.01f
+            && Mathf.Abs(a.b - b.b) < 0.01f
+            && Mathf.Abs(a.a - b.a) < 0.01f;
     }
 
     private void HandleSelectClick()
@@ -364,6 +532,7 @@ public class LevelEditor : MonoBehaviour
         {
             draftPortalEntrance = gridPos;
             draftPortalEntranceDir = currentDir;
+            draftPortalColor = currentColor;
             isPlacingPortalExit = true;
         }
         else
@@ -374,7 +543,7 @@ public class LevelEditor : MonoBehaviour
             newPortal.entranceDir = draftPortalEntranceDir;
             newPortal.exit = gridPos;
             newPortal.exitDir = currentDir;
-            newPortal.portalColor = currentColor;
+            newPortal.portalColor = draftPortalColor;
             currentDraftPortals.Add(newPortal);
             isPlacingPortalExit = false;
             RefreshPortalVisuals();
@@ -390,16 +559,12 @@ public class LevelEditor : MonoBehaviour
         for (int i = 0; i < currentDraftPortals.Count; i++)
         {
             var p = currentDraftPortals[i];
-            string pairLabel = GetPortalPairLabel(i);
             GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), levelContainer);
             GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), levelContainer);
             SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
             if(inSr) inSr.color = p.portalColor;
             SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
             if(outSr) outSr.color = p.portalColor;
-
-            AttachPortalPairLabel(inObj, pairLabel);
-            AttachPortalPairLabel(outObj, pairLabel);
             spawnedPortalVisuals.Add(inObj);
             spawnedPortalVisuals.Add(outObj);
         }
@@ -418,58 +583,12 @@ public class LevelEditor : MonoBehaviour
         return Quaternion.Euler(0f, 0f, angle);
     }
 
-    private static void AttachPortalPairLabel(GameObject portalObj, string pairLabel)
-    {
-        if (portalObj == null) return;
-
-        GameObject labelObj = new GameObject("PortalPairLabel");
-        labelObj.transform.SetParent(portalObj.transform, false);
-        labelObj.transform.localPosition = new Vector3(0f, 0f, -0.05f);
-        labelObj.transform.rotation = Quaternion.identity;
-        labelObj.transform.localScale = Vector3.one;
-
-        TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
-        tmp.sortingOrder = 5;
-        tmp.text = pairLabel;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.fontSize = 6.5f;
-        tmp.color = Color.white;
-        tmp.raycastTarget = false;
-
-        MeshRenderer mr = labelObj.GetComponent<MeshRenderer>();
-        if (mr != null)
-        {
-            SpriteRenderer sr = portalObj.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                mr.sortingLayerID = sr.sortingLayerID;
-                mr.sortingOrder = sr.sortingOrder + 1;
-            }
-        }
-    }
-
-    private static string GetPortalPairLabel(int indexZeroBased)
-    {
-        // 0->A, 1->B, ... 25->Z, 26->AA ...
-        int n = indexZeroBased;
-        if (n < 0) return "?";
-
-        string s = string.Empty;
-        do
-        {
-            int r = n % 26;
-            s = (char)('A' + r) + s;
-            n = (n / 26) - 1;
-        } while (n >= 0);
-
-        return s;
-    }
-
     private void UpdateSelectionHighlight(EditorSnakeVisual target)
     {
         ClearSelectionHighlight();
         if (selectionGlowPrefab == null) return;
-        currentSelectionGlowObj = Instantiate(selectionGlowPrefab, target.transform.position, Quaternion.identity, levelContainer);
+        EnsureSelectionOverlayContainer();
+        currentSelectionGlowObj = Instantiate(selectionGlowPrefab, target.transform.position, Quaternion.identity, selectionOverlayContainer);
         currentSelectionGlowScript = currentSelectionGlowObj.GetComponent<EditorSnakeVisual>();
         if (currentSelectionGlowScript != null)
         {
@@ -480,7 +599,16 @@ public class LevelEditor : MonoBehaviour
 
     private void ClearSelectionHighlight()
     {
-        if (currentSelectionGlowObj != null) { Destroy(currentSelectionGlowObj); currentSelectionGlowObj = null; currentSelectionGlowScript = null; }
+        if (currentSelectionGlowObj != null)
+        {
+            // Detach and deactivate first so SaveLevel() can't accidentally serialize it in the same frame
+            // (Destroy() is end-of-frame in play mode).
+            currentSelectionGlowObj.transform.SetParent(null, true);
+            currentSelectionGlowObj.SetActive(false);
+            Destroy(currentSelectionGlowObj);
+            currentSelectionGlowObj = null;
+            currentSelectionGlowScript = null;
+        }
     }
 
     private void CreateHead(Vector2Int pos)
@@ -551,12 +679,65 @@ public class LevelEditor : MonoBehaviour
 
     private Vector2Int GetMouseGridPosition()
     {
-        Vector3 pos = mainCam.ScreenToWorldPoint(Input.mousePosition);
+        Camera camera = GetCameraInMyScene();
+        if (camera == null)
+        {
+            return lastCalculatedGridPos;
+        }
+
+        Vector3 pos = camera.ScreenToWorldPoint(Input.mousePosition);
         return new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
     }
 
     public void UI_SaveLevel() { SaveLevel(); }
     public void UI_LoadLevel() { LoadLevelToEdit(); }
+
+    public void UI_Playtest()
+    {
+        if (currentData == null)
+        {
+            Debug.LogWarning("[LevelEditor] UI_Playtest aborted: currentData is null.");
+            return;
+        }
+
+        // Commit any in-progress edit state so the saved asset matches what you see.
+        if (currentSnakeObj != null && currentDraftNodes != null && currentDraftNodes.Count > 0)
+        {
+            UI_FinishSnake();
+        }
+
+        // Cancel unfinished portal placement to avoid partial portal data.
+        if (currentTool == EditorToolType.Portal && isPlacingPortalExit)
+        {
+            isPlacingPortalExit = false;
+        }
+
+        SaveLevel();
+
+        PlaytestSession.StartPlaytest(
+            currentData,
+            SceneManager.GetActiveScene().name,
+            SceneManager.GetActiveScene().path,
+            "GameScene");
+
+        // If SceneController is already present, use it; otherwise bootstrap singletons first.
+        SceneController sceneController = FindObjectOfType<SceneController>();
+        if (sceneController != null)
+        {
+            // Keep playtest re-entrant by clearing any stuck loading state, then use the project's normal flow.
+            sceneController.ForceResetLoadingState();
+            sceneController.LoadScene("GameScene", false, false);
+        }
+        else
+        {
+#if UNITY_EDITOR
+            // In editor play mode we can load scenes by path even if they aren't in Build Settings.
+            EditorSceneManager.LoadSceneAsyncInPlayMode(BootstrapScenePath, new LoadSceneParameters(LoadSceneMode.Single));
+#else
+            SceneManager.LoadScene("Boostrap");
+#endif
+        }
+    }
 
     private void SaveLevel()
     {

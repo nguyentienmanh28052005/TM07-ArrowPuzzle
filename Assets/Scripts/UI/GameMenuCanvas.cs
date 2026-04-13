@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class GameMenuCanvas : MonoBehaviour
@@ -22,24 +23,24 @@ public class GameMenuCanvas : MonoBehaviour
     [SerializeField] private GameObject btnHome;
     [SerializeField] private GameObject btnShop;
     [SerializeField] private GameObject btnSetting;
-    [SerializeField] private float sliderMoveDuration = 0.01f;
+    [SerializeField] private float sliderMoveDuration = 0.2f; 
     [SerializeField] private Ease sliderEaseType = Ease.OutQuad;
 
     [Header("Level Generation")]
     [SerializeField] private List<GameObject> listLevelButtons;
-
 
     [SerializeField] private TextMeshProUGUI textCoin;
     [SerializeField] private TextMeshProUGUI textDiamond;
 
     private bool _hasStarted = false;
     private CanvasGroup _currentPanel; 
+    private Coroutine _postTabRefreshRoutine;
 
     [SerializeField] private TMP_InputField levelReset;
     #endregion
 
     #region [ LIFECYCLE ]
-    private void Start()
+    private IEnumerator Start()
     {
         _hasStarted = true;
         UpdateLevelUI(); 
@@ -49,6 +50,12 @@ public class GameMenuCanvas : MonoBehaviour
         HidePanelImmediate(panelSetting);
         ShowPanelImmediate(panelHome);
         _currentPanel = panelHome;
+        
+        // BÍ QUYẾT TỐI THƯỢNG: Ép luồng code đợi đến cuối khung hình
+        // Lúc này Horizontal Layout Group chắc chắn đã xếp xong 3 nút
+        yield return new WaitForEndOfFrame();
+        
+        MoveSliderToButton(btnHome, true);
     }
 
     public void OnEnable()
@@ -59,7 +66,6 @@ public class GameMenuCanvas : MonoBehaviour
             UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
         }
     }
-
     #endregion
 
     #region [ LOGIC TAB NAVIGATION & PANEL SWITCHER ]
@@ -67,14 +73,22 @@ public class GameMenuCanvas : MonoBehaviour
     public void OnClickTabShop() => SwitchTabLogic(btnShop, panelShop);
     public void OnClickTabSetting() => SwitchTabLogic(btnSetting, panelSetting);
 
-    /// <summary>
-    /// Xử lý logic chuyển đổi UI Panel với hiệu ứng Fade và ngăn chặn click spam.
-    /// </summary>
     private void SwitchTabLogic(GameObject targetButton, CanvasGroup targetPanel)
     {
-        if (_currentPanel == targetPanel) return;
+        EventSystem.current?.SetSelectedGameObject(null);
+        if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
+        if (_currentPanel == targetPanel)
+        {
+            RefreshTabButtonVisuals(targetButton);
+            return;
+        }
 
         MoveSliderToButton(targetButton);
+
+        // Some UI scripts (pressed/hover transitions) can overwrite colors later in the same frame.
+        // Re-apply selected visuals on the next frame so the tab state is always correct.
+        if (_postTabRefreshRoutine != null) StopCoroutine(_postTabRefreshRoutine);
+        _postTabRefreshRoutine = StartCoroutine(PostTabRefresh(targetButton));
 
         if (_currentPanel != null)
         {
@@ -98,24 +112,80 @@ public class GameMenuCanvas : MonoBehaviour
         });
     }
 
-    /// <summary>
-    /// Dịch chuyển thanh trượt (Slider) đến vị trí của Tab tương ứng.
-    /// </summary>
-    public void MoveSliderToButton(GameObject targetButton)
+    private IEnumerator PostTabRefresh(GameObject selectedButton)
     {
-        if (slider == null || targetButton == null) return;
+        yield return null;
+        RefreshTabButtonVisuals(selectedButton, true);
+    }
+
+    public void MoveSliderToButton(GameObject targetButton, bool instant = false)
+    {
+        if (targetButton == null) return;
+
+        RefreshTabButtonVisuals(targetButton, instant);
+
+        if (slider == null) return;
 
         RectTransform sliderRect = slider.GetComponent<RectTransform>();
         RectTransform targetRect = targetButton.GetComponent<RectTransform>();
 
-        if (sliderRect != null && targetRect != null)
-        {
-            sliderRect.DOKill(true); 
-            
-            float targetX = targetRect.anchoredPosition.x;
-            sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(sliderEaseType);
+        if (sliderRect == null || targetRect == null) return;
 
-            targetButton.GetComponent<MenuTabButton>()?.PlaySelectAnimation();
+        sliderRect.DOKill(true); 
+
+        RectTransform sliderParent = sliderRect.parent as RectTransform;
+        if (sliderParent == null) return;
+
+        // Convert target button world position to slider parent's local space, then drive slider via anchoredPosition.
+        Canvas canvas = sliderRect.GetComponentInParent<Canvas>();
+        Camera uiCamera = null;
+        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+        {
+            uiCamera = canvas.worldCamera;
+        }
+
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, targetRect.position);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(sliderParent, screenPoint, uiCamera, out Vector2 localPoint))
+        {
+            return;
+        }
+
+        float targetX = localPoint.x;
+
+        if (instant)
+        {
+            Vector2 anchored = sliderRect.anchoredPosition;
+            anchored.x = targetX;
+            sliderRect.anchoredPosition = anchored;
+        }
+        else
+        {
+            sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(sliderEaseType);
+        }
+    }
+
+    private void RefreshTabButtonVisuals(GameObject selectedButton, bool instant = false)
+    {
+        SetTabButtonVisual(btnHome, btnHome == selectedButton, instant);
+        SetTabButtonVisual(btnShop, btnShop == selectedButton, instant);
+        SetTabButtonVisual(btnSetting, btnSetting == selectedButton, instant);
+    }
+
+    private void SetTabButtonVisual(GameObject buttonObj, bool isSelected, bool instant)
+    {
+        if (buttonObj == null) return;
+
+        MenuTabButton tabButton = buttonObj.GetComponent<MenuTabButton>();
+        if (tabButton == null)
+        {
+            tabButton = buttonObj.GetComponentInChildren<MenuTabButton>(true);
+        }
+        if (tabButton == null) return;
+
+        tabButton.SetSelected(isSelected, instant);
+        if (isSelected && !instant)
+        {
+            tabButton.PlaySelectAnimation();
         }
     }
 
@@ -150,9 +220,6 @@ public class GameMenuCanvas : MonoBehaviour
         SceneController.Instance.LoadScene("GameScene", false, false);
     }
 
-    /// <summary>
-    /// Làm mới giao diện chỉ số Level và trạng thái khóa/mở khóa của các nút Level.
-    /// </summary>
     public void UpdateLevelUI()
     {
         try
@@ -243,7 +310,6 @@ public class GameMenuCanvas : MonoBehaviour
         }
     }
     #endregion
-
 
     public void Gift()
     {

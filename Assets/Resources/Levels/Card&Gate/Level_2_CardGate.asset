@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
-  m_Name: Level_3_Portal
+  m_Name: Level_2_CardGate
   m_EditorClassIdentifier: 
   gameMode: 0
   levelDifficulty: 2
@@ -21,26 +21,6 @@ MonoBehaviour:
   - direction: 2
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: -15, y: -19}
-    - {x: -14, y: -19}
-    - {x: -13, y: -19}
-    - {x: -13, y: -18}
-    - {x: -13, y: -17}
-    - {x: -14, y: -17}
-    - {x: -15, y: -17}
-    - {x: -15, y: -16}
-    - {x: -15, y: -15}
-    - {x: -15, y: -14}
-    - {x: -15, y: -13}
-    - {x: -15, y: -12}
-    - {x: -15, y: -11}
-    - {x: -14, y: -11}
-    - {x: -13, y: -11}
-  - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
-    segmentPositions:
-    - {x: -15, y: -9}
-    - {x: -14, y: -9}
     - {x: -13, y: -9}
     - {x: -12, y: -9}
     - {x: -11, y: -9}
@@ -67,8 +47,6 @@ MonoBehaviour:
   - direction: 2
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: -11, y: -7}
-    - {x: -10, y: -7}
     - {x: -9, y: -7}
     - {x: -8, y: -7}
     - {x: -7, y: -7}
@@ -125,8 +103,6 @@ MonoBehaviour:
   - direction: 1
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: -3, y: -3}
-    - {x: -3, y: -2}
     - {x: -3, y: -1}
     - {x: -3, y: 0}
     - {x: -3, y: 1}
@@ -293,8 +269,6 @@ MonoBehaviour:
   - direction: 2
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: -11, y: -19}
-    - {x: -10, y: -19}
     - {x: -9, y: -19}
     - {x: -8, y: -19}
     - {x: -7, y: -19}
@@ -328,56 +302,12 @@ MonoBehaviour:
     - {x: 3, y: -19}
     - {x: 3, y: -18}
     - {x: 3, y: -17}
-  - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
-    segmentPositions:
-    - {x: 7, y: -19}
-    - {x: 8, y: -19}
-    - {x: 9, y: -19}
-    - {x: 9, y: -18}
-    - {x: 9, y: -17}
-    - {x: 8, y: -17}
-    - {x: 7, y: -17}
   - direction: 1
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
     - {x: 11, y: -15}
     - {x: 11, y: -14}
     - {x: 11, y: -13}
-  - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
-    segmentPositions:
-    - {x: 9, y: -15}
-    - {x: 9, y: -14}
-    - {x: 9, y: -13}
-    - {x: 8, y: -13}
-    - {x: 7, y: -13}
-    - {x: 7, y: -12}
-    - {x: 7, y: -11}
-    - {x: 8, y: -11}
-    - {x: 9, y: -11}
-    - {x: 10, y: -11}
-    - {x: 11, y: -11}
-    - {x: 12, y: -11}
-    - {x: 13, y: -11}
-    - {x: 13, y: -12}
-    - {x: 13, y: -13}
-    - {x: 13, y: -14}
-    - {x: 13, y: -15}
-    - {x: 14, y: -15}
-    - {x: 15, y: -15}
-    - {x: 15, y: -16}
-    - {x: 15, y: -17}
-    - {x: 14, y: -17}
-    - {x: 13, y: -17}
-    - {x: 12, y: -17}
-    - {x: 11, y: -17}
-    - {x: 11, y: -18}
-    - {x: 11, y: -19}
-    - {x: 12, y: -19}
-    - {x: 13, y: -19}
-    - {x: 14, y: -19}
-    - {x: 15, y: -19}
   - direction: 0
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
@@ -393,14 +323,6 @@ MonoBehaviour:
   - direction: 3
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: 15, y: -5}
-    - {x: 14, y: -5}
-    - {x: 13, y: -5}
-  - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
-    segmentPositions:
-    - {x: 15, y: 5}
-    - {x: 14, y: 5}
     - {x: 13, y: 5}
     - {x: 12, y: 5}
     - {x: 11, y: 5}
@@ -437,8 +359,6 @@ MonoBehaviour:
   - direction: 3
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: 15, y: 11}
-    - {x: 14, y: 11}
     - {x: 13, y: 11}
     - {x: 12, y: 11}
     - {x: 11, y: 11}
@@ -487,8 +407,6 @@ MonoBehaviour:
   - direction: 0
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: -1, y: 15}
-    - {x: -1, y: 14}
     - {x: -1, y: 13}
     - {x: -1, y: 12}
     - {x: -1, y: 11}
@@ -533,8 +451,6 @@ MonoBehaviour:
   - direction: 1
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
     segmentPositions:
-    - {x: 1, y: -9}
-    - {x: 1, y: -8}
     - {x: 1, y: -7}
     - {x: 1, y: -6}
     - {x: 1, y: -5}
@@ -660,6 +576,96 @@ MonoBehaviour:
     - {x: 9, y: 9}
     - {x: 10, y: 9}
     - {x: 11, y: 9}
-  keycards: []
-  gates: []
+  - direction: 0
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 15, y: -5}
+    - {x: 15, y: -6}
+    - {x: 15, y: -7}
+  - direction: 1
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -13, y: -19}
+    - {x: -13, y: -18}
+    - {x: -13, y: -17}
+    - {x: -14, y: -17}
+    - {x: -15, y: -17}
+    - {x: -15, y: -18}
+    - {x: -15, y: -19}
+  - direction: 1
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -15, y: -13}
+    - {x: -15, y: -12}
+    - {x: -15, y: -11}
+    - {x: -14, y: -11}
+    - {x: -13, y: -11}
+  - direction: 1
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 7, y: -19}
+    - {x: 7, y: -18}
+    - {x: 7, y: -17}
+  - direction: 1
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 9, y: -17}
+    - {x: 9, y: -16}
+    - {x: 9, y: -15}
+    - {x: 9, y: -14}
+    - {x: 9, y: -13}
+    - {x: 8, y: -13}
+    - {x: 7, y: -13}
+    - {x: 7, y: -12}
+    - {x: 7, y: -11}
+    - {x: 8, y: -11}
+    - {x: 9, y: -11}
+    - {x: 10, y: -11}
+    - {x: 11, y: -11}
+    - {x: 12, y: -11}
+    - {x: 13, y: -11}
+    - {x: 13, y: -12}
+    - {x: 13, y: -13}
+    - {x: 13, y: -14}
+    - {x: 13, y: -15}
+    - {x: 13, y: -16}
+    - {x: 13, y: -17}
+    - {x: 12, y: -17}
+    - {x: 11, y: -17}
+    - {x: 11, y: -18}
+    - {x: 11, y: -19}
+    - {x: 12, y: -19}
+    - {x: 13, y: -19}
+    - {x: 14, y: -19}
+    - {x: 15, y: -19}
+    - {x: 15, y: -18}
+    - {x: 15, y: -17}
+    - {x: 15, y: -16}
+    - {x: 15, y: -15}
+  keycards:
+  - position: {x: 13, y: -5}
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+  - position: {x: -11, y: -7}
+    color: {r: 1, g: 0, b: 0, a: 1}
+  - position: {x: -15, y: -15}
+    color: {r: 0, g: 1, b: 0.5784495, a: 1}
+  - position: {x: -11, y: 7}
+    color: {r: 1, g: 0, b: 0.57606554, a: 1}
+  gates:
+  - position: {x: -15, y: -9}
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+  - position: {x: -11, y: -19}
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+  - position: {x: -1, y: 15}
+    color: {r: 1, g: 0, b: 0, a: 1}
+  - position: {x: 1, y: -9}
+    color: {r: 1, g: 0, b: 0, a: 1}
+  - position: {x: -3, y: -3}
+    color: {r: 0, g: 1, b: 0.5784495, a: 1}
+  - position: {x: 15, y: 5}
+    color: {r: 0, g: 1, b: 0.5784495, a: 1}
+  - position: {x: 15, y: 11}
+    color: {r: 0, g: 1, b: 0.5784495, a: 1}
+  - position: {x: 9, y: -19}
+    color: {r: 1, g: 0, b: 0.57606554, a: 1}
   portals: []

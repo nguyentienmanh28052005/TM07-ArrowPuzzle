@@ -8,6 +8,12 @@ public class LevelController : MonoBehaviour
 
     void Awake()
     {
+        if (PlaytestSession.IsPlaytesting)
+        {
+            countArrowInGame = PlaytestSession.LevelData.snakes != null ? PlaytestSession.LevelData.snakes.Count : 0;
+            return;
+        }
+
         if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
         {
             countArrowInGame = GameManager.Instance.levelDataSOs[GameManager.Instance.level - 1].snakes.Count;
@@ -39,6 +45,9 @@ public class LevelController : MonoBehaviour
                 effectDuration = winEffect.PlayWinEffect();
             }
 
+            float portalVanishDuration = GridPortalVisual.PlayEndGameVanishAll();
+            effectDuration = Mathf.Max(effectDuration, portalVanishDuration);
+
             StartCoroutine(SequenceWinGame(effectDuration, currentLevelData, isFullCombo));
         }
     }
@@ -47,6 +56,23 @@ public class LevelController : MonoBehaviour
     public IEnumerator SequenceWinGame(float waitTime, LevelDataSO completedLevelData, bool isFullCombo)
     {
         yield return new WaitForSeconds(waitTime);
+
+        if (PlaytestSession.IsPlaytesting)
+        {
+            completedLevelData = PlaytestSession.LevelData;
+            if (completedLevelData != null && ComboManager.Instance != null && completedLevelData.snakes != null)
+            {
+                isFullCombo = (ComboManager.Instance.currentCombo >= completedLevelData.snakes.Count);
+            }
+
+            if (completedLevelData != null && MessageManager.Instance != null)
+            {
+                object[] rewardData = new object[] { completedLevelData, isFullCombo };
+                MessageManager.Instance.SendMessage(ManhMessageType.OnComplete, rewardData);
+            }
+
+            yield break;
+        }
 
         if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
             {

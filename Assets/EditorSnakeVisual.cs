@@ -98,6 +98,12 @@ public class EditorSnakeVisual : MonoBehaviour
         arrowVisual.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
+    public void SetArrowWorldPosition(Vector2Int headGridPos)
+    {
+        if (arrowVisual == null) return;
+        arrowVisual.position = new Vector3(headGridPos.x, headGridPos.y, 0f);
+    }
+
     private void UpdateVisuals()
     {
         if (lineRenderer == null || _renderPointsCache.Count == 0) return;

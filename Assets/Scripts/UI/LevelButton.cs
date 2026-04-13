@@ -4,19 +4,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class LevelButton : MonoBehaviour, IPointerClickHandler
+public class LevelButton : MonoBehaviour
 {
-    public int level;
-    public double posY;
-
-    /// <summary>
-    /// Chuyển đổi Scene sang màn hình chơi game khi nút Level hợp lệ được nhấn.
-    /// </summary>
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (gameObject.GetComponent<Button>().interactable)
-        {
-            SceneController.Instance.LoadScene("GameScene", false, false);
-        }
-    }
+    [SerializeField] private ButtonClicky buttonClicky;
+    [SerializeField] private GameObject vfx;
 }
