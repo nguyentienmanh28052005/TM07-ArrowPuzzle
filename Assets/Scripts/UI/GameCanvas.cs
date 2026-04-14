@@ -614,11 +614,11 @@ public class GameCanvas : MonoBehaviour
             Sequence seq = DOTween.Sequence();
             seq.SetUpdate(true); 
 
-            seq.Append(feedbackText.transform.DOScale(1f, 0.5f).SetEase(Ease.OutBack));
-            seq.Join(feedbackText.DOFade(1f, 0.5f));
-            seq.AppendInterval(1.5f); 
-            seq.Append(feedbackText.DOFade(0f, 0.3f));
-            seq.Join(feedbackText.transform.DOScale(1.2f, 0.3f).SetEase(Ease.InQuad));
+            seq.Append(feedbackText.transform.DOScale(1f, 0.25f).SetEase(Ease.OutBack));
+            seq.Join(feedbackText.DOFade(1f, 0.25f));
+            seq.AppendInterval(0.75f); 
+            seq.Append(feedbackText.DOFade(0f, 0.15f));
+            seq.Join(feedbackText.transform.DOScale(1.2f, 0.15f).SetEase(Ease.InQuad));
             
             seq.OnComplete(() => {
                 feedbackText.gameObject.SetActive(false);

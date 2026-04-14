@@ -4,7 +4,6 @@ using System.Collections.Generic;
 public class WinEffectManager : MonoBehaviour
 {
     [Header("Configuration")]
-    public Transform centerPoint;
     public Transform gameContainer;
 
     [Header("Animation Settings")]
@@ -26,7 +25,7 @@ public class WinEffectManager : MonoBehaviour
 
         if (allDots.Length == 0) return 0f;
 
-        Vector3 center = (centerPoint != null) ? centerPoint.position : Vector3.zero;
+        Vector3 center = CalculateLevelCenter(allDots);
         float maxDuration = 0f;
 
         foreach (var dot in allDots)
@@ -46,5 +45,19 @@ public class WinEffectManager : MonoBehaviour
         }
 
         return maxDuration;
+    }
+
+    private Vector3 CalculateLevelCenter(GridDot[] allDots)
+    {
+        Bounds bounds = new Bounds(allDots[0].transform.position, Vector3.zero);
+
+        for (int i = 1; i < allDots.Length; i++)
+        {
+            GridDot dot = allDots[i];
+            if (dot == null) continue;
+            bounds.Encapsulate(dot.transform.position);
+        }
+
+        return bounds.center;
     }
 }

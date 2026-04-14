@@ -343,12 +343,32 @@ PrefabInstance:
     - target: {fileID: 6532625476167473824, guid: 07a977963523b3b4dbcaa27119f6b469,
         type: 3}
       propertyPath: m_SortingLayer
-      value: 0
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6532625476167473824, guid: 07a977963523b3b4dbcaa27119f6b469,
+        type: 3}
+      propertyPath: m_SortingOrder
+      value: -10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6532625476167473824, guid: 07a977963523b3b4dbcaa27119f6b469,
+        type: 3}
+      propertyPath: m_SortingLayerID
+      value: -182096651
+      objectReference: {fileID: 0}
+    - target: {fileID: 6532625476167473838, guid: 07a977963523b3b4dbcaa27119f6b469,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6532625476368783798, guid: 07a977963523b3b4dbcaa27119f6b469,
         type: 3}
       propertyPath: m_SortingLayer
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6532625476368783799, guid: 07a977963523b3b4dbcaa27119f6b469,
+        type: 3}
+      propertyPath: ShapeModule.radius.value
+      value: 4.223114
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

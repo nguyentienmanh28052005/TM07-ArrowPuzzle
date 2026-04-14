@@ -51,8 +51,17 @@ public class LevelLoader : MonoBehaviour
         if (canvas != null && levelToPlay != null)
         {
             canvas.SetupModeUI(levelToPlay.gameMode);
+            
             string modeName = levelToPlay.gameMode.ToString().ToUpper();
-            canvas.ShowText(modeName, Color.cyan, () => _isTextDone = true);
+            string difficultyName = levelToPlay.levelDifficulty.ToString().ToUpper();
+
+            canvas.ShowText(modeName, Color.cyan, () => 
+            {
+                canvas.ShowText(difficultyName, new Color(1f, 0.8f, 0f, 1f), () => 
+                {
+                    _isTextDone = true;
+                });
+            });
         }
         else
         {
@@ -276,5 +285,4 @@ public class LevelLoader : MonoBehaviour
         }
         return Quaternion.Euler(0f, 0f, angle);
     }
-
 }
