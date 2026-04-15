@@ -251,7 +251,7 @@ public class SnakeBlock : MonoBehaviour
     private IEnumerator ProcessExitMovement(Vector3 moveDir)
     {
         ClearFromGrid(); 
-        if (ComboManager.Instance != null) ComboManager.Instance.AddCombo();
+        if (ComboManager.Instance != null) ComboManager.Instance.AddCombo(this);
         
         _currentMoveSpeed = exitStartSpeed;
         int _lastProcessedGrid = 0;

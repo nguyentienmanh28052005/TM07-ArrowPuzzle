@@ -23,6 +23,7 @@ public class LevelLoader : MonoBehaviour
 
     [Header("Optimization")]
     public int snakesPerFrame = 2; 
+    public int dotsPerFrame = 15; 
 
     public bool editorMode = false;
 
@@ -68,8 +69,9 @@ public class LevelLoader : MonoBehaviour
             _isTextDone = true; 
         }
 
-        ClearContainer();
         SpawnStaticObstacles();
+
+        yield return StartCoroutine(PreSpawnDotsCoroutine());
 
         yield return StartCoroutine(PreSpawnSnakesCoroutine());
 
@@ -99,10 +101,31 @@ public class LevelLoader : MonoBehaviour
         ClearContainer();
         SpawnStaticObstacles();
         
-        foreach (var SnakeSaveData in levelToPlay.snakes)
+        if (levelToPlay != null && levelToPlay.snakes != null)
         {
-            PreSpawnSingleSnake(SnakeSaveData);
+            foreach (var snakeData in levelToPlay.snakes)
+            {
+                if (dotPrefab != null)
+                {
+                    if (_dotsContainer == null)
+                    {
+                        _dotsContainer = new GameObject("Dots_Container");
+                        _dotsContainer.transform.SetParent(gameContainer);
+                    }
+
+                    for (int i = 0; i < snakeData.segmentPositions.Count; i++)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            Vector2Int pos = snakeData.segmentPositions[i];
+                            Instantiate(dotPrefab, new Vector3(pos.x, pos.y, 0), Quaternion.identity, _dotsContainer.transform);
+                        }
+                    }
+                }
+                PreSpawnSingleSnake(snakeData);
+            }
         }
+        
         ActivateAndInitializeSnakes();
     }
 
@@ -194,6 +217,41 @@ public class LevelLoader : MonoBehaviour
         }
     }
 
+    private IEnumerator PreSpawnDotsCoroutine()
+    {
+        if (levelToPlay == null || levelToPlay.snakes == null || dotPrefab == null) yield break;
+
+        if (_dotsContainer == null)
+        {
+            _dotsContainer = new GameObject("Dots_Container");
+            _dotsContainer.transform.SetParent(gameContainer);
+            _dotsContainer.SetActive(false); 
+        }
+
+        int dotsSpawnedThisFrame = 0;
+
+        foreach (var snakeData in levelToPlay.snakes)
+        {
+            for (int i = 0; i < snakeData.segmentPositions.Count; i++)
+            {
+                if (i % 2 == 0)
+                {
+                    Vector2Int pos = snakeData.segmentPositions[i];
+                    Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
+                    Instantiate(dotPrefab, currentPos, Quaternion.identity, _dotsContainer.transform);
+                    
+                    dotsSpawnedThisFrame++;
+
+                    if (!_isTextDone && dotsSpawnedThisFrame >= dotsPerFrame)
+                    {
+                        dotsSpawnedThisFrame = 0;
+                        yield return null; 
+                    }
+                }
+            }
+        }
+    }
+
     private IEnumerator PreSpawnSnakesCoroutine()
     {
         if (levelToPlay == null || levelToPlay.snakes == null) yield break;
@@ -219,26 +277,6 @@ public class LevelLoader : MonoBehaviour
         
         SnakeBlock snakeScript = snakeObj.GetComponent<SnakeBlock>();
         
-        if (dotPrefab != null)
-        {
-            if (_dotsContainer == null)
-            {
-                _dotsContainer = new GameObject("Dots_Container");
-                _dotsContainer.transform.SetParent(gameContainer);
-                _dotsContainer.SetActive(false); 
-            }
-
-            for (int i = 0; i < SnakeSaveData.segmentPositions.Count; i++)
-            {
-                if (i % 2 == 0)
-                {
-                    Vector2Int pos = SnakeSaveData.segmentPositions[i];
-                    Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
-                    Instantiate(dotPrefab, currentPos, Quaternion.identity, _dotsContainer.transform);
-                }
-            }
-        }
-
         _preloadedSnakes.Add(snakeScript);
         _preloadedSnakeSaveData.Add(SnakeSaveData);
     }

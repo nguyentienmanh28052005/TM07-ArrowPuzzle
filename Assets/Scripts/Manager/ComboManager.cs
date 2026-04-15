@@ -59,6 +59,7 @@ public class ComboManager : Singleton<ComboManager>
     private Sequence _activeSequence;
     private Sequence _feedbackSequence;
     private Material _defaultMaterial;
+    private SnakeBlock _lastComboSource;
 
     private void Start()
     {
@@ -91,22 +92,23 @@ public class ComboManager : Singleton<ComboManager>
         }
     }
 
-    public void AddCombo()
+    public void AddCombo(SnakeBlock comboSource = null)
     {
         if (currentCombo > 0 && Time.time - _lastHitTime > comboTimeout)
         {
             StopCombo();
         }
 
+        _lastComboSource = comboSource;
         currentCombo++;
         _lastHitTime = Time.time;
-        if(currentCombo % 5 == 0 && currentCombo != 0)
-        {
-            if (ScreenJuiceManager.Instance != null)
-            {
-                ScreenJuiceManager.Instance.PlayComboJuice(currentCombo);
-            }
-        }
+        // if(currentCombo % 5 == 0 && currentCombo != 0)
+        // {
+        //     if (ScreenJuiceManager.Instance != null)
+        //     {
+        //         ScreenJuiceManager.Instance.PlayComboJuice(currentCombo);
+        //     }
+        // }
         if (currentCombo >= minComboToShow)
         {
             PlayBlockBlastFeedback();
@@ -230,6 +232,7 @@ public class ComboManager : Singleton<ComboManager>
         {
             if (currentCombo == setting.comboThreshold)
             {
+                ScreenJuiceManager.Instance.PlayComboJuice(currentCombo);
                 string word = setting.words[Random.Range(0, setting.words.Count)];
                 TriggerFeedback(word, setting.feedbackMaterial, setting.sizeMultiplier, setting.textColor);
                 TriggerDotFlashEffect();
@@ -264,12 +267,18 @@ public class ComboManager : Singleton<ComboManager>
         if (validDotsCount == 0) yield break;
         center /= validDotsCount;
 
+        // Prefer the head of the snake that triggered this combo as the wave center.
+        if (_lastComboSource != null)
+        {
+            center = _lastComboSource.HeadPosition;
+        }
+
         allDots.Sort((a, b) =>
         {
             if (a == null || b == null) return 0;
             float distA = Vector3.Distance(a.transform.position, center);
             float distB = Vector3.Distance(b.transform.position, center);
-            return distB.CompareTo(distA); 
+            return distA.CompareTo(distB); 
         });
 
         int currentBatch = 0;
