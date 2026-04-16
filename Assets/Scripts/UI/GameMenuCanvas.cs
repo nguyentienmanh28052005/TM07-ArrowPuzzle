@@ -316,5 +316,7 @@ public class GameMenuCanvas : MonoBehaviour
         CurrencyManager.Instance.AddHintTool(2);
         CurrencyManager.Instance.AddEraseTool(2);
         CurrencyManager.Instance.AddDashTool(2);
+        CurrencyManager.Instance.AddCoins(10000);
+        CurrencyManager.Instance.AddDiamonds(2000);
     }
 }

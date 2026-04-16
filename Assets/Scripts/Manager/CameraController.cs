@@ -30,6 +30,18 @@ public class CameraController : MonoBehaviour
     public Vector2 maxPosition;
     public float dragThreshold = 5f;
 
+    [Header("Auto Limits From Level")]
+    [Tooltip("Tự động tính vùng giới hạn camera theo Bounds của màn chơi (từ LevelDataSO).")]
+    public bool autoComputeLimitsFromLevel = true;
+    [Tooltip("Mở rộng vùng giới hạn lớn hơn Bounds của màn chơi (world units / grid units).")]
+    public float limitsPadding = 6f;
+    [Tooltip("Clamp theo kích thước khung nhìn hiện tại (orthographicSize & aspect) để không kéo camera vượt khỏi bounds.")]
+    public bool limitsConsiderCurrentZoom = true;
+
+    private bool _hasLevelLimitBounds = false;
+    private Vector2 _levelLimitMin;
+    private Vector2 _levelLimitMax;
+
     [Header("Inertia Settings")]
     public bool useInertia = true;
     public float dampingFactor = 8f;
@@ -53,17 +65,142 @@ public class CameraController : MonoBehaviour
         cam = GetComponent<Camera>();
     }
 
+    private void SetLevelLimitBounds(Bounds levelBounds)
+    {
+        float pad = Mathf.Max(0f, limitsPadding);
+        levelBounds.Expand(new Vector3(pad * 2f, pad * 2f, 0f));
+
+        _levelLimitMin = new Vector2(levelBounds.min.x, levelBounds.min.y);
+        _levelLimitMax = new Vector2(levelBounds.max.x, levelBounds.max.y);
+        _hasLevelLimitBounds = true;
+
+        // Keep legacy inspector fields in sync for debugging/visibility.
+        minPosition = _levelLimitMin;
+        maxPosition = _levelLimitMax;
+    }
+
+    private Vector3 ClampToLimits(Vector3 worldPos)
+    {
+        if (!useLimits) return worldPos;
+
+        Vector2 min = _hasLevelLimitBounds ? _levelLimitMin : minPosition;
+        Vector2 max = _hasLevelLimitBounds ? _levelLimitMax : maxPosition;
+
+        float halfH = 0f;
+        float halfW = 0f;
+        if (limitsConsiderCurrentZoom && cam != null && cam.orthographic)
+        {
+            halfH = cam.orthographicSize;
+            halfW = cam.orthographicSize * cam.aspect;
+        }
+
+        float minX = min.x + halfW;
+        float maxX = max.x - halfW;
+        float minY = min.y + halfH;
+        float maxY = max.y - halfH;
+
+        // If bounds are smaller than view, fall back to clamping camera center to raw bounds.
+        if (minX > maxX)
+        {
+            minX = min.x;
+            maxX = max.x;
+        }
+        if (minY > maxY)
+        {
+            minY = min.y;
+            maxY = max.y;
+        }
+
+        worldPos.x = Mathf.Clamp(worldPos.x, minX, maxX);
+        worldPos.y = Mathf.Clamp(worldPos.y, minY, maxY);
+        return worldPos;
+    }
+
+    private bool TryComputeLevelBoundsFromData(LevelDataSO data, out Bounds bounds)
+    {
+        bounds = default;
+        if (data == null) return false;
+
+        float minX = float.MaxValue;
+        float maxX = float.MinValue;
+        float minY = float.MaxValue;
+        float maxY = float.MinValue;
+        bool hasAny = false;
+
+        if (data.snakes != null)
+        {
+            foreach (var snakeData in data.snakes)
+            {
+                if (snakeData == null || snakeData.segmentPositions == null) continue;
+                foreach (Vector2Int gridPos in snakeData.segmentPositions)
+                {
+                    if (gridPos.x < minX) minX = gridPos.x;
+                    if (gridPos.x > maxX) maxX = gridPos.x;
+                    if (gridPos.y < minY) minY = gridPos.y;
+                    if (gridPos.y > maxY) maxY = gridPos.y;
+                    hasAny = true;
+                }
+            }
+        }
+
+        if (data.keycards != null)
+        {
+            foreach (var k in data.keycards)
+            {
+                if (k.position.x < minX) minX = k.position.x;
+                if (k.position.x > maxX) maxX = k.position.x;
+                if (k.position.y < minY) minY = k.position.y;
+                if (k.position.y > maxY) maxY = k.position.y;
+                hasAny = true;
+            }
+        }
+
+        if (data.gates != null)
+        {
+            foreach (var g in data.gates)
+            {
+                if (g.position.x < minX) minX = g.position.x;
+                if (g.position.x > maxX) maxX = g.position.x;
+                if (g.position.y < minY) minY = g.position.y;
+                if (g.position.y > maxY) maxY = g.position.y;
+                hasAny = true;
+            }
+        }
+
+        if (data.portals != null)
+        {
+            foreach (var p in data.portals)
+            {
+                if (p.entrance.x < minX) minX = p.entrance.x;
+                if (p.entrance.x > maxX) maxX = p.entrance.x;
+                if (p.entrance.y < minY) minY = p.entrance.y;
+                if (p.entrance.y > maxY) maxY = p.entrance.y;
+
+                if (p.exit.x < minX) minX = p.exit.x;
+                if (p.exit.x > maxX) maxX = p.exit.x;
+                if (p.exit.y < minY) minY = p.exit.y;
+                if (p.exit.y > maxY) maxY = p.exit.y;
+
+                hasAny = true;
+            }
+        }
+
+        if (!hasAny) return false;
+
+        float width = Mathf.Max(0f, maxX - minX);
+        float height = Mathf.Max(0f, maxY - minY);
+        Vector3 center = new Vector3(minX + width / 2f, minY + height / 2f, 0f);
+        Vector3 size = new Vector3(Mathf.Max(1f, width), Mathf.Max(1f, height), 0f);
+        bounds = new Bounds(center, size);
+        return true;
+    }
+
     public void FocusOnWorldPosition(Vector3 worldPosition, float duration = 0.35f, bool blockCameraInput = true, Ease ease = Ease.InOutSine)
     {
         if (cam == null) cam = GetComponent<Camera>();
 
         Vector3 target = new Vector3(worldPosition.x, worldPosition.y, transform.position.z);
-
-        if (useLimits)
-        {
-            target.x = Mathf.Clamp(target.x, minPosition.x, maxPosition.x);
-            target.y = Mathf.Clamp(target.y, minPosition.y, maxPosition.y);
-        }
+        target = ClampToLimits(target);
 
         if (_focusTween != null && _focusTween.IsActive()) _focusTween.Kill();
 
@@ -103,43 +240,28 @@ public class CameraController : MonoBehaviour
             yield break;
         }
 
-        float minX = float.MaxValue;
-        float maxX = float.MinValue;
-        float minY = float.MaxValue;
-        float maxY = float.MinValue;
-        bool hasNodes = false;
+        if (cam == null) cam = GetComponent<Camera>();
 
-        // Vòng lặp duyệt thuần con số toán học (Siêu nhẹ cho CPU)
-        foreach (var snakeData in loader.levelToPlay.snakes)
-        {
-            if (snakeData.segmentPositions == null) continue;
-            foreach (Vector2Int gridPos in snakeData.segmentPositions)
-            {
-                if (gridPos.x < minX) minX = gridPos.x;
-                if (gridPos.x > maxX) maxX = gridPos.x;
-                if (gridPos.y < minY) minY = gridPos.y;
-                if (gridPos.y > maxY) maxY = gridPos.y;
-                hasNodes = true;
-            }
-        }
-
-        if (!hasNodes) 
+        if (!TryComputeLevelBoundsFromData(loader.levelToPlay, out Bounds levelBounds))
         {
             IsGameplayBlocking = false;
             OnIntroFinished?.Invoke();
             yield break;
         }
 
-        // Tính toán kích thước bàn cờ dựa trên con số Min/Max
-        float width = maxX - minX;
-        float height = maxY - minY;
-        initialPosition = new Vector3(minX + width / 2f, minY + height / 2f, transform.position.z);
+        if (autoComputeLimitsFromLevel)
+        {
+            SetLevelLimitBounds(levelBounds);
+        }
+
+        float width = levelBounds.size.x;
+        float height = levelBounds.size.y;
+        initialPosition = new Vector3(levelBounds.center.x, levelBounds.center.y, transform.position.z);
 
         float sizeByHeight = height / 2f;
         float sizeByWidth = (width / 2f) / cam.aspect;
-        
+
         gameZoom = Mathf.Max(sizeByHeight, sizeByWidth) + autoFitPadding;
-        maxZoom = Mathf.Max(maxZoom, gameZoom + 5f);
 
         transform.position = initialPosition;
         
@@ -307,10 +429,7 @@ public class CameraController : MonoBehaviour
 
         if (useLimits)
         {
-            Vector3 pos = transform.position;
-            pos.x = Mathf.Clamp(pos.x, minPosition.x, maxPosition.x);
-            pos.y = Mathf.Clamp(pos.y, minPosition.y, maxPosition.y);
-            transform.position = pos;
+            transform.position = ClampToLimits(transform.position);
         }
     }
 

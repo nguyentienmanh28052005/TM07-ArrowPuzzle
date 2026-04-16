@@ -289,7 +289,7 @@ public class TutorialManager : Singleton<TutorialManager>
 
     private void PlayBasicMoveTutorial(ArrowDir dir)
     {
-        if (instructionText != null) instructionText.text = "Nhấn để giải phóng mũi tên";
+        if (instructionText != null) instructionText.text = "Nhấn vào mũi tên để giải phóng";
 
         if (useCustomBasicMovePosition)
         {
@@ -405,7 +405,7 @@ public class TutorialManager : Singleton<TutorialManager>
 
     private void PlayPortalTutorial()
     {
-        if (instructionText != null) instructionText.text = "Mũi tên sẽ đi qua Hố đen";
+        if (instructionText != null) instructionText.text = "Mũi tên vào hố đen sẽ ra ở cổng cùng màu, theo hướng của cổng ra";
         if (useCustomPortalPosition)
         {
             ShowOverlayWithHandTap(customPortalAnchoredPos);

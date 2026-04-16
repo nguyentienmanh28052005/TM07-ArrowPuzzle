@@ -14,6 +14,9 @@ public class ArrowGuideline : MonoBehaviour
     [SerializeField, Range(0f, 0.9f)] private float portalEntryInset = 0f;
     [SerializeField, Range(0f, 0.9f)] private float portalExitInset = 0f;
 
+    [Header("Behavior")]
+    [SerializeField] private bool stopAtBlockers = false;
+
     private const float _pixelsPerUnit = 100f;
     private const int _maxPortalHopsSafety = 32;
     private const int _maxSegmentsSafety = 32;
@@ -178,15 +181,18 @@ public class ArrowGuideline : MonoBehaviour
                 break;
             }
 
-            SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(nextCell);
-            if (obstacle != null && obstacle != _snakeBlock)
+            if (stopAtBlockers)
             {
-                break;
-            }
+                SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(nextCell);
+                if (obstacle != null && obstacle != _snakeBlock)
+                {
+                    break;
+                }
 
-            if (GridManager.Instance.GateMap != null && GridManager.Instance.GateMap.ContainsKey(nextCell))
-            {
-                break;
+                if (GridManager.Instance.GateMap != null && GridManager.Instance.GateMap.ContainsKey(nextCell))
+                {
+                    break;
+                }
             }
 
             if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(nextCell, out GridManager.PortalLink link))
