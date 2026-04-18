@@ -71,6 +71,7 @@ public class CurrencyManager : Singleton<CurrencyManager>
         }
     }
 
+
     public void Update()
     {
         if(Input.GetKeyDown(KeyCode.Alpha1))
@@ -97,6 +98,12 @@ public class CurrencyManager : Singleton<CurrencyManager>
         _eraseToolCount = (int)SaveDataPlayer.Instance.Value(ERASE_TOOL);
         _hintToolCount = (int)SaveDataPlayer.Instance.Value(HINT_TOOL);
         _dashToolCount = (int)SaveDataPlayer.Instance.Value(DASH_TOOL);
+
+        AddHintTool(30);
+        AddEraseTool(30);
+        AddDashTool(30);
+        AddCoins(100000);
+        AddDiamonds(20000);
     }
 
     // ==========================================

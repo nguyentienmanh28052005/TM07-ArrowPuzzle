@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using DG.Tweening; 
+using DG.Tweening;
 
 public class GridDot : MonoBehaviour
 {
@@ -9,8 +9,20 @@ public class GridDot : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private Vector3 originalScale;
     private Color originalColor;
-    
-    private bool _isWinning = false; 
+
+    private bool _isWinning = false;
+
+    private void ResetVisualState()
+    {
+        transform.localScale = originalScale;
+        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+    }
+
+    private void KillTweens()
+    {
+        transform.DOKill();
+        if (spriteRenderer != null) spriteRenderer.DOKill();
+    }
 
     /// <summary>
     /// Lấy tham chiếu Component và lưu lại các thông số kích thước, màu sắc ban đầu.
@@ -19,7 +31,7 @@ public class GridDot : MonoBehaviour
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalScale = transform.localScale;
-        if (spriteRenderer != null) originalColor = spriteRenderer.color; 
+        if (spriteRenderer != null) originalColor = spriteRenderer.color;
     }
 
     /// <summary>
@@ -28,12 +40,11 @@ public class GridDot : MonoBehaviour
     void OnEnable()
     {
         _isWinning = false;
-        
+
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
         GridMap[pos] = this;
-        
-        transform.localScale = originalScale;
-        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+
+        ResetVisualState();
     }
 
     /// <summary>
@@ -41,8 +52,8 @@ public class GridDot : MonoBehaviour
     /// </summary>
     void OnDisable()
     {
-        transform.DOKill();
-        if (spriteRenderer != null) spriteRenderer.DOKill();
+        KillTweens();
+        ResetVisualState();
 
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
         if (GridMap.ContainsKey(pos) && GridMap[pos] == this)
@@ -58,23 +69,20 @@ public class GridDot : MonoBehaviour
     {
         _isWinning = true;
 
-        transform.DOKill();
-        if (spriteRenderer != null) spriteRenderer.DOKill();
-
-        transform.localScale = originalScale;
-        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+        KillTweens();
+        ResetVisualState();
 
         float halfDuration = duration / 2f;
 
         Sequence winSeq = DOTween.Sequence();
-        
+
         if (delay > 0) winSeq.AppendInterval(delay);
 
         winSeq.Append(transform.DOScale(originalScale * scaleAmount, halfDuration).SetEase(Ease.OutQuad));
         winSeq.Append(transform.DOScale(Vector3.zero, halfDuration).SetEase(Ease.InBack));
-        winSeq.Join(spriteRenderer.DOColor(targetColor, halfDuration)); 
-        
-        winSeq.SetLink(gameObject); 
+        if (spriteRenderer != null) winSeq.Join(spriteRenderer.DOColor(targetColor, halfDuration));
+
+        winSeq.SetLink(gameObject);
     }
 
     /// <summary>
@@ -84,25 +92,20 @@ public class GridDot : MonoBehaviour
     {
         if ((GameManager.Instance != null && GameManager.Instance.isGameOver) || _isWinning) return;
 
-        transform.DOKill();
-        if (spriteRenderer != null) spriteRenderer.DOKill();
-
-        transform.localScale = originalScale;
-        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+        KillTweens();
+        ResetVisualState();
 
         float halfDuration = totalDuration / 2f;
 
-        transform.DOScale(originalScale * scaleAmount, halfDuration)
-            .SetEase(Ease.OutQuad)
-            .SetLoops(2, LoopType.Yoyo) 
-            .SetLink(gameObject);
+        Sequence seq = DOTween.Sequence();
+        seq.Append(transform.DOScale(originalScale * scaleAmount, halfDuration).SetEase(Ease.OutQuad));
+        if (spriteRenderer != null) seq.Join(spriteRenderer.DOColor(Color.white, halfDuration).SetEase(Ease.OutQuad));
 
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.DOColor(Color.white, halfDuration)
-                .SetEase(Ease.OutQuad)
-                .SetLoops(2, LoopType.Yoyo)
-                .SetLink(gameObject);
-        }
+        seq.Append(transform.DOScale(originalScale, halfDuration).SetEase(Ease.OutQuad));
+        if (spriteRenderer != null) seq.Join(spriteRenderer.DOColor(originalColor, halfDuration).SetEase(Ease.OutQuad));
+
+        seq.OnKill(ResetVisualState);
+        seq.OnComplete(ResetVisualState);
+        seq.SetLink(gameObject);
     }
 }

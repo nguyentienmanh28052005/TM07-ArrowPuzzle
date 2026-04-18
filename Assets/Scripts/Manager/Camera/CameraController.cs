@@ -262,6 +262,7 @@ public class CameraController : MonoBehaviour
         float sizeByWidth = (width / 2f) / cam.aspect;
 
         gameZoom = Mathf.Max(sizeByHeight, sizeByWidth) + autoFitPadding;
+        maxZoom = Mathf.Max(maxZoom, gameZoom);
 
         transform.position = initialPosition;
         

@@ -56,6 +56,8 @@ public class GameMenuCanvas : MonoBehaviour
         yield return new WaitForEndOfFrame();
         
         MoveSliderToButton(btnHome, true);
+
+        
     }
 
     public void OnEnable()
@@ -313,9 +315,9 @@ public class GameMenuCanvas : MonoBehaviour
 
     public void Gift()
     {
-        CurrencyManager.Instance.AddHintTool(2);
-        CurrencyManager.Instance.AddEraseTool(2);
-        CurrencyManager.Instance.AddDashTool(2);
+        CurrencyManager.Instance.AddHintTool(5);
+        CurrencyManager.Instance.AddEraseTool(5);
+        CurrencyManager.Instance.AddDashTool(5);
         CurrencyManager.Instance.AddCoins(10000);
         CurrencyManager.Instance.AddDiamonds(2000);
     }
