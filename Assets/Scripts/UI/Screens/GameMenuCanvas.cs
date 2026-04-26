@@ -133,12 +133,12 @@ public class GameMenuCanvas : MonoBehaviour
 
         if (sliderRect == null || targetRect == null) return;
 
-        sliderRect.DOKill(true); 
+        // DỪNG TẤT CẢ TWEEN CŨ TRƯỚC KHI BẮT ĐẦU ĐỂ TRÁNH XUNG ĐỘT
+        sliderRect.DOKill(); 
 
         RectTransform sliderParent = sliderRect.parent as RectTransform;
         if (sliderParent == null) return;
 
-        // Convert target button world position to slider parent's local space, then drive slider via anchoredPosition.
         Canvas canvas = sliderRect.GetComponentInParent<Canvas>();
         Camera uiCamera = null;
         if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
@@ -162,7 +162,20 @@ public class GameMenuCanvas : MonoBehaviour
         }
         else
         {
-            sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(sliderEaseType);
+            float distance = Mathf.Abs(targetX - sliderRect.anchoredPosition.x);
+            float originalWidth = sliderRect.sizeDelta.x; // Chiều rộng gốc của slider
+            float stretchedWidth = originalWidth + distance * 0.7f; // Kéo giãn thêm 70% khoảng cách
+
+            Sequence slideSeq = DOTween.Sequence();
+            
+            // 1. Nửa thời gian đầu: Kéo giãn chiều ngang (Stretch) ra như kẹo kéo
+            slideSeq.Append(sliderRect.DOSizeDelta(new Vector2(stretchedWidth, sliderRect.sizeDelta.y), sliderMoveDuration * 0.5f).SetEase(Ease.OutQuad));
+            
+            // Cùng lúc đó: Di chuyển tọa độ X tới đích
+            slideSeq.Join(sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(Ease.InOutSine));
+            
+            // 2. Nửa thời gian sau: Co rút chiều ngang lại bằng kích thước cũ (Snap back)
+            slideSeq.Append(sliderRect.DOSizeDelta(new Vector2(originalWidth, sliderRect.sizeDelta.y), sliderMoveDuration * 0.5f).SetEase(Ease.OutBack));
         }
     }
 
@@ -321,4 +334,5 @@ public class GameMenuCanvas : MonoBehaviour
         CurrencyManager.Instance.AddCoins(10000);
         CurrencyManager.Instance.AddDiamonds(2000);
     }
+    
 }
