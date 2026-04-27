@@ -25,6 +25,8 @@ public class GameMenuCanvas : MonoBehaviour
     [SerializeField] private GameObject btnSetting;
     [SerializeField] private float sliderMoveDuration = 0.2f; 
     [SerializeField] private Ease sliderEaseType = Ease.OutQuad;
+    [SerializeField] private float sliderStretchFactor = 0.45f;
+    [SerializeField] private float sliderMaxStretchMultiplier = 1.7f;
 
     [Header("Level Generation")]
     [SerializeField] private List<GameObject> listLevelButtons;
@@ -34,9 +36,10 @@ public class GameMenuCanvas : MonoBehaviour
 
     private bool _hasStarted = false;
     private CanvasGroup _currentPanel; 
-    private Coroutine _postTabRefreshRoutine;
 
     [SerializeField] private TMP_InputField levelReset;
+
+    private float _defaultSliderWidth = -1f; // Biến lưu kích thước gốc của Slider
     #endregion
 
     #region [ LIFECYCLE ]
@@ -52,12 +55,19 @@ public class GameMenuCanvas : MonoBehaviour
         _currentPanel = panelHome;
         
         // BÍ QUYẾT TỐI THƯỢNG: Ép luồng code đợi đến cuối khung hình
-        // Lúc này Horizontal Layout Group chắc chắn đã xếp xong 3 nút
         yield return new WaitForEndOfFrame();
-        
-        MoveSliderToButton(btnHome, true);
 
+        if (slider != null)
+        {
+            RectTransform sliderRect = slider.GetComponent<RectTransform>();
+            if (sliderRect != null)
+            {
+                _defaultSliderWidth = sliderRect.sizeDelta.x;
+            }
+        }
         
+        // Gọi lần đầu tiên để set vị trí (instant = true)
+        MoveSliderToButton(btnHome, true);
     }
 
     public void OnEnable()
@@ -79,18 +89,18 @@ public class GameMenuCanvas : MonoBehaviour
     {
         EventSystem.current?.SetSelectedGameObject(null);
         if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.btnClick, 1f);
+        
+        // FIX LỖI 1: Nếu click lại tab đang mở -> Bỏ qua không làm gì cả, tránh 3 nút cùng nhảy múa
         if (_currentPanel == targetPanel)
         {
-            RefreshTabButtonVisuals(targetButton);
             return;
         }
 
+        // Kích hoạt di chuyển slider và chạy Animation của MenuTabButton
         MoveSliderToButton(targetButton);
 
-        // Some UI scripts (pressed/hover transitions) can overwrite colors later in the same frame.
-        // Re-apply selected visuals on the next frame so the tab state is always correct.
-        if (_postTabRefreshRoutine != null) StopCoroutine(_postTabRefreshRoutine);
-        _postTabRefreshRoutine = StartCoroutine(PostTabRefresh(targetButton));
+        // FIX LỖI 2: Đã loại bỏ hoàn toàn Coroutine PostTabRefresh ở đây! 
+        // Nó chính là thủ phạm giết chết Animation khi chuyển tab.
 
         if (_currentPanel != null)
         {
@@ -114,68 +124,65 @@ public class GameMenuCanvas : MonoBehaviour
         });
     }
 
-    private IEnumerator PostTabRefresh(GameObject selectedButton)
-    {
-        yield return null;
-        RefreshTabButtonVisuals(selectedButton, true);
-    }
-
     public void MoveSliderToButton(GameObject targetButton, bool instant = false)
     {
-        if (targetButton == null) return;
-
-        RefreshTabButtonVisuals(targetButton, instant);
-
-        if (slider == null) return;
+        if (targetButton == null || slider == null) return;
 
         RectTransform sliderRect = slider.GetComponent<RectTransform>();
         RectTransform targetRect = targetButton.GetComponent<RectTransform>();
 
         if (sliderRect == null || targetRect == null) return;
 
-        // DỪNG TẤT CẢ TWEEN CŨ TRƯỚC KHI BẮT ĐẦU ĐỂ TRÁNH XUNG ĐỘT
+        // BƯỚC 1: LƯU KÍCH THƯỚC GỐC
+        if (_defaultSliderWidth <= 0f) _defaultSliderWidth = sliderRect.sizeDelta.x;
+
+        // BƯỚC 2: RESET TRẠNG THÁI SẠCH (Cực kỳ quan trọng)
         sliderRect.DOKill(); 
+        sliderRect.sizeDelta = new Vector2(_defaultSliderWidth, sliderRect.sizeDelta.y);
+
+        // BƯỚC 3: ÉP UNITY CẬP NHẬT TỌA ĐỘ NGAY LẬP TỨC
+        // Tránh việc Layout Group chưa kịp xếp xong vị trí các nút
+        Canvas.ForceUpdateCanvases();
+
+        RefreshTabButtonVisuals(targetButton, instant);
 
         RectTransform sliderParent = sliderRect.parent as RectTransform;
         if (sliderParent == null) return;
 
-        Canvas canvas = sliderRect.GetComponentInParent<Canvas>();
-        Camera uiCamera = null;
-        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
-        {
-            uiCamera = canvas.worldCamera;
-        }
-
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, targetRect.position);
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(sliderParent, screenPoint, uiCamera, out Vector2 localPoint))
-        {
-            return;
-        }
-
-        float targetX = localPoint.x;
+        // BƯỚC 4: TÍNH TỌA ĐỘ ĐÍCH DỰA TRÊN VỊ TRÍ THẾ GIỚI
+        // Cách này an toàn hơn WorldToScreenPoint khi spam click
+        float targetX = sliderParent.InverseTransformPoint(targetRect.position).x;
 
         if (instant)
         {
-            Vector2 anchored = sliderRect.anchoredPosition;
-            anchored.x = targetX;
-            sliderRect.anchoredPosition = anchored;
+            sliderRect.anchoredPosition = new Vector2(targetX, sliderRect.anchoredPosition.y);
         }
         else
         {
-            float distance = Mathf.Abs(targetX - sliderRect.anchoredPosition.x);
-            float originalWidth = sliderRect.sizeDelta.x; // Chiều rộng gốc của slider
-            float stretchedWidth = originalWidth + distance * 0.7f; // Kéo giãn thêm 70% khoảng cách
+            // BƯỚC 5: TÍNH KHOẢNG CÁCH DỰA TRÊN TỌA ĐỘ ĐÃ RESET
+            float currentX = sliderRect.anchoredPosition.x;
+            float distance = Mathf.Abs(targetX - currentX);
+            
+            // Nếu khoảng cách quá nhỏ (đang ở chính nút đó) thì không cần chạy animation giãn
+            if (distance < 1f) 
+            {
+                sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(sliderEaseType);
+                return;
+            }
+
+            float stretchedWidth = _defaultSliderWidth + (distance * sliderStretchFactor);
+            stretchedWidth = Mathf.Min(stretchedWidth, _defaultSliderWidth * sliderMaxStretchMultiplier);
 
             Sequence slideSeq = DOTween.Sequence();
             
-            // 1. Nửa thời gian đầu: Kéo giãn chiều ngang (Stretch) ra như kẹo kéo
-            slideSeq.Append(sliderRect.DOSizeDelta(new Vector2(stretchedWidth, sliderRect.sizeDelta.y), sliderMoveDuration * 0.5f).SetEase(Ease.OutQuad));
+            // Kéo giãn và Di chuyển cùng lúc
+            slideSeq.Append(sliderRect.DOSizeDelta(new Vector2(stretchedWidth, sliderRect.sizeDelta.y), sliderMoveDuration * 0.4f).SetEase(Ease.OutQuad));
+            slideSeq.Join(sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(sliderEaseType));
             
-            // Cùng lúc đó: Di chuyển tọa độ X tới đích
-            slideSeq.Join(sliderRect.DOAnchorPosX(targetX, sliderMoveDuration).SetEase(Ease.InOutSine));
-            
-            // 2. Nửa thời gian sau: Co rút chiều ngang lại bằng kích thước cũ (Snap back)
-            slideSeq.Append(sliderRect.DOSizeDelta(new Vector2(originalWidth, sliderRect.sizeDelta.y), sliderMoveDuration * 0.5f).SetEase(Ease.OutBack));
+            // Co lại khi gần tới đích
+            slideSeq.Append(sliderRect.DOSizeDelta(new Vector2(_defaultSliderWidth, sliderRect.sizeDelta.y), sliderMoveDuration * 0.6f).SetEase(Ease.OutBack));
+
+            slideSeq.SetLink(slider);
         }
     }
 
@@ -334,5 +341,4 @@ public class GameMenuCanvas : MonoBehaviour
         CurrencyManager.Instance.AddCoins(10000);
         CurrencyManager.Instance.AddDiamonds(2000);
     }
-    
 }

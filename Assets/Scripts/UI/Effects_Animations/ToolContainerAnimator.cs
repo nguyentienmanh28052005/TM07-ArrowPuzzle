@@ -2,19 +2,38 @@ using UnityEngine;
 using DG.Tweening;
 
 [RequireComponent(typeof(RectTransform))]
-[RequireComponent(typeof(CanvasGroup))] // Tự động gắn thêm CanvasGroup để làm mờ
+[RequireComponent(typeof(CanvasGroup))]
 public class ToolContainerAnimator : MonoBehaviour
 {
-    [Header("Slide In Settings")]
+    public enum SlideDirection
+    {
+        FromLeft,
+        FromRight,
+        FromTop,
+        FromBottom,
+        CustomOffset
+    }
+
+    [Header("Animation Direction")]
+    [Tooltip("Chọn hướng mà UI này sẽ bay ra")]
+    public SlideDirection direction = SlideDirection.FromLeft;
+    
+    [Tooltip("Khoảng cách bay (bằng pixel). Không dùng cho CustomOffset.")]
+    public float slideDistance = 800f;
+    
+    [Tooltip("Chỉ hoạt động nếu chọn CustomOffset. Điền tọa độ khởi đầu tùy ý.")]
+    public Vector2 customStartOffset;
+
+    [Header("Timing & Easing")]
     public float delayTime = 1.5f; 
     public float slideDuration = 0.8f;
-    public float offscreenOffset = -800f; 
+    public Ease slideEase = Ease.OutBack;
 
-    private RectTransform rectTransform;
-    private CanvasGroup canvasGroup;
+    private RectTransform _rectTransform;
+    private CanvasGroup _canvasGroup;
     
-    private Vector2 originalPos;
-    private bool isInitialized = false;
+    private Vector2 _originalPos;
+    private bool _isInitialized = false;
 
     private void Awake()
     {
@@ -23,40 +42,58 @@ public class ToolContainerAnimator : MonoBehaviour
 
     private void InitializeData()
     {
-        if (!isInitialized)
+        if (!_isInitialized)
         {
-            rectTransform = GetComponent<RectTransform>();
-            canvasGroup = GetComponent<CanvasGroup>();
+            _rectTransform = GetComponent<RectTransform>();
+            _canvasGroup = GetComponent<CanvasGroup>();
             
-            // LƯU TỌA ĐỘ ĐÚNG 1 LẦN DUY NHẤT LÚC ĐANG Ở VỊ TRÍ ĐẸP
-            originalPos = rectTransform.anchoredPosition;
-            isInitialized = true;
+            // Lưu tọa độ "đích đến" (vị trí lúc thiết kế trên Scene)
+            _originalPos = _rectTransform.anchoredPosition;
+            _isInitialized = true;
         }
     }
 
-    // OnEnable đảm bảo cứ mỗi lần bật HUD (hoặc qua màn) là hiệu ứng sẽ chạy lại
     private void OnEnable()
     {
         InitializeData();
 
-        // 1. NGẮT MỌI ANIMATION CŨ (Chống lỗi spam click)
-        rectTransform.DOKill();
-        canvasGroup.DOKill();
+        // 1. Dọn dẹp Tween cũ
+        _rectTransform.DOKill();
+        _canvasGroup.DOKill();
         
-        // 2. GIẤU CỤM NÚT ĐI: Đẩy ra ngoài rìa và làm mờ tịt (Alpha = 0)
-        rectTransform.anchoredPosition = new Vector2(originalPos.x + offscreenOffset, originalPos.y);
-        canvasGroup.alpha = 0f;
+        // 2. Tính toán vị trí xuất phát dựa trên Enum
+        Vector2 startPos = _originalPos;
+        switch (direction)
+        {
+            case SlideDirection.FromLeft:   startPos.x -= slideDistance; break;
+            case SlideDirection.FromRight:  startPos.x += slideDistance; break;
+            case SlideDirection.FromTop:    startPos.y += slideDistance; break;
+            case SlideDirection.FromBottom: startPos.y -= slideDistance; break;
+            case SlideDirection.CustomOffset: startPos += customStartOffset; break;
+        }
 
-        // 3. KÍCH HOẠT CHUỖI ANIMATION JUICY
+        // 3. Khởi tạo trạng thái ban đầu (Giấu đi)
+        _rectTransform.anchoredPosition = startPos;
+        _canvasGroup.alpha = 0f;
+        
+        // Chặn người chơi click bậy bạ lúc UI đang tàng hình
+        _canvasGroup.interactable = false;
+        _canvasGroup.blocksRaycasts = false;
+
+        // 4. Kích hoạt chuỗi Animation
         Sequence seq = DOTween.Sequence();
-        seq.SetDelay(delayTime); // Chờ chữ bay xong
+        seq.SetDelay(delayTime); 
         
-        // Trượt lố qua rồi nảy lại (OutBack)
-        seq.Append(rectTransform.DOAnchorPosX(originalPos.x, slideDuration).SetEase(Ease.OutBack));
+        // Dùng DOAnchorPos để di chuyển đồng thời cả X và Y (hỗ trợ hướng chéo nếu dùng Custom)
+        seq.Append(_rectTransform.DOAnchorPos(_originalPos, slideDuration).SetEase(slideEase));
+        seq.Join(_canvasGroup.DOFade(1f, slideDuration * 0.8f).SetEase(Ease.InOutQuad));
         
-        // Cùng lúc đó sáng rực lên
-        seq.Join(canvasGroup.DOFade(1f, slideDuration * 0.8f).SetEase(Ease.InOutQuad));
-        
-        seq.SetLink(gameObject); // Chống lỗi rác bộ nhớ khi xóa Object
+        // Mở khóa tương tác khi Animation chạy xong
+        seq.OnComplete(() => {
+            _canvasGroup.interactable = true;
+            _canvasGroup.blocksRaycasts = true;
+        });
+
+        seq.SetLink(gameObject); 
     }
 }

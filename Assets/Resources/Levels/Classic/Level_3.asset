@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_3
   m_EditorClassIdentifier: 
-  gameMode: 2
+  gameMode: 0
   levelDifficulty: 2
   timeLimit: 60
   rewardCoins: 100
@@ -564,3 +564,6 @@ MonoBehaviour:
     - {x: 14, y: -9}
     - {x: 14, y: -8}
     - {x: 14, y: -7}
+  keycards: []
+  gates: []
+  portals: []

@@ -17,6 +17,8 @@ public class GameCanvas : MonoBehaviour
     [SerializeField] private Transform healthContainer;
     [SerializeField] private TextMeshProUGUI feedbackText;
     [SerializeField] private CanvasGroup overlayBg;
+    [SerializeField] private TextMeshProUGUI currentLevelText;
+    [SerializeField] private TextMeshProUGUI currentDifficultyText;
 
     [Header("Pause Pop-up")]
     [SerializeField] private CanvasGroup pausePanel;
@@ -165,7 +167,7 @@ public class GameCanvas : MonoBehaviour
             {
                 currentHintToolText.text = "99+";
             }
-        
+            else
             {
                 currentHintToolText.text = CurrencyManager.Instance.HintToolCount.ToString();
             }

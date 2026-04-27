@@ -90,9 +90,12 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         {
             SetSpriteDisplay(_defaultSprite, false);
             // Nếu nút được mở khóa lại, tiếp tục vẫy gọi
-            if (_attentionSeeker != null && !gameObject.activeInHierarchy == false) 
+            if (_attentionSeeker != null && gameObject.activeInHierarchy) 
             {
-                _attentionSeeker.PlayAnimation();
+                if (!_isHovered && !_isPressed)
+                {
+                    _attentionSeeker.PlayAnimation();
+                }
             }
         }
     }

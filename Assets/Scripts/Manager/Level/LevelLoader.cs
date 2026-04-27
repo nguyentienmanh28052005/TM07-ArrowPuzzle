@@ -58,10 +58,11 @@ public class LevelLoader : MonoBehaviour
 
             canvas.ShowText(modeName, Color.cyan, () => 
             {
-                canvas.ShowText(difficultyName, new Color(1f, 0.8f, 0f, 1f), () => 
-                {
-                    _isTextDone = true;
-                });
+                _isTextDone = true;
+                // canvas.ShowText(difficultyName, new Color(1f, 0.8f, 0f, 1f), () => 
+                // {
+                //     _isTextDone = true;
+                // });
             });
         }
         else
