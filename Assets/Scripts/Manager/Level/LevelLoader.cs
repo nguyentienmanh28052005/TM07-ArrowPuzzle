@@ -46,7 +46,7 @@ public class LevelLoader : MonoBehaviour
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
 
         CameraController.IsGameplayBlocking = true;
-        _isTextDone = false;
+        _isTextDone = false; // Bắt đầu load, chưa xong Text
 
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null && levelToPlay != null)
@@ -54,15 +54,12 @@ public class LevelLoader : MonoBehaviour
             canvas.SetupModeUI(levelToPlay.gameMode);
             
             string modeName = levelToPlay.gameMode.ToString().ToUpper();
-            string difficultyName = levelToPlay.levelDifficulty.ToString().ToUpper();
-
+            
+            // PHÂN CẢNH 1: Hiện "Classic Mode"
             canvas.ShowText(modeName, Color.cyan, () => 
             {
-                _isTextDone = true;
-                // canvas.ShowText(difficultyName, new Color(1f, 0.8f, 0f, 1f), () => 
-                // {
-                //     _isTextDone = true;
-                // });
+                // Khi chữ Classic Mode biến mất, biến này mới thành true
+                _isTextDone = true; 
             });
         }
         else
@@ -70,14 +67,15 @@ public class LevelLoader : MonoBehaviour
             _isTextDone = true; 
         }
 
+        // --- TRONG LÚC CHỮ CLASSIC MODE ĐANG HIỆN, GAME ÂM THẦM ĐẺ OBJECT ---
         SpawnStaticObstacles();
-
         yield return StartCoroutine(PreSpawnDotsCoroutine());
-
         yield return StartCoroutine(PreSpawnSnakesCoroutine());
 
-        yield return new WaitUntil(() => _isTextDone);
+        // TRẠM KIỂM SOÁT: Bắt buộc đợi chữ "Classic Mode" tàng hình hẳn mới cho đi tiếp!
+        yield return new WaitUntil(() => _isTextDone); 
 
+        // Bật map lên
         ActivateAndInitializeSnakes();
 
         if (TimeAttackManager.Instance != null)
@@ -88,11 +86,17 @@ public class LevelLoader : MonoBehaviour
                 TimeAttackManager.Instance.DisableTimer();
         }
 
+        // ==========================================
+        // PHÂN CẢNH 2: BUNG LỤA CAMERA ZOOM VÀ BANNER "HARD LEVEL"
+        // ==========================================
         CameraController camController = Camera.main.GetComponent<CameraController>();
-        if (camController != null) camController.StartIntro();
-        else CameraController.IsGameplayBlocking = false;
+        if (camController != null) 
+            camController.StartIntro(); // Lệnh này giờ sẽ tự động gọi Cinematic Banner bên trong nó
+        else 
+            CameraController.IsGameplayBlocking = false;
 
-        if (TutorialManager.Instance != null) TutorialManager.Instance.CheckAndStartTutorial(levelToPlay);
+        if (TutorialManager.Instance != null) 
+            TutorialManager.Instance.CheckAndStartTutorial(levelToPlay);
     }
 
     [ContextMenu("Reload Level (Instant)")]

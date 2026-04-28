@@ -19,6 +19,8 @@ public class GameCanvas : MonoBehaviour
     [SerializeField] private CanvasGroup overlayBg;
     [SerializeField] private TextMeshProUGUI currentLevelText;
     [SerializeField] private TextMeshProUGUI currentDifficultyText;
+    [SerializeField] private Image currentDifficultyTag;
+
 
     [Header("Pause Pop-up")]
     [SerializeField] private CanvasGroup pausePanel;
@@ -65,6 +67,12 @@ public class GameCanvas : MonoBehaviour
     [SerializeField] private TextMeshProUGUI currentDashToolText;
     [SerializeField] private GameObject dashToolPanel;
 
+    [Header("Cinematic Level Intro")]
+    [SerializeField] private CanvasGroup cinematicIntroPanel;
+    [SerializeField] private RectTransform cinematicIntroIcon;
+    [SerializeField] private RectTransform cinematicIntroText;
+    [SerializeField] private TextMeshProUGUI cinematicTextComponent;
+
     private bool _isShowing = false;
     private List<GameObject> hearts;
     private int countHeart;
@@ -97,6 +105,11 @@ public class GameCanvas : MonoBehaviour
         InitializeHearts();
         InitializePopups();
         InitializeTools();
+    }
+
+    public void Start()
+    {
+        SetupLevelInfo();
     }
 
     private void InitializeTools()
@@ -132,6 +145,23 @@ public class GameCanvas : MonoBehaviour
                 _heartOriginalAnchoredPositions[idx] = rect != null ? rect.anchoredPosition : Vector2.zero;
                 idx++;
             }
+        }
+    }
+
+    public void SetupLevelInfo()
+    {
+        if (currentLevelText != null) currentLevelText.text = $"Level {GameManager.Instance.level}";
+        if (currentDifficultyText != null) currentDifficultyText.text = $"{GameManager.Instance.GetCurrentLevelData().levelDifficulty} Level";
+        if (currentDifficultyTag != null)
+        {
+            Color tagColor = Color.white;
+            switch (GameManager.Instance.GetCurrentLevelData().levelDifficulty)
+            {
+                case LevelDifficulty.Easy: tagColor = new Color(0.4f, 0.8f, 1f); break; 
+                case LevelDifficulty.Medium: tagColor = new Color(1f, 0.8f, 0.4f); break; 
+                case LevelDifficulty.Hard: tagColor = new Color(1f, 0.4f, 0.4f); break; 
+            }
+            currentDifficultyTag.color = tagColor;
         }
     }
 
@@ -224,6 +254,94 @@ public class GameCanvas : MonoBehaviour
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
     }
+
+    #region [ CINEMATIC INTRO ]
+    public void PlayCinematicIntro(LevelDifficulty difficulty, float holdDuration)
+    {
+        if (cinematicIntroPanel == null) return;
+
+        // ==========================================
+        // NGƯỜI GÁC CỔNG: CHỈ CHO PHÉP MÀN HARD ĐƯỢC DIỄN
+        // ==========================================
+        if (difficulty != LevelDifficulty.Hard)
+        {
+            cinematicIntroPanel.gameObject.SetActive(false);
+            cinematicIntroPanel.alpha = 0f;
+            return;
+        }
+
+        // Nếu là Hard, bắt đầu thiết lập kịch bản
+        if (cinematicTextComponent != null)
+        {
+            cinematicTextComponent.text = "HARD LEVEL";
+            cinematicTextComponent.color = new Color(1f, 0.3f, 0.3f); 
+        }
+
+        cinematicIntroPanel.gameObject.SetActive(true);
+        cinematicIntroPanel.alpha = 0f;
+
+        // Dọn dẹp các Tween cũ để tránh xung đột
+        cinematicIntroIcon.DOKill();
+        cinematicIntroText.DOKill();
+        cinematicIntroPanel.DOKill();
+
+        cinematicIntroIcon.localScale = Vector3.zero;
+        cinematicIntroText.localScale = Vector3.zero;
+
+        // Setup góc nghiêng lấy đà
+        cinematicIntroIcon.localRotation = Quaternion.Euler(0, 0, -25f);
+        cinematicIntroText.localRotation = Quaternion.Euler(0, 0, 15f);
+
+        Sequence seq = DOTween.Sequence();
+        seq.SetUpdate(true); 
+
+        // 1. Nền tối hiện lên
+        seq.Append(cinematicIntroPanel.DOFade(1f, 0.2f));
+
+        // ==========================================
+        // NHỊP 1: BUNG LỤA (IMPACT)
+        // ==========================================
+        seq.Append(cinematicIntroIcon.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack, 2.5f));
+        seq.Join(cinematicIntroIcon.DORotate(Vector3.zero, 0.4f).SetEase(Ease.OutBack, 2.0f));
+
+        seq.Insert(0.08f, cinematicIntroText.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack, 2.5f));
+        seq.Insert(0.08f, cinematicIntroText.DORotate(Vector3.zero, 0.4f).SetEase(Ease.OutBack, 2.0f));
+
+        // Cú đập "Punch" tạo sức nặng vật lý
+        seq.Insert(0.4f, cinematicIntroIcon.DOPunchScale(new Vector3(0.15f, -0.1f, 0), 0.25f, 5, 1));
+
+        seq.InsertCallback(0.2f, () => {
+            if (SettingManager.Instance != null) 
+                SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
+        });
+
+        // ==========================================
+        // NHỊP 2: LƠ LỬNG (BREATHE)
+        // ==========================================
+        float breatheTime = holdDuration > 0.4f ? holdDuration - 0.4f : 0.5f; 
+        
+        seq.Append(cinematicIntroIcon.DOScale(Vector3.one * 1.08f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
+        seq.Join(cinematicIntroIcon.DOAnchorPosY(cinematicIntroIcon.anchoredPosition.y + 15f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
+        seq.Join(cinematicIntroText.DOScale(Vector3.one * 1.05f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
+
+        // ==========================================
+        // NHỊP 3: RÚT LẸ (EXIT)
+        // ==========================================
+        seq.Append(cinematicIntroIcon.DOScale(Vector3.one * 1.25f, 0.15f).SetEase(Ease.OutQuad));
+        seq.Join(cinematicIntroIcon.DORotate(new Vector3(0, 0, 15f), 0.15f).SetEase(Ease.OutQuad));
+        
+        seq.Append(cinematicIntroIcon.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack, 2.0f));
+        seq.Join(cinematicIntroText.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack, 2.0f));
+        seq.Join(cinematicIntroPanel.DOFade(0f, 0.2f).SetDelay(0.1f));
+
+        seq.OnComplete(() => {
+            cinematicIntroPanel.gameObject.SetActive(false);
+            cinematicIntroIcon.anchoredPosition = new Vector2(cinematicIntroIcon.anchoredPosition.x, cinematicIntroIcon.anchoredPosition.y);
+            cinematicIntroIcon.localRotation = Quaternion.identity;
+            cinematicIntroText.localRotation = Quaternion.identity;
+        });
+    }
+    #endregion
 
     public void SetDashToolPanelActive(object data)
     {

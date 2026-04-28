@@ -152,8 +152,8 @@ public class DashDirectionUI : MonoBehaviour
         // Khựng lại một nhịp siêu ngắn, nín thở trước khi buông tay
         seq.AppendInterval(holdDuration);
         seq.AppendCallback(() => {
-            if (SettingManager.Instance != null) 
-                SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
+            //if (SettingManager.Instance != null) 
+                //SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
         });
 
         // ==========================================

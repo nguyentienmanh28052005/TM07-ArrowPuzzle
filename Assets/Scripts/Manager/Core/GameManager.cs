@@ -14,6 +14,8 @@ public class GameManager : Singleton<GameManager>
     public int currentMaxLevel = 3;
     public bool isGameOver = false; 
 
+    public LevelDataSO CurrentLevelData => GetCurrentLevelData();
+
     /// <summary>
     /// Đẩy quá trình khởi tạo các thư viện nặng sang luồng bất đồng bộ để chống đứng hình.
     /// </summary>

@@ -227,12 +227,8 @@ public class CameraController : MonoBehaviour
     {
         IsGameplayBlocking = true; 
 
-        // =======================================================
-        // BẢN VÁ DATA-DRIVEN: ĐỌC THẲNG TỪ DATA (KHÔNG TÌM GAMEOBJECT)
-        // =======================================================
         LevelLoader loader = FindObjectOfType<LevelLoader>();
         
-        // Nếu không có LevelLoader hoặc chưa có Data, thoát luôn để chống kẹt
         if (loader == null || loader.levelToPlay == null || loader.levelToPlay.snakes == null)
         {
             IsGameplayBlocking = false;
@@ -266,18 +262,32 @@ public class CameraController : MonoBehaviour
 
         transform.position = initialPosition;
         
-        // 0. Bắt đầu ở góc nhìn mặc định
         cam.orthographicSize = defaultGameplayZoom / 3; 
         cam.DOKill();
+
+        // ==========================================
+        // KÍCH HOẠT UI CINEMATIC ĐỒNG BỘ VỚI CAMERA
+        // ==========================================
+        GameCanvas canvas = FindObjectOfType<GameCanvas>();
+        if (canvas != null)
+        {
+            // Tính toán thời gian UI nằm trên màn hình:
+            // = Thời gian Zoom Out (1f) + Thời gian dừng Overview (overviewWaitTime)
+            float totalHoldTime = 1f + overviewWaitTime; 
+            
+            // Nếu chỉ muốn hiện cho level Hard:
+            // if (loader.levelToPlay.levelDifficulty == LevelDifficulty.Hard)
+            canvas.PlayCinematicIntro(loader.levelToPlay.levelDifficulty, totalHoldTime);
+        }
         
-        // 1. Zoom đến gameZoom (để nhìn vừa vặn toàn bộ bàn cờ)
+        // 1. Camera Zoom ra nhìn toàn cảnh
         cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
         yield return new WaitForSeconds(1f);
 
-        // Đợi 1 chút để người chơi quan sát tổng thể map
+        // 2. Chờ người chơi nhìn bao quát (Lúc này UI đang rung nhè nhẹ)
         yield return new WaitForSeconds(overviewWaitTime);
 
-        // 2. Zoom ngược lại về defaultGameplayZoom để bắt đầu chơi
+        // 3. UI bắt đầu biến mất, Camera đồng thời lao xuống bàn cờ
         cam.DOOrthoSize(defaultGameplayZoom, 1.2f).SetEase(Ease.InOutQuad);
         yield return new WaitForSeconds(1.2f);
 
@@ -288,6 +298,7 @@ public class CameraController : MonoBehaviour
         IsGameplayBlocking = false;
         OnIntroFinished?.Invoke();
     }
+    
     void LateUpdate() 
     {
         if (IsGameplayBlocking || IsCameraInputBlocked)
