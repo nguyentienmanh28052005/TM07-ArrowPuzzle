@@ -509,6 +509,11 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 899018725813924809, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
+        type: 3}
+      propertyPath: m_text
+      value: DAILY TASK
+      objectReference: {fileID: 0}
     - target: {fileID: 1046277576093669622, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
       propertyPath: m_IsActive
@@ -843,7 +848,7 @@ PrefabInstance:
     - target: {fileID: 7811768878510048138, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 1487.6273
+      value: 1505.6273
       objectReference: {fileID: 0}
     - target: {fileID: 7899722527737228397, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
@@ -869,6 +874,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: GameMenuCanvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 8617412596701876512, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
+        type: 3}
+      propertyPath: m_Name
+      value: Daily
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 96811057799387578, guid: c9fdc9172645c2c4faf2c7a9ce041eeb, type: 3}
