@@ -4,9 +4,10 @@ using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class GameMenuCanvas : MonoBehaviour
+public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
 {
     #region [ REFERENCES & SETTINGS ]
     [Header("UI References")]
@@ -46,6 +47,7 @@ public class GameMenuCanvas : MonoBehaviour
     private IEnumerator Start()
     {
         _hasStarted = true;
+        SyncLevelFromSave();
         UpdateLevelUI(); 
         UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
 
@@ -77,6 +79,20 @@ public class GameMenuCanvas : MonoBehaviour
             UpdateLevelUI();
             UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
         }
+    }
+
+    public void OnScreenShow()
+    {
+        if (CurrencyManager.Instance != null)
+        {
+            UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
+        }
+
+        UpdateLevelUI();
+    }
+
+    public void OnScreenHide()
+    {
     }
     #endregion
 
@@ -233,20 +249,75 @@ public class GameMenuCanvas : MonoBehaviour
     #region [ LEVEL GENERATION LOGIC ]
     public void ResetGame()
     {
-        GameManager.Instance.level = levelReset.text != "" ? int.Parse(levelReset.text) : 1;
-        SceneController.Instance.LoadScene("GameMenu", false, false);
+        int targetLevel = 1;
+        if (levelReset != null && !string.IsNullOrWhiteSpace(levelReset.text))
+        {
+            if (!int.TryParse(levelReset.text, out targetLevel))
+            {
+                targetLevel = 1;
+            }
+        }
+
+        targetLevel = Mathf.Max(1, targetLevel);
+
+        // Tìm GameManager thực tế trong scene để tránh bug Singleton static reference
+        GameManager gm = FindObjectOfType<GameManager>();
+        if (gm != null)
+        {
+            gm.level = targetLevel;
+        }
+        // Đồng bộ cả static Instance (phòng trường hợp Instance trỏ đúng)
+        if (GameManager.Instance != null && GameManager.Instance != gm)
+        {
+            GameManager.Instance.level = targetLevel;
+        }
+
+        SaveDataPlayer save = FindObjectOfType<SaveDataPlayer>();
+        if (save == null) save = SaveDataPlayer.Instance;
+        if (save != null)
+        {
+            save.Save(1, targetLevel);
+            save.ClearBoardState();
+            save.SaveAllDataAndWriteToDisk();
+        }
+
+        // Cập nhật UI ngay tại chỗ, KHÔNG reload scene
+        UpdateLevelUI();
     }
 
     public void EnterGame()
     {
-        SceneController.Instance.LoadScene("GameScene", false, false);
+        RequestScreen(ScreenType.Gameplay);
+    }
+
+    private void RequestScreen(ScreenType type, bool force = false)
+    {
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.TransitionToScreen(type, force);
+            return;
+        }
+
+        if (ScreenManager.Instance != null)
+        {
+            ScreenManager.Instance.ShowScreen(type, force);
+        }
     }
 
     public void UpdateLevelUI()
     {
         try
         {
-            if (textLevel != null) textLevel.text = "Level " + GameManager.Instance.level;
+            SyncLevelFromSave();
+            GameManager gm = FindObjectOfType<GameManager>();
+            if (gm == null) gm = GameManager.Instance;
+            if (gm == null) return;
+
+            if (levelReset != null && !levelReset.isFocused)
+            {
+                levelReset.SetTextWithoutNotify(gm.level.ToString());
+            }
+            if (textLevel != null) textLevel.text = "Level " + gm.level;
             UpdateLevelButtons();
         }
         catch (System.Exception e)
@@ -263,9 +334,13 @@ public class GameMenuCanvas : MonoBehaviour
 
     private void UpdateLevelButtons()
     {
-        int currentLevel = GameManager.Instance.level;
-        int maxUnlockedLevel = GameManager.Instance.currentMaxLevel;
-        int totalLevelsInGame = GameManager.Instance.levelDataSOs != null ? GameManager.Instance.levelDataSOs.Count : 999;
+        GameManager gm = FindObjectOfType<GameManager>();
+        if (gm == null) gm = GameManager.Instance;
+        if (gm == null) return;
+
+        int currentLevel = gm.level;
+        int maxUnlockedLevel = gm.currentMaxLevel;
+        int totalLevelsInGame = gm.levelDataSOs != null ? gm.levelDataSOs.Count : 999;
 
         for (int i = 0; i < listLevelButtons.Count; i++)
         {
@@ -314,20 +389,65 @@ public class GameMenuCanvas : MonoBehaviour
         }
     }
 
+    private void SyncLevelFromSave()
+    {
+        if (SaveDataPlayer.Instance == null) return;
+
+        int savedLevel = Mathf.RoundToInt(SaveDataPlayer.Instance.Value(1));
+        if (savedLevel > 0)
+        {
+            // Tìm GameManager thực tế để tránh bug static reference trỏ sai object
+            GameManager gm = FindObjectOfType<GameManager>();
+            if (gm != null)
+            {
+                gm.level = savedLevel;
+            }
+            // Đồng bộ cả static Instance
+            if (GameManager.Instance != null && GameManager.Instance != gm)
+            {
+                GameManager.Instance.level = savedLevel;
+            }
+        }
+    }
+
     public void NextLevel()
     {
-        if(GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
+        GameManager gm = FindObjectOfType<GameManager>();
+        if (gm == null) gm = GameManager.Instance;
+        if (gm == null) return;
+
+        if (gm.level < gm.currentMaxLevel)
         {
-            GameManager.Instance.level++;
+            gm.level++;
+            // Đồng bộ static Instance
+            if (GameManager.Instance != null && GameManager.Instance != gm)
+                GameManager.Instance.level = gm.level;
+
+            if (SaveDataPlayer.Instance != null)
+            {
+                SaveDataPlayer.Instance.Save(1, gm.level);
+            }
             UpdateLevelUI(); 
         }
     }
 
     public void PreviousLevel()
     {
-        if(GameManager.Instance.level > 1)
+        GameManager gm = FindObjectOfType<GameManager>();
+        if (gm == null) gm = GameManager.Instance;
+        if (gm == null) return;
+
+        if (gm.level > 1)
         {
-            GameManager.Instance.level--;
+            gm.level--;
+            // Đồng bộ static Instance
+            if (GameManager.Instance != null && GameManager.Instance != gm)
+                GameManager.Instance.level = gm.level;
+
+            if (SaveDataPlayer.Instance != null)
+            {
+                SaveDataPlayer.Instance.Save(1, gm.level);
+            }
             UpdateLevelUI(); 
         }
     }

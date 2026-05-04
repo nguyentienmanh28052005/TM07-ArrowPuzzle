@@ -558,7 +558,7 @@ public class SnakeBlock : MonoBehaviour
         return new Vector2Int(Mathf.RoundToInt(exactTailPos.x), Mathf.RoundToInt(exactTailPos.y));
     }
 
-    public void Initialize(ArrowDir dir, List<Vector2Int> gridPositions, int resolution, Color color)
+    public void Initialize(ArrowDir dir, List<Vector2Int> gridPositions, int resolution, Color color, bool playSpawnAnimation = true)
     {
         snakeColor = color;
         direction = dir;
@@ -625,9 +625,20 @@ public class SnakeBlock : MonoBehaviour
 
         if (arrowVisual != null)
         {
-            arrowVisual.gameObject.SetActive(false);
-            arrowVisual.position = _currentPositions[0]; 
+            arrowVisual.position = _currentPositions[0];
+            arrowVisual.localScale = Vector3.zero;
         }
+
+        if (playSpawnAnimation)
+        {
+            StartSpawnAnimationFromTail();
+        }
+    }
+
+    public void StartSpawnAnimationFromTail()
+    {
+        if (!_isInitialized) return;
+        if (_isSpawning || _visiblePoints >= _totalPoints) return;
 
         StartCoroutine(PlaySpawnAnimationFromTail());
     }
@@ -650,7 +661,6 @@ public class SnakeBlock : MonoBehaviour
         if (arrowVisual != null)
         {
             SyncArrowVisualPosition();
-            arrowVisual.gameObject.SetActive(true);
             arrowVisual.DOKill();
             arrowVisual.localScale = Vector3.zero;
             arrowVisual.DOScale(_originalArrowScale, 0.4f).SetEase(Ease.OutBack).SetLink(arrowVisual.gameObject); 

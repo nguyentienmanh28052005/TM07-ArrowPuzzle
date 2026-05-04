@@ -61,4 +61,12 @@ public class GridManager : MonoBehaviour
         if (GridMap.TryGetValue(pos, out SnakeBlock snake)) return snake;
         return null;
     }
+
+    public void ClearLevelState()
+    {
+        GridMap.Clear();
+        KeycardMap.Clear();
+        GateMap.Clear();
+        PortalMap.Clear();
+    }
 }

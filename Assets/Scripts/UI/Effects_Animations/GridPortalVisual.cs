@@ -151,4 +151,9 @@ public class GridPortalVisual : MonoBehaviour
 
         return maxDuration;
     }
+
+    public static void ClearAll()
+    {
+        _portalByCell.Clear();
+    }
 }

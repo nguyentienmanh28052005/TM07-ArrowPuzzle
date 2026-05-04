@@ -6,7 +6,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GameCanvas : MonoBehaviour
+public class GameCanvas : MonoBehaviour, IScreenLifecycle
 {
     public enum PopupState { None, Pause, Complete, GameOver }
     private PopupState _currentPopup = PopupState.None;
@@ -83,6 +83,9 @@ public class GameCanvas : MonoBehaviour
     private bool _isTransitioning = false;
     
     private Vector2[] _starOriginalPositions;
+    private Transform _flyingItemsRoot;
+    private Coroutine _flyingCoinRoutine;
+    private Coroutine _flyingDiamondRoutine;
     #endregion
 
     #region [ INITIALIZATION & LIFECYCLE ]
@@ -107,14 +110,59 @@ public class GameCanvas : MonoBehaviour
         InitializeTools();
     }
 
-    public void Start()
+    public void OnScreenShow()
     {
         SetupLevelInfo();
+        RefreshCurrencyUI();
+        UpdateToolCountText(null);
+        ResetHeartsState();
+        _isTransitioning = TransitionManager.Instance != null && TransitionManager.Instance.IsTransitioning;
+    }
+
+    public void OnScreenHide()
+    {
+        _currentPopup = PopupState.None;
+        _isShowing = false;
+        StopAllCoroutines();
+        ClearFlyingItems();
+        HideFeedbackText();
+        HidePanelImmediate(overlayBg);
+        HidePanelImmediate(pausePanel);
+        HidePanelImmediate(completePanel);
+        HidePanelImmediate(gameOverPanel);
     }
 
     private void InitializeTools()
     {
         UpdateToolCountText(null);
+    }
+
+    private void RefreshCurrencyUI()
+    {
+        if (CurrencyManager.Instance == null) return;
+
+        if (currentCoinText != null)
+        {
+            currentCoinText.text = Mathf.RoundToInt(CurrencyManager.Instance.Coins).ToString();
+        }
+
+        if (currentDiamondText != null)
+        {
+            currentDiamondText.text = Mathf.RoundToInt(CurrencyManager.Instance.Diamonds).ToString();
+        }
+
+        if (currentCoinTextLose != null)
+        {
+            currentCoinTextLose.text = Mathf.RoundToInt(CurrencyManager.Instance.Coins).ToString();
+        }
+    }
+
+    private void EnsureFlyingItemsRoot()
+    {
+        if (_flyingItemsRoot != null) return;
+        GameObject root = new GameObject("FlyingItemsRoot");
+        root.transform.SetParent(transform, false);
+        _flyingItemsRoot = root.transform;
     }
 
     private void InitializeHearts()
@@ -146,6 +194,63 @@ public class GameCanvas : MonoBehaviour
                 idx++;
             }
         }
+    }
+
+    private void ResetHeartsState()
+    {
+        LevelDataSO currentLevel = GameManager.Instance != null ? GameManager.Instance.GetCurrentLevelData() : null;
+        if (currentLevel != null)
+        {
+            SetupModeUI(currentLevel.gameMode);
+        }
+
+        if (healthContainer == null) return;
+
+        if (hearts == null || hearts.Count == 0 || hearts.Count != healthContainer.childCount)
+        {
+            InitializeHearts();
+        }
+
+        if (hearts == null || hearts.Count == 0) return;
+
+        countHeart = hearts.Count;
+        for (int i = 0; i < hearts.Count; i++)
+        {
+            GameObject heart = hearts[i];
+            if (heart == null) continue;
+
+            DOTween.Kill(heart);
+            heart.SetActive(true);
+
+            RectTransform rect = heart.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.DOKill();
+                rect.localScale = Vector3.one;
+                if (_heartOriginalAnchoredPositions != null && i < _heartOriginalAnchoredPositions.Length)
+                {
+                    rect.anchoredPosition = _heartOriginalAnchoredPositions[i];
+                }
+            }
+
+            Image img = heart.GetComponent<Image>();
+            if (img != null)
+            {
+                img.DOKill();
+                Color c = img.color;
+                c.a = 1f;
+                img.color = c;
+            }
+        }
+    }
+
+    private void HideFeedbackText()
+    {
+        if (feedbackText == null) return;
+        feedbackText.DOKill();
+        feedbackText.transform.DOKill();
+        feedbackText.alpha = 0f;
+        feedbackText.gameObject.SetActive(false);
     }
 
     public void SetupLevelInfo()
@@ -243,6 +348,11 @@ public class GameCanvas : MonoBehaviour
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnEraseToolChanged, UpdateToolCountText);
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
+
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.TransitionStateChanged += HandleTransitionStateChanged;
+        }
     }
 
     private void OnDisable()
@@ -253,6 +363,16 @@ public class GameCanvas : MonoBehaviour
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnEraseToolChanged, UpdateToolCountText);
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
+
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.TransitionStateChanged -= HandleTransitionStateChanged;
+        }
+    }
+
+    private void HandleTransitionStateChanged(bool isTransitioning)
+    {
+        _isTransitioning = isTransitioning;
     }
 
     #region [ CINEMATIC INTRO ]
@@ -524,18 +644,20 @@ public class GameCanvas : MonoBehaviour
 
             if (flyingCoinPrefab != null && rewardCoinIcon != null && currentCoinIcon != null && earnedCoins > 0)
             {
-                StartCoroutine(SpawnFlyingItems(flyingCoinPrefab, rewardCoinIcon, currentCoinIcon, Mathf.Min(earnedCoins, maxFlyingItems), earnedCoins, oldCoins, currentCoinText));
+                _flyingCoinRoutine = StartCoroutine(SpawnFlyingItems(flyingCoinPrefab, rewardCoinIcon, currentCoinIcon, Mathf.Min(earnedCoins, maxFlyingItems), earnedCoins, oldCoins, currentCoinText));
             }
 
             if (flyingDiamondPrefab != null && rewardDiamondIcon != null && currentDiamondIcon != null && earnedDiamonds > 0)
             {
-                StartCoroutine(SpawnFlyingItems(flyingDiamondPrefab, rewardDiamondIcon, currentDiamondIcon, Mathf.Min(earnedDiamonds, maxFlyingItems), earnedDiamonds, oldDiamonds, currentDiamondText));
+                _flyingDiamondRoutine = StartCoroutine(SpawnFlyingItems(flyingDiamondPrefab, rewardDiamondIcon, currentDiamondIcon, Mathf.Min(earnedDiamonds, maxFlyingItems), earnedDiamonds, oldDiamonds, currentDiamondText));
             }
         });
     }
 
     private IEnumerator SpawnFlyingItems(GameObject prefab, RectTransform startIcon, RectTransform targetIcon, int spawnCount, int totalEarned, float oldValue, TextMeshProUGUI textUI)
     {
+        EnsureFlyingItemsRoot();
+
         Vector3 startPos = GetTrueWorldCenter(startIcon);
         Vector3 targetPos = GetTrueWorldCenter(targetIcon);
         targetPos.z = startPos.z;
@@ -549,7 +671,7 @@ public class GameCanvas : MonoBehaviour
             // [BẢN VÁ] Nếu đã bấm Next/Replay, HỦY LUÔN việc đẻ thêm xu!
             if (_isTransitioning) yield break; 
 
-            GameObject item = Instantiate(prefab, transform); 
+            GameObject item = Instantiate(prefab, _flyingItemsRoot); 
             item.transform.SetAsLastSibling(); 
 
             RectTransform rect = item.GetComponent<RectTransform>();
@@ -590,6 +712,48 @@ public class GameCanvas : MonoBehaviour
             });
 
             yield return new WaitForSecondsRealtime(0.08f); 
+        }
+    }
+
+    private void ClearFlyingItems()
+    {
+        if (_flyingCoinRoutine != null)
+        {
+            StopCoroutine(_flyingCoinRoutine);
+            _flyingCoinRoutine = null;
+        }
+
+        if (_flyingDiamondRoutine != null)
+        {
+            StopCoroutine(_flyingDiamondRoutine);
+            _flyingDiamondRoutine = null;
+        }
+
+        if (_flyingItemsRoot == null) return;
+        for (int i = _flyingItemsRoot.childCount - 1; i >= 0; i--)
+        {
+            Transform child = _flyingItemsRoot.GetChild(i);
+            if (child == null) continue;
+            child.gameObject.SetActive(false);
+            Destroy(child.gameObject);
+        }
+
+        if (flyingCoinPrefab != null || flyingDiamondPrefab != null)
+        {
+            string coinName = flyingCoinPrefab != null ? flyingCoinPrefab.name + "(Clone)" : null;
+            string diamondName = flyingDiamondPrefab != null ? flyingDiamondPrefab.name + "(Clone)" : null;
+
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = transform.GetChild(i);
+                if (child == null || child == _flyingItemsRoot) continue;
+
+                if ((coinName != null && child.name == coinName) || (diamondName != null && child.name == diamondName))
+                {
+                    child.gameObject.SetActive(false);
+                    Destroy(child.gameObject);
+                }
+            }
         }
     }
     #endregion
@@ -637,47 +801,50 @@ public class GameCanvas : MonoBehaviour
     public void RestartGame()
     {
         if (_isTransitioning) return;
-        StartCoroutine(TransitionToScene("GameScene"));
+        RequestScreen(ScreenType.Gameplay, true);
     }
 
     public void NextLevel()
     {
         if (_isTransitioning) return;
-        StartCoroutine(TransitionToScene("GameScene"));
+        RequestScreen(ScreenType.Gameplay, true);
     }
 
     public void Replay()
     {
         if (_isTransitioning) return;
-        GameManager.Instance.level--;
+        GameManager.Instance.level = Mathf.Max(1, GameManager.Instance.level - 1);
         SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
-        StartCoroutine(TransitionToScene("GameScene"));
+        RequestScreen(ScreenType.Gameplay, true);
     }
 
     public void OutLevel()
     {
         if (_isTransitioning) return;
-        StartCoroutine(TransitionToScene("GameMenu"));
+        RequestScreen(ScreenType.MainMenu);
     }
 
-    private IEnumerator TransitionToScene(string sceneName)
+    private void RequestScreen(ScreenType type, bool force = false)
     {
         _isTransitioning = true;
-        Time.timeScale = 1f; 
+        Time.timeScale = 1f;
 
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.StopAllSfx();
         }
 
-        if (overlayBg != null)
+        if (TransitionManager.Instance != null)
         {
-            overlayBg.gameObject.SetActive(true);
-            overlayBg.blocksRaycasts = true;
-            yield return overlayBg.DOFade(1f, 0.3f).SetUpdate(true).WaitForCompletion();
+            TransitionManager.Instance.TransitionToScreen(type, force);
+            return;
         }
 
-        SceneController.Instance.LoadScene(sceneName, false, false);
+        if (ScreenManager.Instance != null)
+        {
+            ScreenManager.Instance.ShowScreen(type, force);
+            _isTransitioning = false;
+        }
     }
     #endregion
 

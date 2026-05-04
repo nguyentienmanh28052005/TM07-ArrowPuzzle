@@ -720,23 +720,21 @@ public class LevelEditor : MonoBehaviour
             SceneManager.GetActiveScene().path,
             "GameScene");
 
-        // If SceneController is already present, use it; otherwise bootstrap singletons first.
-        SceneController sceneController = FindObjectOfType<SceneController>();
-        if (sceneController != null)
+        TransitionManager transition = FindObjectOfType<TransitionManager>();
+        if (transition != null)
         {
-            // Keep playtest re-entrant by clearing any stuck loading state, then use the project's normal flow.
-            sceneController.ForceResetLoadingState();
-            sceneController.LoadScene("GameScene", false, false);
+            transition.TransitionToScreen(ScreenType.Gameplay);
+            return;
         }
-        else
+
+        ScreenManager screenManager = FindObjectOfType<ScreenManager>();
+        if (screenManager != null)
         {
-#if UNITY_EDITOR
-            // In editor play mode we can load scenes by path even if they aren't in Build Settings.
-            EditorSceneManager.LoadSceneAsyncInPlayMode(BootstrapScenePath, new LoadSceneParameters(LoadSceneMode.Single));
-#else
-            SceneManager.LoadScene("Boostrap");
-#endif
+            screenManager.ShowScreen(ScreenType.Gameplay);
+            return;
         }
+
+        Debug.LogWarning("[LevelEditor] No TransitionManager/ScreenManager found. Playtest screen not changed.");
     }
 
     private void SaveLevel()

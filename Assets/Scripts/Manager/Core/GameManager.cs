@@ -7,7 +7,7 @@ using Unity.Jobs;
 using Unity.Burst;
 using Unity.Collections;
 
-public class GameManager : Singleton<GameManager>
+public class GameManager : Singleton<GameManager>, IScreenLifecycle
 {
     public List<LevelDataSO> levelDataSOs;
     public int level = 1;
@@ -15,6 +15,8 @@ public class GameManager : Singleton<GameManager>
     public bool isGameOver = false; 
 
     public LevelDataSO CurrentLevelData => GetCurrentLevelData();
+
+    private bool _hasInitialized = false;
 
     /// <summary>
     /// Đẩy quá trình khởi tạo các thư viện nặng sang luồng bất đồng bộ để chống đứng hình.
@@ -52,17 +54,44 @@ public class GameManager : Singleton<GameManager>
         }
     }
 
+    private void OnEnable()
+    {
+        ScreenManager.ScreenShown += HandleScreenShown;
+    }
+
+    private void OnDisable()
+    {
+        ScreenManager.ScreenShown -= HandleScreenShown;
+    }
+
+    private void HandleScreenShown(ScreenType type)
+    {
+        if (type == ScreenType.Gameplay)
+        {
+            OnScreenShow();
+        }
+    }
+
     /// <summary>
     /// Khôi phục trạng thái Level từ hệ thống lưu trữ.
     /// </summary>
-    void Start()
+    public void OnScreenShow()
     {
         isGameOver = false; 
 
-        if((int)SaveDataPlayer.Instance.Value(1) != 0)
+        if (!_hasInitialized)
         {
-            level = (int)SaveDataPlayer.Instance.Value(1);
+            if ((int)SaveDataPlayer.Instance.Value(1) != 0)
+            {
+                level = (int)SaveDataPlayer.Instance.Value(1);
+            }
+
+            _hasInitialized = true;
         }
+    }
+
+    public void OnScreenHide()
+    {
     }
 
     void Update()

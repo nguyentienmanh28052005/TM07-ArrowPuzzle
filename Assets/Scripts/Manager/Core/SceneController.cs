@@ -46,12 +46,6 @@ public class SceneController : Singleton<SceneController>
             textAnimationCoroutine = null;
         }
 
-        Scene bufferScene = SceneManager.GetSceneByName("Buffer");
-        if (bufferScene.IsValid() && bufferScene.isLoaded)
-        {
-            SceneManager.UnloadSceneAsync(bufferScene);
-        }
-
         if (progressBar != null) progressBar.value = 0f;
         if (loadCanvasGroup != null)
         {
@@ -81,7 +75,7 @@ public class SceneController : Singleton<SceneController>
 
     private void Start()
     {
-        if (!string.IsNullOrEmpty(_startupScene))
+        if (TransitionManager.Instance == null && ScreenManager.Instance == null && !string.IsNullOrEmpty(_startupScene))
         {
             LoadScene(_startupScene, false, false);
         }
@@ -124,138 +118,65 @@ public class SceneController : Singleton<SceneController>
 
     private IEnumerator LoadSceneProgress(string sceneName, bool currentIsAddressable = true, bool nextIsAddressable = true)
     {
-        Scene sceneToUnload = SceneManager.GetActiveScene();
-
-        // Transitions must not depend on gameplay time scale.
-        Time.timeScale = 1f;
-
-        loadCanvasGroup.gameObject.SetActive(true);
-        Pixelplacement.Tween.Value(loadCanvasGroup.alpha, 1f, (a) => loadCanvasGroup.alpha = a, fadeDuration, 0f, Pixelplacement.Tween.EaseLinear);
-        progressBar.value = 0f;
-
-        if (textAnimationCoroutine != null) StopCoroutine(textAnimationCoroutine);
-        textAnimationCoroutine = StartCoroutine(AnimateLoadingText());
-
-        yield return new WaitForSecondsRealtime(fadeDuration);
-
-        var loadLoadingSceneTask = Addressables.LoadSceneAsync("Buffer", LoadSceneMode.Additive);
-        yield return loadLoadingSceneTask;
-
-        // Ensure we keep a stable reference to what we intend to unload.
-        // Some projects accidentally change active scene during additive loads.
-        if (!sceneToUnload.IsValid() || !sceneToUnload.isLoaded)
+        // Single-scene flow: forward scene name to ScreenType transition.
+        ScreenType screenType;
+        if (!TryResolveScreenType(sceneName, out screenType))
         {
-            sceneToUnload = SceneManager.GetActiveScene();
-        }
-
-        if (currentIsAddressable)
-        {
-            var unloadCurrentSceneTask = Addressables.UnloadSceneAsync(currentScene);
-            yield return unloadCurrentSceneTask;
-        }
-        else
-        {
-            string unloadName = sceneToUnload.IsValid() ? sceneToUnload.name : SceneManager.GetActiveScene().name;
-            // Never try to unload the buffer scene as the "current" scene.
-            if (unloadName == "Buffer") unloadName = SceneManager.GetActiveScene().name;
-
-            var unloadCurrentSceneTask = SceneManager.UnloadSceneAsync(unloadName);
-            if (unloadCurrentSceneTask != null) yield return unloadCurrentSceneTask;
-        }
-
-        yield return new WaitForSecondsRealtime(0.05f);
-
-        // ==========================================
-        // BẢN VÁ: KHÓA TỐC ĐỘ PROGRESS BAR
-        // ==========================================
-        // Tốc độ làm đầy (1.5f có nghĩa là tốn ít nhất ~0.66 giây để thanh chạy từ 0 đến 1)
-        float fillSpeed = 1.5f; 
-
-        if (nextIsAddressable)
-        {
-            var asyncNextSceneTask = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
-
-            // Thay đổi cốt lõi: Chờ Data tải xong (IsDone) VÀ thanh UI chạy đủ (value >= 0.99)
-            while (!asyncNextSceneTask.IsDone || progressBar.value < 0.99f)
-            {
-                // Nếu Data tải xong tức thì, ép mục tiêu về 1.0. Nếu chưa, lấy phần trăm thật.
-                float targetProgress = asyncNextSceneTask.IsDone ? 1f : asyncNextSceneTask.PercentComplete;
-                
-                // Dùng MoveTowards để thanh trượt đều đặn, không bị nhảy cóc hay đứng khựng
-                progressBar.value = Mathf.MoveTowards(progressBar.value, targetProgress, Time.unscaledDeltaTime * fillSpeed);
-                yield return null;
-            }
-
-            progressBar.value = 1f;
-            yield return new WaitForSecondsRealtime(0.1f); // Dừng lại 1 chút ở mức 100% cho đẹp mắt
-
-            asyncNextSceneTask.Result.ActivateAsync();
-            currentScene = asyncNextSceneTask.Result;
-            currentSceneName = sceneName;
-        }
-        else
-        {
-            AsyncOperation asyncNextSceneTask = null;
-
-#if UNITY_EDITOR
-            // In Editor play mode, allow loading by scene asset path when the scene isn't in Build Settings.
-            if (!Application.CanStreamedLevelBeLoaded(sceneName))
-            {
-                string scenePath = TryFindScenePathByName(sceneName);
-                if (!string.IsNullOrEmpty(scenePath))
-                {
-                    asyncNextSceneTask = EditorSceneManager.LoadSceneAsyncInPlayMode(scenePath, new LoadSceneParameters(LoadSceneMode.Additive));
-                }
-            }
-#endif
-
-            if (asyncNextSceneTask == null)
-            {
-                asyncNextSceneTask = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-            }
-
-            asyncNextSceneTask.allowSceneActivation = false;
-
-            // Tương tự với SceneManager thường (chỉ số progress dừng ở mức 0.9)
-            while (asyncNextSceneTask.progress < 0.9f || progressBar.value < 0.99f)
-            {
-                float targetProgress = asyncNextSceneTask.progress / 0.9f; // Chuẩn hóa về 0 -> 1
-                progressBar.value = Mathf.MoveTowards(progressBar.value, targetProgress, Time.unscaledDeltaTime * fillSpeed);
-                yield return null;
-            }
-
-            progressBar.value = 1f;
-            yield return new WaitForSecondsRealtime(0.1f);
-
-            asyncNextSceneTask.allowSceneActivation = true;
-            while (!asyncNextSceneTask.isDone) yield return null;
-
-            Scene loadedScene = SceneManager.GetSceneByName(sceneName);
-            if (loadedScene.IsValid() && loadedScene.isLoaded)
-            {
-                SceneManager.SetActiveScene(loadedScene);
-                currentSceneName = loadedScene.name;
-            }
-            else
-            {
-                currentSceneName = SceneManager.GetActiveScene().name;
-            }
-        }
-        // ==========================================
-
-        var unloadBufferTask = Addressables.UnloadSceneAsync(loadLoadingSceneTask.Result);
-        if (unloadBufferTask.IsValid())
-        {
-            yield return unloadBufferTask;
-        }
-
-        if (textAnimationCoroutine != null) StopCoroutine(textAnimationCoroutine);
-
-        Pixelplacement.Tween.Value(1f, 0f, (a) => loadCanvasGroup.alpha = a, fadeDuration, 0f, Pixelplacement.Tween.EaseLinear, Pixelplacement.Tween.LoopType.None, null, () =>
-        {
-            loadCanvasGroup.gameObject.SetActive(false);
+            Debug.LogWarning("[SceneController] Unknown screen for scene name: " + sceneName);
             isLoading = false;
-        });
+            yield break;
+        }
+
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.TransitionToScreen(screenType);
+        }
+        else if (ScreenManager.Instance != null)
+        {
+            ScreenManager.Instance.ShowScreen(screenType);
+        }
+
+        isLoading = false;
+        yield break;
+    }
+
+    private static bool TryResolveScreenType(string sceneName, out ScreenType screenType)
+    {
+        screenType = ScreenType.MainMenu;
+
+        if (string.IsNullOrEmpty(sceneName)) return false;
+
+        if (sceneName == "GameMenu")
+        {
+            screenType = ScreenType.MainMenu;
+            return true;
+        }
+
+        if (sceneName == "GameScene")
+        {
+            screenType = ScreenType.Gameplay;
+            return true;
+        }
+
+        if (sceneName == "EditorScene")
+        {
+            screenType = ScreenType.Editor;
+            return true;
+        }
+
+        if (sceneName == "Bootstrap")
+        {
+            screenType = ScreenType.Bootstrap;
+            return true;
+        }
+
+        if (sceneName == "Buffer")
+        {
+            screenType = ScreenType.Loading;
+            return true;
+        }
+
+        return false;
     }
     
     private IEnumerator AnimateLoadingText()

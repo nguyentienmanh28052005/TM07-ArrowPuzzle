@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class LevelLoader : MonoBehaviour
+public class LevelLoader : MonoBehaviour, IScreenLifecycle
 {
     [Header("Data")]
     public LevelDataSO levelToPlay;
@@ -31,9 +31,34 @@ public class LevelLoader : MonoBehaviour
     private List<SnakeSaveData> _preloadedSnakeSaveData = new List<SnakeSaveData>();
     private GameObject _dotsContainer; 
     private GameObject _obstaclesContainer;
-    private bool _isTextDone = false; 
+    private Coroutine _loadRoutine;
+    private bool _requestedTransitionHold;
 
-    private IEnumerator Start()
+    public void OnScreenShow()
+    {
+        if (_loadRoutine != null)
+        {
+            StopCoroutine(_loadRoutine);
+        }
+
+        _loadRoutine = StartCoroutine(LoadRoutine());
+    }
+
+    public void OnScreenHide()
+    {
+        if (_loadRoutine != null)
+        {
+            StopCoroutine(_loadRoutine);
+            _loadRoutine = null;
+        }
+
+        ReleaseTransitionHold();
+
+        StopAllCoroutines();
+        ClearContainer();
+    }
+
+    private IEnumerator LoadRoutine()
     {
         if (PlaytestSession.IsPlaytesting)
         {
@@ -45,38 +70,50 @@ public class LevelLoader : MonoBehaviour
         if (!editorMode && GameManager.Instance != null)
             levelToPlay = GameManager.Instance.GetCurrentLevelData();
 
+        if (levelToPlay == null)
+        {
+            ReleaseTransitionHold();
+            CameraController.IsGameplayBlocking = false;
+            yield break;
+        }
+
+        if (GridManager.Instance != null)
+        {
+            GridManager.Instance.ClearLevelState();
+        }
+        GridPortalVisual.ClearAll();
+
         CameraController.IsGameplayBlocking = true;
-        _isTextDone = false; // Bắt đầu load, chưa xong Text
+        RequestTransitionHold();
 
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null && levelToPlay != null)
         {
             canvas.SetupModeUI(levelToPlay.gameMode);
-            
-            string modeName = levelToPlay.gameMode.ToString().ToUpper();
-            
-            // PHÂN CẢNH 1: Hiện "Classic Mode"
-            canvas.ShowText(modeName, Color.cyan, () => 
-            {
-                // Khi chữ Classic Mode biến mất, biến này mới thành true
-                _isTextDone = true; 
-            });
-        }
-        else
-        {
-            _isTextDone = true; 
         }
 
-        // --- TRONG LÚC CHỮ CLASSIC MODE ĐANG HIỆN, GAME ÂM THẦM ĐẺ OBJECT ---
+        // --- TRONG LÚC TRANSITION FADE ĐANG CHẠY, GAME ÂM THẦM ĐẺ OBJECT ---
         SpawnStaticObstacles();
         yield return StartCoroutine(PreSpawnDotsCoroutine());
         yield return StartCoroutine(PreSpawnSnakesCoroutine());
 
-        // TRẠM KIỂM SOÁT: Bắt buộc đợi chữ "Classic Mode" tàng hình hẳn mới cho đi tiếp!
-        yield return new WaitUntil(() => _isTextDone); 
-
-        // Bật map lên
         ActivateAndInitializeSnakes();
+
+        CameraController camController = Camera.main != null ? Camera.main.GetComponent<CameraController>() : null;
+        if (camController != null)
+        {
+            camController.PrepareDefaultForLevel(levelToPlay);
+        }
+
+        ReleaseTransitionHold();
+
+        // TRẠM KIỂM SOÁT: Bắt buộc đợi Transition Fade kết thúc mới cho đi tiếp!
+        while (IsTransitionActive())
+        {
+            yield return null;
+        }
+
+        StartSpawnAnimationOnSnakes();
 
         if (TimeAttackManager.Instance != null)
         {
@@ -89,7 +126,6 @@ public class LevelLoader : MonoBehaviour
         // ==========================================
         // PHÂN CẢNH 2: BUNG LỤA CAMERA ZOOM VÀ BANNER "HARD LEVEL"
         // ==========================================
-        CameraController camController = Camera.main.GetComponent<CameraController>();
         if (camController != null) 
             camController.StartIntro(); // Lệnh này giờ sẽ tự động gọi Cinematic Banner bên trong nó
         else 
@@ -102,7 +138,6 @@ public class LevelLoader : MonoBehaviour
     [ContextMenu("Reload Level (Instant)")]
     public void LoadGame()
     {
-        _isTextDone = true; 
         ClearContainer();
         SpawnStaticObstacles();
         
@@ -132,28 +167,39 @@ public class LevelLoader : MonoBehaviour
         }
         
         ActivateAndInitializeSnakes();
+        StartSpawnAnimationOnSnakes();
     }
 
     private void ClearContainer()
     {
+        if (GridManager.Instance != null)
+        {
+            GridManager.Instance.ClearLevelState();
+        }
+        GridPortalVisual.ClearAll();
+
         if (gameContainer != null)
         {
             int childCount = gameContainer.childCount;
             for (int i = childCount - 1; i >= 0; i--)
             {
-                DestroyImmediate(gameContainer.GetChild(i).gameObject);
+                GameObject child = gameContainer.GetChild(i).gameObject;
+                if (Application.isPlaying) Destroy(child);
+                else DestroyImmediate(child);
             }
         }
         
         if (_dotsContainer != null) 
         {
-            DestroyImmediate(_dotsContainer);
+            if (Application.isPlaying) Destroy(_dotsContainer);
+            else DestroyImmediate(_dotsContainer);
             _dotsContainer = null;
         }
 
         if (_obstaclesContainer != null) 
         {
-            DestroyImmediate(_obstaclesContainer);
+            if (Application.isPlaying) Destroy(_obstaclesContainer);
+            else DestroyImmediate(_obstaclesContainer);
             _obstaclesContainer = null;
         }
 
@@ -230,7 +276,6 @@ public class LevelLoader : MonoBehaviour
         {
             _dotsContainer = new GameObject("Dots_Container");
             _dotsContainer.transform.SetParent(gameContainer);
-            _dotsContainer.SetActive(false); 
         }
 
         int dotsSpawnedThisFrame = 0;
@@ -247,7 +292,7 @@ public class LevelLoader : MonoBehaviour
                     
                     dotsSpawnedThisFrame++;
 
-                    if (!_isTextDone && dotsSpawnedThisFrame >= dotsPerFrame)
+                    if (IsTransitionActive() && dotsSpawnedThisFrame >= dotsPerFrame)
                     {
                         dotsSpawnedThisFrame = 0;
                         yield return null; 
@@ -265,7 +310,7 @@ public class LevelLoader : MonoBehaviour
         {
             PreSpawnSingleSnake(levelToPlay.snakes[i]);
 
-            if (!_isTextDone && (i + 1) % snakesPerFrame == 0)
+            if (IsTransitionActive() && (i + 1) % snakesPerFrame == 0)
             {
                 yield return null; 
             }
@@ -278,7 +323,6 @@ public class LevelLoader : MonoBehaviour
 
         GameObject snakeObj = Instantiate(snakePrefab, gameContainer);
         snakeObj.name = "Snake_Preloaded";
-        snakeObj.SetActive(false); 
         
         SnakeBlock snakeScript = snakeObj.GetComponent<SnakeBlock>();
         
@@ -295,21 +339,28 @@ public class LevelLoader : MonoBehaviour
             SnakeBlock snakeScript = _preloadedSnakes[i];
             SnakeSaveData data = _preloadedSnakeSaveData[i];
 
-            snakeScript.gameObject.SetActive(true);
-            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.arrowColor);
+            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.arrowColor, false);
 
             if (GridManager.Instance != null) 
                 GridManager.Instance.RegisterSnake(snakeScript);
         }
 
-        if (_dotsContainer != null) 
-        {
-            _dotsContainer.SetActive(true);
-        }
-
         if (_obstaclesContainer != null)
         {
             _obstaclesContainer.SetActive(true);
+        }
+
+    }
+
+    private void StartSpawnAnimationOnSnakes()
+    {
+        if (_preloadedSnakes == null || _preloadedSnakes.Count == 0) return;
+
+        for (int i = 0; i < _preloadedSnakes.Count; i++)
+        {
+            SnakeBlock snake = _preloadedSnakes[i];
+            if (snake == null) continue;
+            snake.StartSpawnAnimationFromTail();
         }
 
         _preloadedSnakes.Clear();
@@ -327,5 +378,31 @@ public class LevelLoader : MonoBehaviour
             case ArrowDir.Right: angle = -90f; break;
         }
         return Quaternion.Euler(0f, 0f, angle);
+    }
+
+    private void RequestTransitionHold()
+    {
+        if (_requestedTransitionHold) return;
+        if (TransitionManager.Instance == null) return;
+
+        TransitionManager.Instance.RequestHold();
+        _requestedTransitionHold = true;
+    }
+
+    private void ReleaseTransitionHold()
+    {
+        if (!_requestedTransitionHold) return;
+
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.ReleaseHold();
+        }
+
+        _requestedTransitionHold = false;
+    }
+
+    private static bool IsTransitionActive()
+    {
+        return TransitionManager.Instance != null && TransitionManager.Instance.IsTransitioning;
     }
 }

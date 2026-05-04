@@ -56,6 +56,7 @@ public class CameraController : MonoBehaviour
     private Vector3 lastPanScreenPos;
     
     private bool isEndGame = false;
+    private Coroutine _introRoutine;
     private bool wasZoomingLastFrame = false;
 
     private Tween _focusTween;
@@ -220,7 +221,58 @@ public class CameraController : MonoBehaviour
 
     public void StartIntro()
     {
-        StartCoroutine(CameraIntroSequence());
+        if (_introRoutine != null)
+        {
+            StopCoroutine(_introRoutine);
+        }
+
+        ResetEndGameState();
+        _introRoutine = StartCoroutine(CameraIntroSequence());
+    }
+
+    public void PrepareDefaultForLevel(LevelDataSO levelData)
+    {
+        if (levelData == null) return;
+        if (cam == null) cam = GetComponent<Camera>();
+
+        if (!TryComputeLevelBoundsFromData(levelData, out Bounds levelBounds))
+        {
+            ResetEndGameState();
+            if (cam != null) cam.orthographicSize = defaultGameplayZoom;
+            targetZoom = defaultGameplayZoom;
+            return;
+        }
+
+        ResetEndGameState();
+
+        if (autoComputeLimitsFromLevel)
+        {
+            SetLevelLimitBounds(levelBounds);
+        }
+
+        float width = levelBounds.size.x;
+        float height = levelBounds.size.y;
+        initialPosition = new Vector3(levelBounds.center.x, levelBounds.center.y, transform.position.z);
+
+        float sizeByHeight = height / 2f;
+        float sizeByWidth = (width / 2f) / cam.aspect;
+
+        gameZoom = Mathf.Max(sizeByHeight, sizeByWidth) + autoFitPadding;
+        maxZoom = Mathf.Max(maxZoom, gameZoom);
+
+        transform.position = initialPosition;
+        cam.orthographicSize = defaultGameplayZoom;
+        targetZoom = defaultGameplayZoom;
+        zoomVelocity = 0f;
+        panVelocity = Vector3.zero;
+    }
+
+    private void ResetEndGameState()
+    {
+        isEndGame = false;
+        targetZoom = defaultGameplayZoom;
+        zoomVelocity = 0f;
+        panVelocity = Vector3.zero;
     }
 
     private IEnumerator CameraIntroSequence()
@@ -231,6 +283,10 @@ public class CameraController : MonoBehaviour
         
         if (loader == null || loader.levelToPlay == null || loader.levelToPlay.snakes == null)
         {
+            if (cam == null) cam = GetComponent<Camera>();
+            ResetEndGameState();
+            if (cam != null) cam.orthographicSize = defaultGameplayZoom;
+            targetZoom = defaultGameplayZoom;
             IsGameplayBlocking = false;
             OnIntroFinished?.Invoke();
             yield break;
@@ -240,6 +296,9 @@ public class CameraController : MonoBehaviour
 
         if (!TryComputeLevelBoundsFromData(loader.levelToPlay, out Bounds levelBounds))
         {
+            ResetEndGameState();
+            if (cam != null) cam.orthographicSize = defaultGameplayZoom;
+            targetZoom = defaultGameplayZoom;
             IsGameplayBlocking = false;
             OnIntroFinished?.Invoke();
             yield break;
@@ -262,7 +321,7 @@ public class CameraController : MonoBehaviour
 
         transform.position = initialPosition;
         
-        cam.orthographicSize = defaultGameplayZoom / 3; 
+        //cam.orthographicSize = defaultGameplayZoom / 3; 
         cam.DOKill();
 
         // ==========================================

@@ -40,6 +40,9 @@ public class TutorialManager : Singleton<TutorialManager>
     private bool _completedByFirstPress = false;
     private LevelDataSO _pendingLevelData;
     private Coroutine _tutorialRoutine;
+    private Sequence _handTapSequence;
+    private Sequence _handHoldSequence;
+    private DG.Tweening.Tween _overlayFadeTween;
 
     private void OnEnable()
     {
@@ -49,6 +52,7 @@ public class TutorialManager : Singleton<TutorialManager>
     private void OnDisable()
     {
         CameraController.OnIntroFinished -= HandleIntroFinished;
+        StopTutorialImmediate();
     }
 
     private void HandleIntroFinished()
@@ -88,6 +92,7 @@ public class TutorialManager : Singleton<TutorialManager>
         CameraController.IsCameraInputBlocked = true;
 
         // Tutorial is informational only; do not block gameplay input.
+        KillOverlayTweens();
         if (tutorialCanvasGroup != null)
         {
             tutorialCanvasGroup.DOKill();
@@ -113,6 +118,7 @@ public class TutorialManager : Singleton<TutorialManager>
     {
         if (!_isTutorialActive || levelData == null) return;
 
+        KillOverlayTweens();
         if (tutorialCanvasGroup != null)
         {
             // Keep hidden until a tutorial step starts (so hand + text appear together)
@@ -135,26 +141,29 @@ public class TutorialManager : Singleton<TutorialManager>
             tutorialCanvasGroup.DOKill();
             tutorialCanvasGroup.alpha = 0f;
             tutorialCanvasGroup.blocksRaycasts = false;
-            tutorialCanvasGroup.DOFade(1f, 0.25f);
+            _overlayFadeTween = tutorialCanvasGroup.DOFade(1f, 0.25f).SetUpdate(true).SetLink(tutorialCanvasGroup.gameObject);
         }
 
         if (instructionText != null) instructionText.gameObject.SetActive(true);
 
         if (handPointer == null) return;
 
-        handPointer.DOKill();
+        KillHandTweens();
         handPointer.gameObject.SetActive(true);
         handPointer.anchoredPosition = anchoredPos;
         handPointer.localScale = Vector3.one;
 
         Vector2 pressOffset = new Vector2(0f, -20f);
-        Sequence tapSeq = DOTween.Sequence();
-        tapSeq.Append(handPointer.DOScale(0.88f, 0.12f).SetEase(Ease.OutQuad));
-        tapSeq.Join(handPointer.DOAnchorPos(anchoredPos + pressOffset, 0.12f).SetEase(Ease.OutQuad));
-        tapSeq.Append(handPointer.DOScale(1f, 0.14f).SetEase(Ease.OutQuad));
-        tapSeq.Join(handPointer.DOAnchorPos(anchoredPos, 0.14f).SetEase(Ease.OutQuad));
-        tapSeq.AppendInterval(0.35f);
-        tapSeq.SetLoops(-1, LoopType.Restart);
+        _handTapSequence = DOTween.Sequence();
+        _handTapSequence.Append(handPointer.DOScale(0.88f, 0.12f).SetEase(Ease.OutQuad));
+        _handTapSequence.Join(handPointer.DOAnchorPos(anchoredPos + pressOffset, 0.12f).SetEase(Ease.OutQuad));
+        _handTapSequence.Append(handPointer.DOScale(1f, 0.14f).SetEase(Ease.OutQuad));
+        _handTapSequence.Join(handPointer.DOAnchorPos(anchoredPos, 0.14f).SetEase(Ease.OutQuad));
+        _handTapSequence.AppendInterval(0.35f);
+        _handTapSequence.SetLoops(-1, LoopType.Restart);
+        _handTapSequence.SetUpdate(true);
+        _handTapSequence.SetTarget(handPointer);
+        _handTapSequence.SetLink(handPointer.gameObject);
     }
 
     private void ShowOverlayWithHandHold(Vector2 anchoredPos)
@@ -164,14 +173,14 @@ public class TutorialManager : Singleton<TutorialManager>
             tutorialCanvasGroup.DOKill();
             tutorialCanvasGroup.alpha = 0f;
             tutorialCanvasGroup.blocksRaycasts = false;
-            tutorialCanvasGroup.DOFade(1f, 0.25f);
+            _overlayFadeTween = tutorialCanvasGroup.DOFade(1f, 0.25f).SetUpdate(true).SetLink(tutorialCanvasGroup.gameObject);
         }
 
         if (instructionText != null) instructionText.gameObject.SetActive(true);
 
         if (handPointer == null) return;
 
-        handPointer.DOKill();
+        KillHandTweens();
         handPointer.gameObject.SetActive(true);
         handPointer.anchoredPosition = anchoredPos;
         handPointer.localScale = Vector3.one;
@@ -189,16 +198,19 @@ public class TutorialManager : Singleton<TutorialManager>
         Vector2 pressedPos = anchoredPos + pressOffset;
         Vector2 draggedPos = pressedPos + dragOffset;
 
-        Sequence holdSeq = DOTween.Sequence();
-        holdSeq.Append(handPointer.DOScale(0.88f, pressDuration).SetEase(Ease.OutQuad));
-        holdSeq.Join(handPointer.DOAnchorPos(pressedPos, pressDuration).SetEase(Ease.OutQuad));
-        holdSeq.AppendInterval(holdDuration);
-        holdSeq.Append(handPointer.DOAnchorPos(draggedPos, dragDuration).SetEase(Ease.InOutSine));
-        holdSeq.AppendInterval(holdAfterDragDuration);
-        holdSeq.Append(handPointer.DOScale(1f, releaseDuration).SetEase(Ease.OutQuad));
-        holdSeq.Join(handPointer.DOAnchorPos(anchoredPos, releaseDuration).SetEase(Ease.OutQuad));
-        holdSeq.AppendInterval(restDuration);
-        holdSeq.SetLoops(-1, LoopType.Restart);
+        _handHoldSequence = DOTween.Sequence();
+        _handHoldSequence.Append(handPointer.DOScale(0.88f, pressDuration).SetEase(Ease.OutQuad));
+        _handHoldSequence.Join(handPointer.DOAnchorPos(pressedPos, pressDuration).SetEase(Ease.OutQuad));
+        _handHoldSequence.AppendInterval(holdDuration);
+        _handHoldSequence.Append(handPointer.DOAnchorPos(draggedPos, dragDuration).SetEase(Ease.InOutSine));
+        _handHoldSequence.AppendInterval(holdAfterDragDuration);
+        _handHoldSequence.Append(handPointer.DOScale(1f, releaseDuration).SetEase(Ease.OutQuad));
+        _handHoldSequence.Join(handPointer.DOAnchorPos(anchoredPos, releaseDuration).SetEase(Ease.OutQuad));
+        _handHoldSequence.AppendInterval(restDuration);
+        _handHoldSequence.SetLoops(-1, LoopType.Restart);
+        _handHoldSequence.SetUpdate(true);
+        _handHoldSequence.SetTarget(handPointer);
+        _handHoldSequence.SetLink(handPointer.gameObject);
     }
 
     private bool TryGetHandAnchoredPosFromScreenPoint(Vector2 screenPos, out Vector2 anchoredPos)
@@ -250,11 +262,16 @@ public class TutorialManager : Singleton<TutorialManager>
             _tutorialRoutine = null;
         }
 
-        if (handPointer != null)
+        KillOverlayTweens();
+
+        if (tutorialCanvasGroup != null)
         {
-            handPointer.DOKill();
-            handPointer.gameObject.SetActive(false);
+            tutorialCanvasGroup.DOKill();
+            tutorialCanvasGroup.alpha = 0f;
+            tutorialCanvasGroup.blocksRaycasts = false;
         }
+
+        if (handPointer != null) handPointer.gameObject.SetActive(false);
 
         if (instructionText != null)
         {
@@ -269,19 +286,19 @@ public class TutorialManager : Singleton<TutorialManager>
         if (delayBeforeShowingStep > 0f)
             yield return new WaitForSeconds(delayBeforeShowingStep);
 
-        if(levelData.gameMode == GameMode.Memory)
+        if (levelData.gameMode == GameMode.Memory)
         {
             PlayMemoryHoldTutorial();
         }
-        else if (levelData.portals.Count > 0)
+        else if (levelData.portals != null && levelData.portals.Count > 0)
         {
             PlayPortalTutorial();
         }
-        else if (levelData.keycards.Count > 0)
+        else if (levelData.keycards != null && levelData.keycards.Count > 0)
         {
             PlayGateTutorial();
         }
-        else
+        else if (levelData.snakes != null && levelData.snakes.Count > 0)
         {
             PlayBasicMoveTutorial(levelData.snakes[0].direction);
         }
@@ -442,7 +459,7 @@ public class TutorialManager : Singleton<TutorialManager>
         _pendingLevelData = null;
         _tutorialRoutine = null;
         CameraController.IsCameraInputBlocked = false;
-        if (handPointer != null) handPointer.DOKill();
+        KillOverlayTweens();
         
         if (tutorialCanvasGroup == null) return;
 
@@ -452,6 +469,37 @@ public class TutorialManager : Singleton<TutorialManager>
             if (handPointer != null) handPointer.gameObject.SetActive(false);
             if (instructionText != null) instructionText.gameObject.SetActive(false);
         });
+    }
+
+    private void KillHandTweens()
+    {
+        if (_handTapSequence != null && _handTapSequence.IsActive())
+        {
+            _handTapSequence.Kill();
+        }
+        _handTapSequence = null;
+
+        if (_handHoldSequence != null && _handHoldSequence.IsActive())
+        {
+            _handHoldSequence.Kill();
+        }
+        _handHoldSequence = null;
+
+        if (handPointer != null)
+        {
+            handPointer.DOKill();
+        }
+    }
+
+    private void KillOverlayTweens()
+    {
+        KillHandTweens();
+
+        if (_overlayFadeTween != null && _overlayFadeTween.IsActive())
+        {
+            _overlayFadeTween.Kill();
+        }
+        _overlayFadeTween = null;
     }
 
     // Called from gameplay input when the player taps an arrow for the first time.

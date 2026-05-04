@@ -1,10 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
-
-#if UNITY_EDITOR
-using UnityEditor.SceneManagement;
-#endif
-
 public class PlaytestExitListener : MonoBehaviour
 {
     [SerializeField] private KeyCode exitKey = KeyCode.Escape;
@@ -33,28 +27,26 @@ public class PlaytestExitListener : MonoBehaviour
             ? PlaytestSession.ReturnSceneName
             : fallbackReturnSceneName;
 
-        string targetScenePath = PlaytestSession.ReturnScenePath;
-
-        // Prefer existing SceneController flow (Buffer/loading/unload logic).
-        SceneController controller = FindObjectOfType<SceneController>();
-        if (controller != null)
-        {
-            controller.ForceResetLoadingState();
-            PlaytestSession.Clear();
-            controller.LoadScene(targetScene, false, false);
-            return;
-        }
+        ScreenType targetScreen = ScreenType.MainMenu;
+        if (targetScene == "GameScene") targetScreen = ScreenType.Gameplay;
+        else if (targetScene == "EditorScene") targetScreen = ScreenType.Editor;
 
         PlaytestSession.Clear();
 
-#if UNITY_EDITOR
-        if (!string.IsNullOrEmpty(targetScenePath))
+        TransitionManager transition = FindObjectOfType<TransitionManager>();
+        if (transition != null)
         {
-            EditorSceneManager.LoadSceneAsyncInPlayMode(targetScenePath, new LoadSceneParameters(LoadSceneMode.Single));
+            transition.TransitionToScreen(targetScreen);
             return;
         }
-#endif
 
-        SceneManager.LoadScene(targetScene);
+        ScreenManager screenManager = FindObjectOfType<ScreenManager>();
+        if (screenManager != null)
+        {
+            screenManager.ShowScreen(targetScreen);
+            return;
+        }
+
+        Debug.LogWarning("[PlaytestExitListener] No TransitionManager/ScreenManager found. Unable to exit playtest to screen.");
     }
 }

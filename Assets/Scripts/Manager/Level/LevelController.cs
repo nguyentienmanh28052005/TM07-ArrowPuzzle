@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class LevelController : MonoBehaviour
+public class LevelController : MonoBehaviour, IScreenLifecycle
 {
     [SerializeField] private int countArrowInGame;
+    private bool _isLevelComplete;
 
-    void Awake()
+    public void OnScreenShow()
     {
+        _isLevelComplete = false;
         if (PlaytestSession.IsPlaytesting)
         {
             countArrowInGame = PlaytestSession.LevelData.snakes != null ? PlaytestSession.LevelData.snakes.Count : 0;
@@ -20,11 +22,19 @@ public class LevelController : MonoBehaviour
         }
     }
 
+    public void OnScreenHide()
+    {
+        countArrowInGame = 0;
+        _isLevelComplete = false;
+    }
+
     public void SetCountArrowInGame()
     {
+        if (_isLevelComplete) return;
         countArrowInGame--;
         if (countArrowInGame <= 0)
         {
+            _isLevelComplete = true;
             Debug.Log("Level Complete");
 
             LevelDataSO currentLevelData = null;
