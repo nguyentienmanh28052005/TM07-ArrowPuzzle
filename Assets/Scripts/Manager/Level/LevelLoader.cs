@@ -33,6 +33,8 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     private GameObject _obstaclesContainer;
     private Coroutine _loadRoutine;
     private bool _requestedTransitionHold;
+    private int _loadingTotalSteps;
+    private int _loadingCompletedSteps;
 
     public void OnScreenShow()
     {
@@ -85,6 +87,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
         CameraController.IsGameplayBlocking = true;
         RequestTransitionHold();
+        PrepareLoadingProgress();
 
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null && levelToPlay != null)
@@ -98,6 +101,8 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         yield return StartCoroutine(PreSpawnSnakesCoroutine());
 
         ActivateAndInitializeSnakes();
+
+        FinishLoadingProgress();
 
         CameraController camController = Camera.main != null ? Camera.main.GetComponent<CameraController>() : null;
         if (camController != null)
@@ -289,6 +294,8 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                     Vector2Int pos = snakeData.segmentPositions[i];
                     Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
                     Instantiate(dotPrefab, currentPos, Quaternion.identity, _dotsContainer.transform);
+
+                    IncrementLoadingProgress();
                     
                     dotsSpawnedThisFrame++;
 
@@ -309,6 +316,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         for (int i = 0; i < levelToPlay.snakes.Count; i++)
         {
             PreSpawnSingleSnake(levelToPlay.snakes[i]);
+            IncrementLoadingProgress();
 
             if (IsTransitionActive() && (i + 1) % snakesPerFrame == 0)
             {
@@ -378,6 +386,51 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             case ArrowDir.Right: angle = -90f; break;
         }
         return Quaternion.Euler(0f, 0f, angle);
+    }
+
+    private void PrepareLoadingProgress()
+    {
+        int dotsToSpawn = 0;
+        int snakesToSpawn = 0;
+
+        if (levelToPlay != null && levelToPlay.snakes != null)
+        {
+            snakesToSpawn = levelToPlay.snakes.Count;
+            for (int i = 0; i < levelToPlay.snakes.Count; i++)
+            {
+                var snake = levelToPlay.snakes[i];
+                if (snake == null || snake.segmentPositions == null) continue;
+                dotsToSpawn += (snake.segmentPositions.Count + 1) / 2;
+            }
+        }
+
+        _loadingCompletedSteps = 0;
+        _loadingTotalSteps = Mathf.Max(1, dotsToSpawn + snakesToSpawn);
+        ReportLoadingProgress();
+    }
+
+    private void IncrementLoadingProgress()
+    {
+        if (_loadingCompletedSteps < _loadingTotalSteps)
+        {
+            _loadingCompletedSteps++;
+        }
+
+        ReportLoadingProgress();
+    }
+
+    private void FinishLoadingProgress()
+    {
+        _loadingCompletedSteps = _loadingTotalSteps;
+        ReportLoadingProgress();
+    }
+
+    private void ReportLoadingProgress()
+    {
+        if (TransitionManager.Instance == null) return;
+
+        float normalized = (float)_loadingCompletedSteps / _loadingTotalSteps;
+        TransitionManager.Instance.SetLoadingProgress(normalized);
     }
 
     private void RequestTransitionHold()

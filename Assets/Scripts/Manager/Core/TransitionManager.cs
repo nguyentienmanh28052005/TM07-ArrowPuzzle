@@ -2,6 +2,7 @@ using System.Collections;
 using DG.Tweening;
 using Pixelplacement;
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum TransitionStyle
 {
@@ -27,6 +28,20 @@ public enum TransitionStyle
     FlashZoom           // Flash + zoom
 }
 
+public enum LoadingIconEffect
+{
+    Spin,
+    SpinPulse,
+    Pulse,
+    Wobble,
+    Bounce,
+    Swing,
+    Orbit,
+    Stretch,
+    Shake,
+    Tumble
+}
+
 public class TransitionManager : Singleton<TransitionManager>
 {
     [Header("UI References")]
@@ -39,6 +54,19 @@ public class TransitionManager : Singleton<TransitionManager>
     [SerializeField] private float standingPadding = 0f;
     [SerializeField] private TransitionStyle defaultStyle = TransitionStyle.SlideLeft;
 
+    [Header("Loading Effects")]
+    [SerializeField] private Slider loadingSlider;
+    [SerializeField] private RectTransform loadingIconRect;
+    [SerializeField] private LoadingIconEffect loadingIconEffect = LoadingIconEffect.SpinPulse;
+    [SerializeField] private float loadingIconSpinDuration = 0.8f;
+    [SerializeField] private float loadingIconPulseScale = 1.08f;
+    [SerializeField] private float loadingIconMoveDistance = 12f;
+    [SerializeField] private float loadingIconWobbleAngle = 15f;
+    [SerializeField] private float loadingIconSwingAngle = 20f;
+    [SerializeField] private float loadingIconOrbitRadius = 12f;
+    [SerializeField] private float loadingIconStretchScale = 1.15f;
+    [SerializeField] private float loadingIconShakeStrength = 8f;
+
     private bool _isTransitioning;
     private int _holdCount;
     private Vector2 _screenCenter = Vector2.zero;
@@ -50,6 +78,10 @@ public class TransitionManager : Singleton<TransitionManager>
     private Vector2 _screenDownLeft;
     private Vector2 _screenUpLeft;
     private Vector2 _screenDownRight;
+
+    private DG.Tweening.Tween _loadingIconTween;
+    private DG.Tweening.Tween _loadingIconPulseTween;
+    private Vector2 _loadingIconBasePos;
 
     public bool IsTransitioning => _isTransitioning;
     public bool IsHeld => _holdCount > 0;
@@ -113,6 +145,8 @@ public class TransitionManager : Singleton<TransitionManager>
             ScreenManager.Instance.ShowScreen(target, force);
         }
 
+        StartHoldEffects();
+
         // Chờ các hệ thống khác (như LevelLoader) load xong map
         while (_holdCount > 0)
         {
@@ -123,6 +157,8 @@ public class TransitionManager : Singleton<TransitionManager>
         {
             yield return new WaitForSecondsRealtime(standingPadding);
         }
+
+        StopHoldEffects();
 
         // ==========================================
         // PHASE 3: TRANSITION OUT (Mở màn hình ra)
@@ -136,6 +172,161 @@ public class TransitionManager : Singleton<TransitionManager>
         ResetFadeGraphic();
 
         SetTransitioning(false);
+    }
+
+    private void StartHoldEffects()
+    {
+        if (loadingSlider != null)
+        {
+            loadingSlider.gameObject.SetActive(true);
+        }
+
+        if (loadingSlider != null)
+        {
+            loadingSlider.normalizedValue = 0f;
+        }
+
+        if (loadingIconRect != null)
+        {
+            loadingIconRect.gameObject.SetActive(true);
+            _loadingIconBasePos = loadingIconRect.anchoredPosition;
+            loadingIconRect.localScale = Vector3.one;
+            loadingIconRect.localRotation = Quaternion.identity;
+
+            _loadingIconTween?.Kill();
+            _loadingIconPulseTween?.Kill();
+            StartIconEffect();
+        }
+    }
+
+    private void StopHoldEffects()
+    {
+        _loadingIconTween?.Kill();
+        _loadingIconPulseTween?.Kill();
+
+        if (loadingSlider != null)
+        {
+            loadingSlider.normalizedValue = 0f;
+        }
+
+        if (loadingSlider != null)
+        {
+            loadingSlider.gameObject.SetActive(false);
+        }
+
+        if (loadingIconRect != null)
+        {
+            loadingIconRect.anchoredPosition = _loadingIconBasePos;
+            loadingIconRect.localScale = Vector3.one;
+            loadingIconRect.localRotation = Quaternion.identity;
+            loadingIconRect.gameObject.SetActive(false);
+        }
+    }
+
+    public void SetLoadingProgress(float normalized)
+    {
+        if (loadingSlider == null) return;
+
+        loadingSlider.normalizedValue = Mathf.Clamp01(normalized);
+    }
+
+    private void StartIconEffect()
+    {
+        switch (loadingIconEffect)
+        {
+            case LoadingIconEffect.Spin:
+                _loadingIconTween = loadingIconRect
+                    .DORotate(new Vector3(0f, 0f, -360f), loadingIconSpinDuration, RotateMode.FastBeyond360)
+                    .SetEase(Ease.Linear)
+                    .SetLoops(-1, LoopType.Restart)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.SpinPulse:
+                _loadingIconTween = loadingIconRect
+                    .DORotate(new Vector3(0f, 0f, -360f), loadingIconSpinDuration, RotateMode.FastBeyond360)
+                    .SetEase(Ease.Linear)
+                    .SetLoops(-1, LoopType.Restart)
+                    .SetUpdate(true);
+                _loadingIconPulseTween = loadingIconRect
+                    .DOScale(Vector3.one * loadingIconPulseScale, loadingIconSpinDuration * 0.5f)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Pulse:
+                _loadingIconTween = loadingIconRect
+                    .DOScale(Vector3.one * loadingIconPulseScale, loadingIconSpinDuration * 0.5f)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Wobble:
+                _loadingIconTween = loadingIconRect
+                    .DORotate(new Vector3(0f, 0f, loadingIconWobbleAngle), loadingIconSpinDuration * 0.5f)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Bounce:
+                _loadingIconTween = loadingIconRect
+                    .DOAnchorPosY(_loadingIconBasePos.y + loadingIconMoveDistance, loadingIconSpinDuration * 0.5f)
+                    .SetEase(Ease.InOutQuad)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Swing:
+                _loadingIconTween = loadingIconRect
+                    .DORotate(new Vector3(0f, 0f, loadingIconSwingAngle), loadingIconSpinDuration * 0.5f)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Orbit:
+                _loadingIconTween = DOTween.To(
+                        () => 0f,
+                        angle =>
+                        {
+                            float rad = angle * Mathf.Deg2Rad;
+                            loadingIconRect.anchoredPosition = _loadingIconBasePos +
+                                new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)) * loadingIconOrbitRadius;
+                        },
+                        360f,
+                        loadingIconSpinDuration)
+                    .SetEase(Ease.Linear)
+                    .SetLoops(-1, LoopType.Restart)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Stretch:
+                _loadingIconTween = loadingIconRect
+                    .DOScale(new Vector3(loadingIconStretchScale, 1f / loadingIconStretchScale, 1f), loadingIconSpinDuration * 0.5f)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Shake:
+                _loadingIconTween = loadingIconRect
+                    .DOShakeAnchorPos(loadingIconSpinDuration, loadingIconShakeStrength, 20, 90f, false, false)
+                    .SetEase(Ease.Linear)
+                    .SetLoops(-1, LoopType.Restart)
+                    .SetUpdate(true);
+                break;
+
+            case LoadingIconEffect.Tumble:
+                _loadingIconTween = loadingIconRect
+                    .DORotate(new Vector3(0f, 0f, -720f), loadingIconSpinDuration, RotateMode.FastBeyond360)
+                    .SetEase(Ease.InOutQuad)
+                    .SetLoops(-1, LoopType.Restart)
+                    .SetUpdate(true);
+                break;
+        }
     }
 
     private void SetTransitioning(bool value)
