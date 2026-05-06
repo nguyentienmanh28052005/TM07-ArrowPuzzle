@@ -213,6 +213,22 @@ public class ArrowGuideline : MonoBehaviour
                 continue;
             }
 
+            if (GridManager.Instance.DeflectorMap != null && GridManager.Instance.DeflectorMap.TryGetValue(nextCell, out GridDeflector deflector))
+            {
+                currentSeg.steps += 1;
+                if (currentSeg.steps > 0) outSegments.Add(currentSeg);
+
+                currentCell = nextCell;
+                currentWorldStart = new Vector3(currentCell.x, currentCell.y, headPos.z);
+
+                currentDir = deflector.direction;
+                step = GetDirStep(currentDir);
+                currentSeg = new Segment { startWorld = currentWorldStart, dir = currentDir, steps = 0 };
+
+                if (outSegments.Count >= _maxSegmentsSafety) break;
+                continue;
+            }
+
             currentSeg.steps += 1;
             currentCell = nextCell;
         }

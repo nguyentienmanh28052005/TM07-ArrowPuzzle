@@ -186,6 +186,18 @@ public class CameraController : MonoBehaviour
             }
         }
 
+        if (data.deflectors != null)
+        {
+            foreach (var d in data.deflectors)
+            {
+                if (d.position.x < minX) minX = d.position.x;
+                if (d.position.x > maxX) maxX = d.position.x;
+                if (d.position.y < minY) minY = d.position.y;
+                if (d.position.y > maxY) maxY = d.position.y;
+                hasAny = true;
+            }
+        }
+
         if (!hasAny) return false;
 
         float width = Mathf.Max(0f, maxX - minX);

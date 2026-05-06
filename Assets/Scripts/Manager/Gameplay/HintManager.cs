@@ -93,6 +93,14 @@ public class HintManager : MonoBehaviour
                     continue;
                 }
 
+                if (GridManager.Instance.DeflectorMap != null && GridManager.Instance.DeflectorMap.TryGetValue(checkPos, out GridDeflector deflector))
+                {
+                    currentPos = checkPos;
+                    currentDir = deflector.direction;
+                    step = GetDirStep(currentDir);
+                    continue;
+                }
+
                 currentPos = checkPos;
             }
 

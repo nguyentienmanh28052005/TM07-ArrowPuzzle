@@ -24,10 +24,12 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
 
     private Vector3 _preShakePos;
     private DG.Tweening.Tween _shakeTween;
+    private Coroutine _hitStopRoutine;
 
     private void Start()
     {
         if (mainCamera == null) mainCamera = Camera.main;
+        if (mainCamera != null) _preShakePos = mainCamera.transform.localPosition;
         //if (mainCamera != null) _originalCameraPos = mainCamera.transform.localPosition;
         
         if (flashOverlay != null)
@@ -47,6 +49,7 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
     {
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
         //MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnPlayComboJuice, HandlePlayComboJuice);
+        ClearJuiceImmediate(true);
     }
 
     public void PlayDamageJuice(object data)
@@ -62,7 +65,14 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
 
     public void PlayCustomJuice(float duration, float strength, float hitStop, Color flashColor)
     {
-        if (hitStop > 0f) StartCoroutine(HitStopRoutine(hitStop));
+        if (_hitStopRoutine != null)
+        {
+            StopCoroutine(_hitStopRoutine);
+            _hitStopRoutine = null;
+            Time.timeScale = 1f;
+        }
+
+        if (hitStop > 0f) _hitStopRoutine = StartCoroutine(HitStopRoutine(hitStop));
 
         if (mainCamera != null)
         {
@@ -88,10 +98,42 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
         }
     }
 
+    public void ClearJuiceImmediate(bool restoreTimeScale = false)
+    {
+        if (_hitStopRoutine != null)
+        {
+            StopCoroutine(_hitStopRoutine);
+            _hitStopRoutine = null;
+        }
+
+        if (restoreTimeScale)
+        {
+            Time.timeScale = 1f;
+        }
+
+        _shakeTween?.Kill();
+        _shakeTween = null;
+
+        if (mainCamera != null)
+        {
+            mainCamera.transform.DOKill();
+            mainCamera.transform.localPosition = _preShakePos;
+        }
+
+        if (flashOverlay != null)
+        {
+            flashOverlay.DOKill();
+            Color color = flashOverlay.color;
+            color.a = 0f;
+            flashOverlay.color = color;
+        }
+    }
+
     private IEnumerator HitStopRoutine(float duration)
     {
         Time.timeScale = 0.01f;
         yield return new WaitForSecondsRealtime(duration);
         Time.timeScale = 1f;
+        _hitStopRoutine = null;
     }
 }

@@ -124,6 +124,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         _currentPopup = PopupState.None;
         _isShowing = false;
         StopAllCoroutines();
+        ResetScreenJuice();
         ClearFlyingItems();
         HideFeedbackText();
         HidePanelImmediate(overlayBg);
@@ -416,30 +417,25 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.SetUpdate(true); 
 
         // 1. Nền tối hiện lên
-        seq.Append(cinematicIntroPanel.DOFade(1f, 0.2f));
+        seq.Append(cinematicIntroPanel.DOFade(1f, 0.18f));
 
         // ==========================================
         // NHỊP 1: BUNG LỤA (IMPACT)
         // ==========================================
-        seq.Append(cinematicIntroIcon.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack, 2.5f));
-        seq.Join(cinematicIntroIcon.DORotate(Vector3.zero, 0.4f).SetEase(Ease.OutBack, 2.0f));
+        seq.Insert(0f, cinematicIntroIcon.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack, 2.2f));
+        seq.Insert(0f, cinematicIntroIcon.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack, 1.8f));
 
-        seq.Insert(0.08f, cinematicIntroText.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack, 2.5f));
-        seq.Insert(0.08f, cinematicIntroText.DORotate(Vector3.zero, 0.4f).SetEase(Ease.OutBack, 2.0f));
+        seq.Insert(0.04f, cinematicIntroText.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack, 2.2f));
+        seq.Insert(0.04f, cinematicIntroText.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack, 1.8f));
 
-        // Cú đập "Punch" tạo sức nặng vật lý
-        seq.Insert(0.4f, cinematicIntroIcon.DOPunchScale(new Vector3(0.15f, -0.1f, 0), 0.25f, 5, 1));
-
-        seq.InsertCallback(0.2f, () => {
-            if (SettingManager.Instance != null) 
-                SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
-        });
+        // Giữ cú nhấn thị giác, chỉ bỏ haptic.
+        seq.Insert(0.35f, cinematicIntroIcon.DOPunchScale(new Vector3(0.15f, -0.1f, 0), 0.25f, 5, 1));
 
         // ==========================================
         // NHỊP 2: LƠ LỬNG (BREATHE)
         // ==========================================
-        float breatheTime = holdDuration > 0.4f ? holdDuration - 0.4f : 0.5f; 
-        
+        float breatheTime = holdDuration > 0.4f ? holdDuration - 0.4f : 0.5f;
+
         seq.Append(cinematicIntroIcon.DOScale(Vector3.one * 1.08f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
         seq.Join(cinematicIntroIcon.DOAnchorPosY(cinematicIntroIcon.anchoredPosition.y + 15f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
         seq.Join(cinematicIntroText.DOScale(Vector3.one * 1.05f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
@@ -1024,6 +1020,8 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         LevelDataSO currentLevelData = GameManager.Instance.GetCurrentLevelData();
         GameMode currentMode = currentLevelData.gameMode;
 
+        ResetScreenJuice();
+
         if (currentMode == GameMode.TimeAttack)
         {
             float timeToAdd = isFullTimeRevive ? currentLevelData.timeLimit : 30f;
@@ -1120,6 +1118,15 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         if (TimeAttackManager.Instance != null)
         {
             TimeAttackManager.Instance.AddTime(amount);
+        }
+    }
+
+    private void ResetScreenJuice()
+    {
+        ScreenJuiceManager juiceManager = FindObjectOfType<ScreenJuiceManager>();
+        if (juiceManager != null)
+        {
+            juiceManager.ClearJuiceImmediate(true);
         }
     }
     #endregion

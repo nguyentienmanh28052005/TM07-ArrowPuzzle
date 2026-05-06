@@ -1099,6 +1099,8 @@ MonoBehaviour:
     type: 3}
   gatePrefab: {fileID: 256930744572596102, guid: 293b81f1819a87a45ab2057a7ef978c1,
     type: 3}
+  deflectorPrefab: {fileID: 2362271296126747096, guid: e0a8b61bfabe7e0499285d5445e4be46,
+    type: 3}
   highlightColor: {r: 1, g: 1, b: 1, a: 1}
   currentData: {fileID: 11400000, guid: 88f90cfb47ca8a34fb679296c2d85621, type: 2}
   levelContainer: {fileID: 1087363345}
@@ -2683,6 +2685,9 @@ MonoBehaviour:
   healthContainer: {fileID: 0}
   feedbackText: {fileID: 0}
   overlayBg: {fileID: 0}
+  currentLevelText: {fileID: 0}
+  currentDifficultyText: {fileID: 0}
+  currentDifficultyTag: {fileID: 0}
   pausePanel: {fileID: 0}
   pauseContent: {fileID: 0}
   completePanel: {fileID: 0}
@@ -2713,6 +2718,10 @@ MonoBehaviour:
   currentHintToolText: {fileID: 0}
   currentDashToolText: {fileID: 0}
   dashToolPanel: {fileID: 0}
+  cinematicIntroPanel: {fileID: 0}
+  cinematicIntroIcon: {fileID: 0}
+  cinematicIntroText: {fileID: 0}
+  cinematicTextComponent: {fileID: 0}
 --- !u!1 &340958840
 GameObject:
   m_ObjectHideFlags: 0
@@ -17142,7 +17151,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1235548326}
   m_HandleRect: {fileID: 1235548325}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:

@@ -56,7 +56,8 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
             }
 
             float portalVanishDuration = GridPortalVisual.PlayEndGameVanishAll();
-            effectDuration = Mathf.Max(effectDuration, portalVanishDuration);
+            float deflectorVanishDuration = GridDeflectorVisual.PlayEndGameVanishAll();
+            effectDuration = Mathf.Max(effectDuration, portalVanishDuration, deflectorVanishDuration);
 
             StartCoroutine(SequenceWinGame(effectDuration, currentLevelData, isFullCombo));
         }

@@ -92,6 +92,16 @@ public class TransitionManager : Singleton<TransitionManager>
     private void Start()
     {
         RefreshScreenPositions();
+
+        if (fadeGroup != null)
+        {
+            fadeGroup.alpha = 0f;
+            fadeGroup.blocksRaycasts = false;
+            if (fadeGroup.gameObject.activeSelf)
+            {
+                fadeGroup.gameObject.SetActive(false);
+            }
+        }
     }
 
     public void RequestHold() => _holdCount++;

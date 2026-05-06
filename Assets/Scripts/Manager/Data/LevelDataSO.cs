@@ -27,6 +27,14 @@ public partial class GateSaveData
     public Color color;
 }
 
+[System.Serializable]
+[MemoryPackable]
+public partial class DeflectorSaveData
+{
+    public Vector2Int position;
+    public ArrowDir direction;
+}
+
 // BẢN VÁ: THÊM HƯỚNG VÀO HỐ ĐEN
 [System.Serializable]
 [MemoryPackable]
@@ -56,4 +64,5 @@ public class LevelDataSO : ScriptableObject
     public List<KeycardSaveData> keycards = new List<KeycardSaveData>();
     public List<GateSaveData> gates = new List<GateSaveData>();
     public List<PortalData> portals = new List<PortalData>(); 
+    public List<DeflectorSaveData> deflectors = new List<DeflectorSaveData>();
 }

@@ -36,6 +36,8 @@ public class GameManager : Singleton<GameManager>, IScreenLifecycle
     /// </summary>
     private IEnumerator PrewarmAsyncRoutine()
     {
+        yield return null;
+
         DOTween.Init(true, true, LogBehaviour.ErrorsOnly).SetCapacity(1000, 200); 
         yield return null; 
 

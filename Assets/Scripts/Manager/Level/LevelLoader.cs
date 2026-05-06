@@ -13,6 +13,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
     public GameObject portalPrefab;
+    public GameObject deflectorPrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -24,6 +25,9 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     [Header("Optimization")]
     public int snakesPerFrame = 2; 
     public int dotsPerFrame = 15; 
+
+    [Header("Transition Sync")]
+    [SerializeField] private float snakeSpawnLeadBeforeTransitionRelease = 0.12f;
 
     public bool editorMode = false;
 
@@ -84,6 +88,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             GridManager.Instance.ClearLevelState();
         }
         GridPortalVisual.ClearAll();
+        GridDeflectorVisual.ClearAll();
 
         CameraController.IsGameplayBlocking = true;
         RequestTransitionHold();
@@ -108,6 +113,14 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         if (camController != null)
         {
             camController.PrepareDefaultForLevel(levelToPlay);
+            camController.StartIntro();
+        }
+
+        StartSpawnAnimationOnSnakes();
+
+        if (IsTransitionActive() && snakeSpawnLeadBeforeTransitionRelease > 0f)
+        {
+            yield return new WaitForSecondsRealtime(snakeSpawnLeadBeforeTransitionRelease);
         }
 
         ReleaseTransitionHold();
@@ -118,8 +131,6 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             yield return null;
         }
 
-        StartSpawnAnimationOnSnakes();
-
         if (TimeAttackManager.Instance != null)
         {
             if (levelToPlay != null && levelToPlay.gameMode == GameMode.TimeAttack)
@@ -128,12 +139,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 TimeAttackManager.Instance.DisableTimer();
         }
 
-        // ==========================================
-        // PHÂN CẢNH 2: BUNG LỤA CAMERA ZOOM VÀ BANNER "HARD LEVEL"
-        // ==========================================
-        if (camController != null) 
-            camController.StartIntro(); // Lệnh này giờ sẽ tự động gọi Cinematic Banner bên trong nó
-        else 
+        if (camController == null) 
             CameraController.IsGameplayBlocking = false;
 
         if (TutorialManager.Instance != null) 
@@ -182,6 +188,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             GridManager.Instance.ClearLevelState();
         }
         GridPortalVisual.ClearAll();
+        GridDeflectorVisual.ClearAll();
 
         if (gameContainer != null)
         {
@@ -242,6 +249,17 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 if (obj.TryGetComponent(out GridLaserGate script)) script.gateColor = g.color;
                 SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
                 if (sr != null) sr.color = g.color;
+            }
+        }
+
+        if (levelToPlay.deflectors != null && deflectorPrefab != null)
+        {
+            foreach (var d in levelToPlay.deflectors)
+            {
+                GameObject obj = Instantiate(deflectorPrefab, new Vector3(d.position.x, d.position.y, 0), GetRotationForDir(d.direction), _obstaclesContainer.transform);
+                GridDeflector deflector = obj.GetComponentInChildren<GridDeflector>();
+                if (deflector != null) deflector.SetDirection(d.direction);
+                if (obj.GetComponent<GridDeflectorVisual>() == null) obj.AddComponent<GridDeflectorVisual>();
             }
         }
 

@@ -18,6 +18,7 @@ public class ScreenManager : Singleton<ScreenManager>
 
     [Header("Setup")]
     [SerializeField] private ScreenType defaultScreen = ScreenType.MainMenu;
+    [SerializeField] private bool playTransitionOnStart = false;
     [SerializeField] private List<ScreenEntry> screens = new List<ScreenEntry>();
 
     public static event Action<ScreenType> ScreenShown;
@@ -36,7 +37,14 @@ public class ScreenManager : Singleton<ScreenManager>
     {
         if (TransitionManager.Instance != null)
         {
-            TransitionManager.Instance.TransitionToScreen(defaultScreen, true);
+            if (playTransitionOnStart)
+            {
+                TransitionManager.Instance.TransitionToScreen(defaultScreen, true);
+            }
+            else
+            {
+                ShowScreen(defaultScreen, true);
+            }
             return;
         }
 

@@ -11,7 +11,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 
-public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate }
+public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector }
 
 public class LevelEditor : MonoBehaviour
 {
@@ -24,6 +24,7 @@ public class LevelEditor : MonoBehaviour
     public GameObject portalPrefab;
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
+    public GameObject deflectorPrefab;
     public Color highlightColor = Color.yellow;
 
     [Header("Data")]
@@ -124,6 +125,7 @@ public class LevelEditor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha5)) UI_SetTool(4);
         if (Input.GetKeyDown(KeyCode.Alpha6)) UI_SetTool(5);
         if (Input.GetKeyDown(KeyCode.Alpha7)) UI_SetTool(6);
+        if (Input.GetKeyDown(KeyCode.Alpha8)) UI_SetTool(7);
 
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) UI_SetDirection(0);
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) UI_SetDirection(1);
@@ -147,6 +149,7 @@ public class LevelEditor : MonoBehaviour
             else if (currentTool == EditorToolType.Portal) HandlePortalClick();
             else if (currentTool == EditorToolType.Keycard) HandleObjectPlacement<GridKeycard>(keycardPrefab);
             else if (currentTool == EditorToolType.Gate) HandleObjectPlacement<GridLaserGate>(gatePrefab);
+            else if (currentTool == EditorToolType.Deflector) HandleDeflectorPlacement();
         }
         else if (Input.GetMouseButton(0)) 
         {
@@ -261,6 +264,8 @@ public class LevelEditor : MonoBehaviour
         {
             if (child.TryGetComponent(out GridKeycard k) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridLaserGate g) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            GridDeflector d = child.GetComponentInChildren<GridDeflector>();
+            if (d != null && Mathf.RoundToInt(d.transform.position.x) == pos.x && Mathf.RoundToInt(d.transform.position.y) == pos.y) return true;
         }
         return false;
     }
@@ -321,6 +326,18 @@ public class LevelEditor : MonoBehaviour
         if (obj.TryGetComponent(out GridKeycard k)) k.keyColor = currentColor;
         if (obj.TryGetComponent(out GridLaserGate g)) g.gateColor = currentColor;
         
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void HandleDeflectorPlacement()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        if (IsPositionOccupied(gridPos) || deflectorPrefab == null) return;
+
+        GameObject obj = Instantiate(deflectorPrefab, new Vector3(gridPos.x, gridPos.y, 0), GetRotationForDir(currentDir), levelContainer);
+        GridDeflector deflector = obj.GetComponentInChildren<GridDeflector>();
+        if (deflector != null) deflector.SetDirection(currentDir);
+
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
     }
 
@@ -419,7 +436,9 @@ public class LevelEditor : MonoBehaviour
 
         foreach (Transform child in levelContainer)
         {
-            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null) && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
+            GridDeflector deflector = child.GetComponentInChildren<GridDeflector>();
+            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || deflector != null)
+                && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
                 Destroy(child.gameObject);
                 lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -673,7 +692,7 @@ public class LevelEditor : MonoBehaviour
         }
         else if (currentTool == EditorToolType.Erase) previewCursor.color = new Color(1, 0, 0, 0.5f);
         else if (currentTool == EditorToolType.Select) previewCursor.color = new Color(1, 1, 0, 0.3f);
-        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate) 
+        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector) 
             previewCursor.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.8f);
     }
 
@@ -748,12 +767,13 @@ public class LevelEditor : MonoBehaviour
         currentData.snakes.Clear();
         currentData.keycards.Clear();
         currentData.gates.Clear();
+        currentData.deflectors.Clear();
 
         foreach (Transform s in levelContainer) {
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
             if (sb != null && sb.gameObject != currentSelectionGlowObj && sb.LogicNodes != null && sb.LogicNodes.Count > 0) {
-                SnakeSaveData d = new SnakeSaveData { direction = sb.direction, arrowColor = sb.snakeColor, segmentPositions = new List<Vector2Int>(sb.LogicNodes) };
-                currentData.snakes.Add(d);
+                SnakeSaveData e = new SnakeSaveData { direction = sb.direction, arrowColor = sb.snakeColor, segmentPositions = new List<Vector2Int>(sb.LogicNodes) };
+                currentData.snakes.Add(e);
             }
 
             if (s.TryGetComponent(out GridKeycard k))
@@ -761,6 +781,10 @@ public class LevelEditor : MonoBehaviour
             
             if (s.TryGetComponent(out GridLaserGate g))
                 currentData.gates.Add(new GateSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = g.gateColor });
+
+            GridDeflector d = s.GetComponentInChildren<GridDeflector>();
+            if (d != null)
+                currentData.deflectors.Add(new DeflectorSaveData { position = new Vector2Int((int)d.transform.position.x, (int)d.transform.position.y), direction = d.direction });
         }
 
         currentData.portals = new List<PortalData>(currentDraftPortals);
@@ -801,6 +825,14 @@ public class LevelEditor : MonoBehaviour
                 GameObject g = Instantiate(gatePrefab, new Vector3(gData.position.x, gData.position.y, 0), Quaternion.identity, levelContainer);
                 if (g.TryGetComponent(out GridLaserGate script)) script.gateColor = gData.color;
                 g.GetComponent<SpriteRenderer>().color = gData.color;
+            }
+        }
+
+        if (currentData.deflectors != null && deflectorPrefab != null) {
+            foreach (var dData in currentData.deflectors) {
+                GameObject d = Instantiate(deflectorPrefab, new Vector3(dData.position.x, dData.position.y, 0), GetRotationForDir(dData.direction), levelContainer);
+                GridDeflector script = d.GetComponentInChildren<GridDeflector>();
+                if (script != null) script.SetDirection(dData.direction);
             }
         }
 

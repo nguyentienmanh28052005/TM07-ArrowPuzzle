@@ -16,6 +16,7 @@ public class GridManager : MonoBehaviour
     public Dictionary<Vector2Int, GridKeycard> KeycardMap = new Dictionary<Vector2Int, GridKeycard>();
     public Dictionary<Vector2Int, GridLaserGate> GateMap = new Dictionary<Vector2Int, GridLaserGate>();
     public Dictionary<Vector2Int, PortalLink> PortalMap = new Dictionary<Vector2Int, PortalLink>();
+    public Dictionary<Vector2Int, GridDeflector> DeflectorMap = new Dictionary<Vector2Int, GridDeflector>();
 
     public Action<Color> OnKeyCollectedEvent;
 
@@ -68,5 +69,6 @@ public class GridManager : MonoBehaviour
         KeycardMap.Clear();
         GateMap.Clear();
         PortalMap.Clear();
+        DeflectorMap.Clear();
     }
 }

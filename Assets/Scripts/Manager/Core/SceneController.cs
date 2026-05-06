@@ -62,7 +62,7 @@ public class SceneController : Singleton<SceneController>
             loadCanvasGroup.gameObject.SetActive(false);
         }
 
-        string startupScene = "GameMenu";
+        string startupScene = "GameScene";
         if (PlaytestSession.IsActive && !string.IsNullOrEmpty(PlaytestSession.RequestedSceneName))
         {
             startupScene = PlaytestSession.RequestedSceneName;
