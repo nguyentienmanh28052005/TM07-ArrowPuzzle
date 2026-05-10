@@ -1,9 +1,45 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
 using Pixelplacement;
+public interface ITutorialCondition
+{
+    bool IsApplicable(LevelDataSO levelData);
+}
+
+public enum TutorialTrigger
+{
+    Always,
+    MemoryMode,
+    HasPortals,
+    HasKeycards,
+    HasSnakes
+}
+
+public enum TutorialHandMode
+{
+    Tap,
+    Hold
+}
+
+[System.Serializable]
+public class TutorialStepConfig
+{
+    public string id;
+    public TutorialTrigger trigger = TutorialTrigger.Always;
+    public MonoBehaviour conditionProvider;
+    [TextArea] public string instruction;
+    public TutorialHandMode handMode = TutorialHandMode.Tap;
+    public RectTransform target;
+    public bool useCustomAnchoredPos = false;
+    public Vector2 customAnchoredPos = Vector2.zero;
+    public bool fallbackToFirstSnake = false;
+    public Vector2 fallbackAnchoredPos = Vector2.zero;
+}
+
 
 public class TutorialManager : Singleton<TutorialManager>
 {
@@ -13,6 +49,9 @@ public class TutorialManager : Singleton<TutorialManager>
 
     [Header("Tutorial Timing")]
     [Min(0f)] public float delayBeforeShowingStep = 0f;
+
+    [Header("Tutorial Steps (Optional)")]
+    public List<TutorialStepConfig> tutorialSteps = new List<TutorialStepConfig>();
 
     [Header("Basic Move Tutorial")]
     public RectTransform basicMoveTarget;
@@ -246,6 +285,7 @@ public class TutorialManager : Singleton<TutorialManager>
         return TryGetHandAnchoredPosFromScreenPoint(targetScreenPos, out anchoredPos);
     }
 
+
     private void StopTutorialImmediate()
     {
         _isTutorialActive = false;
@@ -285,6 +325,10 @@ public class TutorialManager : Singleton<TutorialManager>
         yield return null;
         if (delayBeforeShowingStep > 0f)
             yield return new WaitForSeconds(delayBeforeShowingStep);
+        if (TryPlayConfiguredStep(levelData))
+        {
+            yield break;
+        }
 
         if (levelData.gameMode == GameMode.Memory)
         {
@@ -304,6 +348,104 @@ public class TutorialManager : Singleton<TutorialManager>
         }
     }
 
+    private bool TryPlayConfiguredStep(LevelDataSO levelData)
+    {
+        if (tutorialSteps == null || tutorialSteps.Count == 0 || levelData == null) return false;
+
+        for (int i = 0; i < tutorialSteps.Count; i++)
+        {
+            TutorialStepConfig step = tutorialSteps[i];
+            if (step == null) continue;
+            if (!IsStepApplicable(step, levelData)) continue;
+
+            PlayStep(step);
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsStepApplicable(TutorialStepConfig step, LevelDataSO levelData)
+    {
+        if (step == null || levelData == null) return false;
+
+        if (step.conditionProvider != null)
+        {
+            ITutorialCondition condition = step.conditionProvider as ITutorialCondition;
+            return condition != null && condition.IsApplicable(levelData);
+        }
+
+        switch (step.trigger)
+        {
+            case TutorialTrigger.Always:
+                return true;
+            case TutorialTrigger.MemoryMode:
+                return levelData.gameMode == GameMode.Memory;
+            case TutorialTrigger.HasPortals:
+                return levelData.portals != null && levelData.portals.Count > 0;
+            case TutorialTrigger.HasKeycards:
+                return levelData.keycards != null && levelData.keycards.Count > 0;
+            case TutorialTrigger.HasSnakes:
+                return levelData.snakes != null && levelData.snakes.Count > 0;
+            default:
+                return false;
+        }
+    }
+
+    private void PlayStep(TutorialStepConfig step)
+    {
+        if (instructionText != null) instructionText.text = step.instruction;
+
+        if (step.useCustomAnchoredPos)
+        {
+            ShowOverlayForStep(step, step.customAnchoredPos);
+            return;
+        }
+
+        if (TryGetHandAnchoredPosFromTargetRect(step.target, out Vector2 anchoredPosFromTarget))
+        {
+            ShowOverlayForStep(step, anchoredPosFromTarget);
+            return;
+        }
+
+        if (step.fallbackToFirstSnake && TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
+        {
+            ShowOverlayForStep(step, anchoredPosFromSnake);
+            return;
+        }
+
+        ShowOverlayForStep(step, step.fallbackAnchoredPos);
+    }
+
+    private void ShowOverlayForStep(TutorialStepConfig step, Vector2 anchoredPos)
+    {
+        if (step.handMode == TutorialHandMode.Hold)
+        {
+            ShowOverlayWithHandHold(anchoredPos);
+        }
+        else
+        {
+            ShowOverlayWithHandTap(anchoredPos);
+        }
+    }
+
+    private bool TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPos)
+    {
+        anchoredPos = Vector2.zero;
+
+        SnakeBlock firstSnake = FindObjectOfType<SnakeBlock>();
+        CameraController camController = FindObjectOfType<CameraController>();
+
+        if (firstSnake == null || camController == null) return false;
+
+        Camera playCam = camController.GetComponent<Camera>();
+        if (playCam == null) playCam = Camera.main;
+        if (playCam == null) return false;
+
+        Vector2 screenPos = playCam.WorldToScreenPoint(firstSnake.transform.position);
+        return TryGetHandAnchoredPosFromScreenPoint(screenPos, out anchoredPos);
+    }
+
     private void PlayBasicMoveTutorial(ArrowDir dir)
     {
         if (instructionText != null) instructionText.text = "Nhấn vào mũi tên để giải phóng";
@@ -319,31 +461,11 @@ public class TutorialManager : Singleton<TutorialManager>
             ShowOverlayWithHandTap(anchoredPosFromTarget);
             return;
         }
-        
-        SnakeBlock firstSnake = FindObjectOfType<SnakeBlock>();
-        CameraController camController = FindObjectOfType<CameraController>();
-        
-        if (firstSnake == null || camController == null) return;
 
-        Camera playCam = camController.GetComponent<Camera>();
-        if (playCam == null) playCam = Camera.main;
-        if (playCam == null) return;
-
-        Vector2 screenPos = playCam.WorldToScreenPoint(firstSnake.transform.position);
-
-        Canvas canvas = tutorialCanvasGroup != null ? tutorialCanvasGroup.GetComponentInParent<Canvas>() : null;
-        Camera uiCamera = null;
-        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+        if (TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
         {
-            uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            ShowOverlayWithHandTap(anchoredPosFromSnake);
         }
-
-        RectTransform parentRect = handPointer != null ? handPointer.parent as RectTransform : null;
-        if (parentRect == null) return;
-
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPos, uiCamera, out Vector2 localPos);
-
-        ShowOverlayWithHandTap(localPos);
     }
 
     private void PlayMemoryHoldTutorial()
@@ -356,50 +478,19 @@ public class TutorialManager : Singleton<TutorialManager>
             return;
         }
 
-        if (memoryHoldTarget != null)
+        if (TryGetHandAnchoredPosFromTargetRect(memoryHoldTarget, out Vector2 anchoredPos))
         {
-            Canvas canvas = tutorialCanvasGroup != null ? tutorialCanvasGroup.GetComponentInParent<Canvas>() : null;
-            Camera uiCamera = null;
-            if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
-            {
-                uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
-            }
-
-            Vector2 targetScreenPos = RectTransformUtility.WorldToScreenPoint(uiCamera, memoryHoldTarget.position);
-            if (TryGetHandAnchoredPosFromScreenPoint(targetScreenPos, out Vector2 anchoredPos))
-            {
-                ShowOverlayWithHandHold(anchoredPos);
-                return;
-            }
-        }
-
-        SnakeBlock firstSnake = FindObjectOfType<SnakeBlock>();
-        CameraController camController = FindObjectOfType<CameraController>();
-
-        if (firstSnake == null || camController == null)
-        {
-            ShowOverlayWithHandHold(Vector2.zero);
+            ShowOverlayWithHandHold(anchoredPos);
             return;
         }
 
-        Camera playCam = camController.GetComponent<Camera>();
-        if (playCam == null) playCam = Camera.main;
-        if (playCam == null)
-        {
-            ShowOverlayWithHandHold(Vector2.zero);
-            return;
-        }
-
-        Vector2 screenPos = playCam.WorldToScreenPoint(firstSnake.transform.position);
-
-        if (TryGetHandAnchoredPosFromScreenPoint(screenPos, out Vector2 anchoredPosFromSnake))
+        if (TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
         {
             ShowOverlayWithHandHold(anchoredPosFromSnake);
+            return;
         }
-        else
-        {
-            ShowOverlayWithHandHold(Vector2.zero);
-        }
+
+        ShowOverlayWithHandHold(Vector2.zero);
     }
 
     private void PlayGateTutorial()

@@ -19,7 +19,7 @@ MonoBehaviour:
   rewardDiamonds: 20
   snakes:
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -42, y: 23}
     - {x: -41, y: 23}
@@ -27,7 +27,7 @@ MonoBehaviour:
     - {x: -39, y: 23}
     - {x: -38, y: 23}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -34, y: 21}
     - {x: -35, y: 21}
@@ -47,7 +47,7 @@ MonoBehaviour:
     - {x: -34, y: 14}
     - {x: -34, y: 13}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -38, y: 11}
     - {x: -38, y: 12}
@@ -59,7 +59,7 @@ MonoBehaviour:
     - {x: -35, y: 11}
     - {x: -34, y: 11}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -40, y: 13}
     - {x: -40, y: 14}
@@ -79,7 +79,7 @@ MonoBehaviour:
     - {x: -38, y: 20}
     - {x: -38, y: 19}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -44, y: 15}
     - {x: -43, y: 15}
@@ -103,7 +103,7 @@ MonoBehaviour:
     - {x: -40, y: 6}
     - {x: -40, y: 7}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -44, y: 7}
     - {x: -43, y: 7}
@@ -139,7 +139,7 @@ MonoBehaviour:
     - {x: -45, y: 19}
     - {x: -44, y: 19}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -42, y: 3}
     - {x: -42, y: 2}
@@ -167,7 +167,7 @@ MonoBehaviour:
     - {x: -34, y: 8}
     - {x: -34, y: 7}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -40, y: 3}
     - {x: -39, y: 3}
@@ -175,7 +175,7 @@ MonoBehaviour:
     - {x: -37, y: 3}
     - {x: -36, y: 3}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -40, y: -1}
     - {x: -39, y: -1}
@@ -199,13 +199,13 @@ MonoBehaviour:
     - {x: -43, y: -9}
     - {x: -44, y: -9}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -42, y: -3}
     - {x: -42, y: -4}
     - {x: -42, y: -5}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: -36, y: -7}
     - {x: -35, y: -7}
@@ -227,7 +227,7 @@ MonoBehaviour:
     - {x: -36, y: -4}
     - {x: -36, y: -5}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -32, y: 1}
     - {x: -31, y: 1}
@@ -251,7 +251,7 @@ MonoBehaviour:
     - {x: -14, y: 2}
     - {x: -14, y: 3}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -32, y: 3}
     - {x: -32, y: 4}
@@ -271,7 +271,7 @@ MonoBehaviour:
     - {x: -23, y: 5}
     - {x: -22, y: 5}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -22, y: 9}
     - {x: -21, y: 9}
@@ -285,7 +285,7 @@ MonoBehaviour:
     - {x: -19, y: 5}
     - {x: -20, y: 5}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: -22, y: 11}
     - {x: -21, y: 11}
@@ -307,7 +307,7 @@ MonoBehaviour:
     - {x: -16, y: 12}
     - {x: -16, y: 11}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -26, y: 21}
     - {x: -26, y: 20}
@@ -323,7 +323,7 @@ MonoBehaviour:
     - {x: -21, y: 15}
     - {x: -20, y: 15}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -16, y: 17}
     - {x: -17, y: 17}
@@ -333,7 +333,7 @@ MonoBehaviour:
     - {x: -21, y: 17}
     - {x: -22, y: 17}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -24, y: 17}
     - {x: -24, y: 18}
@@ -349,7 +349,7 @@ MonoBehaviour:
     - {x: -20, y: 20}
     - {x: -20, y: 21}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -18, y: 21}
     - {x: -18, y: 20}
@@ -361,7 +361,7 @@ MonoBehaviour:
     - {x: -15, y: 21}
     - {x: -14, y: 21}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -18, y: 23}
     - {x: -19, y: 23}
@@ -371,7 +371,7 @@ MonoBehaviour:
     - {x: -23, y: 23}
     - {x: -24, y: 23}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -14, y: 19}
     - {x: -14, y: 18}
@@ -391,7 +391,7 @@ MonoBehaviour:
     - {x: -23, y: 13}
     - {x: -24, y: 13}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -12, y: 15}
     - {x: -12, y: 14}
@@ -433,7 +433,7 @@ MonoBehaviour:
     - {x: -25, y: 3}
     - {x: -26, y: 3}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -6, y: 7}
     - {x: -5, y: 7}
@@ -443,7 +443,7 @@ MonoBehaviour:
     - {x: -5, y: 5}
     - {x: -6, y: 5}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -8, y: 3}
     - {x: -7, y: 3}
@@ -467,7 +467,7 @@ MonoBehaviour:
     - {x: 8, y: 6}
     - {x: 8, y: 7}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -2, y: 5}
     - {x: -2, y: 6}
@@ -475,7 +475,7 @@ MonoBehaviour:
     - {x: -1, y: 7}
     - {x: 0, y: 7}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: 6, y: 9}
     - {x: 6, y: 8}
@@ -485,7 +485,7 @@ MonoBehaviour:
     - {x: 3, y: 7}
     - {x: 2, y: 7}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -10, y: 3}
     - {x: -10, y: 2}
@@ -503,7 +503,7 @@ MonoBehaviour:
     - {x: -3, y: 1}
     - {x: -2, y: 1}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -12, y: 3}
     - {x: -12, y: 2}
@@ -527,7 +527,7 @@ MonoBehaviour:
     - {x: -12, y: -16}
     - {x: -12, y: -17}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -10, y: -1}
     - {x: -10, y: -2}
@@ -555,7 +555,7 @@ MonoBehaviour:
     - {x: -2, y: -2}
     - {x: -2, y: -1}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: -8, y: -3}
     - {x: -8, y: -4}
@@ -575,7 +575,7 @@ MonoBehaviour:
     - {x: -6, y: -4}
     - {x: -6, y: -5}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -16, y: -7}
     - {x: -17, y: -7}
@@ -587,7 +587,7 @@ MonoBehaviour:
     - {x: -23, y: -7}
     - {x: -24, y: -7}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -24, y: -5}
     - {x: -23, y: -5}
@@ -607,7 +607,7 @@ MonoBehaviour:
     - {x: -15, y: -9}
     - {x: -16, y: -9}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -26, y: -9}
     - {x: -26, y: -8}
@@ -631,7 +631,7 @@ MonoBehaviour:
     - {x: -31, y: -7}
     - {x: -32, y: -7}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -30, y: -1}
     - {x: -29, y: -1}
@@ -661,7 +661,7 @@ MonoBehaviour:
     - {x: -15, y: -1}
     - {x: -16, y: -1}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -40, y: -9}
     - {x: -39, y: -9}
@@ -683,7 +683,7 @@ MonoBehaviour:
     - {x: -28, y: -14}
     - {x: -28, y: -15}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: -26, y: -15}
     - {x: -26, y: -14}
@@ -725,7 +725,7 @@ MonoBehaviour:
     - {x: -23, y: -19}
     - {x: -24, y: -19}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -20, y: -11}
     - {x: -21, y: -11}
@@ -739,7 +739,7 @@ MonoBehaviour:
     - {x: -24, y: -16}
     - {x: -24, y: -17}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -26, y: -19}
     - {x: -26, y: -18}
@@ -749,7 +749,7 @@ MonoBehaviour:
     - {x: -28, y: -18}
     - {x: -28, y: -19}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -38, y: -19}
     - {x: -38, y: -18}
@@ -779,7 +779,7 @@ MonoBehaviour:
     - {x: -35, y: -11}
     - {x: -36, y: -11}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -44, y: -17}
     - {x: -44, y: -16}
@@ -803,7 +803,7 @@ MonoBehaviour:
     - {x: -39, y: -11}
     - {x: -38, y: -11}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: -42, y: -17}
     - {x: -41, y: -17}
@@ -823,7 +823,7 @@ MonoBehaviour:
     - {x: -37, y: -23}
     - {x: -36, y: -23}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -38, y: -21}
     - {x: -37, y: -21}
@@ -841,7 +841,7 @@ MonoBehaviour:
     - {x: -25, y: -21}
     - {x: -24, y: -21}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -22, y: -25}
     - {x: -22, y: -24}
@@ -849,7 +849,7 @@ MonoBehaviour:
     - {x: -22, y: -22}
     - {x: -22, y: -21}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -16, y: -19}
     - {x: -15, y: -19}
@@ -873,7 +873,7 @@ MonoBehaviour:
     - {x: -10, y: -28}
     - {x: -10, y: -29}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -12, y: -29}
     - {x: -12, y: -28}
@@ -909,7 +909,7 @@ MonoBehaviour:
     - {x: -17, y: -23}
     - {x: -18, y: -23}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -14, y: -29}
     - {x: -14, y: -28}
@@ -927,13 +927,13 @@ MonoBehaviour:
     - {x: -21, y: -29}
     - {x: -20, y: -29}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -18, y: -29}
     - {x: -17, y: -29}
     - {x: -16, y: -29}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -26, y: -25}
     - {x: -26, y: -24}
@@ -947,7 +947,7 @@ MonoBehaviour:
     - {x: -29, y: -27}
     - {x: -30, y: -27}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -30, y: -25}
     - {x: -30, y: -24}
@@ -957,7 +957,7 @@ MonoBehaviour:
     - {x: -32, y: -24}
     - {x: -32, y: -25}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -40, y: -27}
     - {x: -40, y: -26}
@@ -975,7 +975,7 @@ MonoBehaviour:
     - {x: -34, y: -24}
     - {x: -34, y: -23}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: -34, y: -29}
     - {x: -34, y: -28}
@@ -999,7 +999,7 @@ MonoBehaviour:
     - {x: -24, y: -24}
     - {x: -24, y: -23}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: -40, y: -29}
     - {x: -39, y: -29}
@@ -1007,7 +1007,7 @@ MonoBehaviour:
     - {x: -37, y: -29}
     - {x: -36, y: -29}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -42, y: -29}
     - {x: -42, y: -28}
@@ -1021,7 +1021,7 @@ MonoBehaviour:
     - {x: -44, y: -22}
     - {x: -44, y: -21}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: -46, y: -21}
     - {x: -46, y: -22}
@@ -1043,13 +1043,13 @@ MonoBehaviour:
     - {x: -47, y: -27}
     - {x: -46, y: -27}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: -48, y: -23}
     - {x: -48, y: -24}
     - {x: -48, y: -25}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: -8, y: -29}
     - {x: -8, y: -28}
@@ -1149,7 +1149,7 @@ MonoBehaviour:
     - {x: 14, y: 0}
     - {x: 14, y: 1}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: 2, y: 3}
     - {x: 2, y: 2}
@@ -1185,7 +1185,7 @@ MonoBehaviour:
     - {x: -7, y: -13}
     - {x: -6, y: -13}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: -6, y: -17}
     - {x: -6, y: -16}
@@ -1201,7 +1201,7 @@ MonoBehaviour:
     - {x: -8, y: -18}
     - {x: -8, y: -19}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: 2, y: -19}
     - {x: 3, y: -19}
@@ -1217,7 +1217,7 @@ MonoBehaviour:
     - {x: -3, y: -21}
     - {x: -4, y: -21}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: 0, y: -23}
     - {x: 1, y: -23}
@@ -1257,7 +1257,7 @@ MonoBehaviour:
     - {x: 22, y: -20}
     - {x: 22, y: -21}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 0, y: -29}
     - {x: -1, y: -29}
@@ -1277,7 +1277,7 @@ MonoBehaviour:
     - {x: 0, y: -26}
     - {x: 0, y: -25}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: 6, y: -29}
     - {x: 5, y: -29}
@@ -1297,7 +1297,7 @@ MonoBehaviour:
     - {x: 5, y: -27}
     - {x: 4, y: -27}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: 18, y: -29}
     - {x: 17, y: -29}
@@ -1323,7 +1323,7 @@ MonoBehaviour:
     - {x: 11, y: -21}
     - {x: 12, y: -21}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 14, y: -27}
     - {x: 13, y: -27}
@@ -1339,7 +1339,7 @@ MonoBehaviour:
     - {x: 12, y: -24}
     - {x: 12, y: -25}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: 14, y: -21}
     - {x: 14, y: -22}
@@ -1351,7 +1351,7 @@ MonoBehaviour:
     - {x: 16, y: -26}
     - {x: 16, y: -27}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: 18, y: -21}
     - {x: 18, y: -22}
@@ -1361,7 +1361,7 @@ MonoBehaviour:
     - {x: 16, y: -22}
     - {x: 16, y: -21}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: 20, y: -21}
     - {x: 20, y: -22}
@@ -1373,7 +1373,7 @@ MonoBehaviour:
     - {x: 18, y: -26}
     - {x: 18, y: -27}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: 20, y: -29}
     - {x: 20, y: -28}
@@ -1429,7 +1429,7 @@ MonoBehaviour:
     - {x: 18, y: -8}
     - {x: 18, y: -9}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: 16, y: -13}
     - {x: 16, y: -14}
@@ -1439,13 +1439,13 @@ MonoBehaviour:
     - {x: 14, y: -14}
     - {x: 14, y: -13}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: 14, y: -9}
     - {x: 13, y: -9}
     - {x: 12, y: -9}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 4, y: 3}
     - {x: 4, y: 2}
@@ -1481,7 +1481,7 @@ MonoBehaviour:
     - {x: 10, y: -12}
     - {x: 10, y: -11}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 10, y: 1}
     - {x: 10, y: 2}
@@ -1491,7 +1491,7 @@ MonoBehaviour:
     - {x: 11, y: 5}
     - {x: 12, y: 5}
   - direction: 1
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0.68964195, b: 0, a: 1}
     segmentPositions:
     - {x: 8, y: -3}
     - {x: 8, y: -2}
@@ -1511,7 +1511,7 @@ MonoBehaviour:
     - {x: 5, y: -3}
     - {x: 4, y: -3}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: 10, y: 7}
     - {x: 11, y: 7}
@@ -1531,7 +1531,7 @@ MonoBehaviour:
     - {x: 17, y: 15}
     - {x: 18, y: 15}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: 14, y: 15}
     - {x: 13, y: 15}
@@ -1541,7 +1541,7 @@ MonoBehaviour:
     - {x: 10, y: 14}
     - {x: 10, y: 13}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 8, y: 13}
     - {x: 8, y: 12}
@@ -1557,7 +1557,7 @@ MonoBehaviour:
     - {x: 12, y: 12}
     - {x: 12, y: 13}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0.57606554, a: 1}
     segmentPositions:
     - {x: 16, y: 11}
     - {x: 17, y: 11}
@@ -1567,7 +1567,7 @@ MonoBehaviour:
     - {x: 19, y: 13}
     - {x: 20, y: 13}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 22, y: 13}
     - {x: 22, y: 12}
@@ -1575,7 +1575,7 @@ MonoBehaviour:
     - {x: 23, y: 11}
     - {x: 24, y: 11}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: 20, y: 11}
     - {x: 20, y: 10}
@@ -1645,7 +1645,7 @@ MonoBehaviour:
     - {x: 8, y: -12}
     - {x: 8, y: -11}
   - direction: 2
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: 14, y: -5}
     - {x: 15, y: -5}
@@ -1669,7 +1669,7 @@ MonoBehaviour:
     - {x: 17, y: 1}
     - {x: 16, y: 1}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.9425249, a: 1}
     segmentPositions:
     - {x: 24, y: 3}
     - {x: 23, y: 3}
@@ -1679,7 +1679,7 @@ MonoBehaviour:
     - {x: 23, y: 1}
     - {x: 24, y: 1}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0.20142698, g: 0, b: 1, a: 1}
     segmentPositions:
     - {x: 28, y: -1}
     - {x: 27, y: -1}
@@ -1697,7 +1697,7 @@ MonoBehaviour:
     - {x: 28, y: -4}
     - {x: 28, y: -3}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 0, g: 1, b: 0.5784495, a: 1}
     segmentPositions:
     - {x: 28, y: 5}
     - {x: 28, y: 4}
@@ -1715,7 +1715,7 @@ MonoBehaviour:
     - {x: 26, y: 8}
     - {x: 26, y: 9}
   - direction: 0
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 24, y: 9}
     - {x: 24, y: 8}
@@ -1729,7 +1729,7 @@ MonoBehaviour:
     - {x: 22, y: 8}
     - {x: 22, y: 9}
   - direction: 3
-    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    arrowColor: {r: 1, g: 0, b: 0, a: 1}
     segmentPositions:
     - {x: 20, y: 7}
     - {x: 19, y: 7}
@@ -1737,3 +1737,4 @@ MonoBehaviour:
   keycards: []
   gates: []
   portals: []
+  deflectors: []

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_2_Portal
   m_EditorClassIdentifier: 
   gameMode: 0
-  levelDifficulty: 3
+  levelDifficulty: 2
   timeLimit: 60
   rewardCoins: 0
   rewardDiamonds: 0
@@ -703,3 +703,4 @@ MonoBehaviour:
     exit: {x: 6, y: 3}
     exitDir: 2
     portalColor: {r: 0, g: 1, b: 0.9425249, a: 1}
+  deflectors: []

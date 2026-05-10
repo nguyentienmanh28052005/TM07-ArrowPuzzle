@@ -6,8 +6,14 @@ using UnityEngine;
 public class GridDeflectorVisual : MonoBehaviour
 {
     [Header("Spawn Effect")]
-    [SerializeField] private float spawnDuration = 0.22f;
-    [SerializeField] private Ease spawnEase = Ease.OutBack;
+    [SerializeField] private float spawnDuration = 1.5f;
+    [SerializeField] private Ease spawnScaleEase = Ease.OutBack;
+    [SerializeField, Min(0f)] private float spawnSpinTurns = 3f;
+    
+    // Đã xóa bớt các biến StartTilt, OvershootAngle, ReturnAngle rườm rà
+    // Vì DOTween OutBack sẽ tự động nội suy quán tính cực kỳ chuẩn!
+    [Tooltip("Độ nảy (quá đà) khi dừng lại. Càng cao giật lại càng mạnh.")]
+    [SerializeField] private float overshootPower = 1f; 
 
     [Header("End Game Vanish")]
     [SerializeField] private float endVanishDuration = 0.28f;
@@ -19,6 +25,7 @@ public class GridDeflectorVisual : MonoBehaviour
 
     private Vector3 _baseScale;
     private float _baseAlpha = 1f;
+    private float _baseRotationZ;
     private bool _isVanishing;
 
     private void Awake()
@@ -29,6 +36,8 @@ public class GridDeflectorVisual : MonoBehaviour
         }
 
         _baseScale = transform.localScale;
+        _baseRotationZ = NormalizeAngle(transform.eulerAngles.z);
+        
         if (targetRenderer != null)
         {
             _baseAlpha = targetRenderer.color.a;
@@ -56,23 +65,38 @@ public class GridDeflectorVisual : MonoBehaviour
         if (targetRenderer == null) return;
 
         _isVanishing = false;
+        _baseRotationZ = NormalizeAngle(transform.eulerAngles.z);
 
         transform.DOKill();
         targetRenderer.DOKill();
 
+        // 1. SETUP TRẠNG THÁI CỐ ĐỊNH
         transform.localScale = Vector3.zero;
+        
+        // Ép nó nằm đúng góc Đích ngay từ đầu
+        transform.rotation = Quaternion.Euler(0f, 0f, _baseRotationZ);
 
         Color color = targetRenderer.color;
         color.a = 0f;
         targetRenderer.color = color;
 
-        transform.DOScale(_baseScale, spawnDuration)
-            .SetEase(spawnEase)
-            .SetLink(gameObject);
+        Sequence spawnSequence = DOTween.Sequence().SetLink(gameObject);
 
-        targetRenderer.DOFade(_baseAlpha, spawnDuration * 0.9f)
-            .SetEase(Ease.OutQuad)
-            .SetLink(gameObject);
+        spawnSequence.Insert(0f, transform.DOScale(_baseScale, spawnDuration)
+            .SetEase(spawnScaleEase));
+
+        spawnSequence.Insert(0f, targetRenderer.DOFade(_baseAlpha, spawnDuration * 0.5f)
+            .SetEase(Ease.OutQuad));
+
+        // 2. ÉP XOAY TƯƠNG ĐỐI (RELATIVE)
+        // Ép spawnSpinTurns thành số nguyên (ví dụ 2, 3, 5) để đảm bảo nó quay đủ vòng
+        // và KHÔNG BAO GIỜ bị lệch góc khi dừng lại
+        float totalDegrees = 360f * Mathf.Round(spawnSpinTurns); 
+
+        // Thêm hàm SetRelative(true) để lách luật của Unity
+        spawnSequence.Insert(0f, transform.DORotate(new Vector3(0f, 0f, totalDegrees), spawnDuration, RotateMode.FastBeyond360)
+            .SetRelative(true) 
+            .SetEase(Ease.OutBack, overshootPower)); 
     }
 
     private float PlayEndGameVanish(float delay)
@@ -86,7 +110,6 @@ public class GridDeflectorVisual : MonoBehaviour
         targetRenderer.DOKill();
 
         transform.localScale = _baseScale;
-
         Color color = targetRenderer.color;
         color.a = _baseAlpha;
         targetRenderer.color = color;
@@ -129,5 +152,12 @@ public class GridDeflectorVisual : MonoBehaviour
     public static void ClearAll()
     {
         ActiveDeflectors.Clear();
+    }
+
+    private static float NormalizeAngle(float angle)
+    {
+        angle %= 360f;
+        if (angle > 180f) angle -= 360f;
+        return angle;
     }
 }
