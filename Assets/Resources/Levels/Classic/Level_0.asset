@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_0
   m_EditorClassIdentifier: 
+  levelIndex: 1
   gameMode: 0
   levelDifficulty: 0
   timeLimit: 30
@@ -66,3 +67,7 @@ MonoBehaviour:
     - {x: -2, y: -4}
     - {x: -2, y: -5}
     - {x: -2, y: -6}
+  keycards: []
+  gates: []
+  portals: []
+  deflectors: []

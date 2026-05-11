@@ -12,8 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_2
   m_EditorClassIdentifier: 
+  levelIndex: 3
   gameMode: 0
   levelDifficulty: 1
+  timeLimit: 60
   rewardCoins: 100
   rewardDiamonds: 5
   snakes:
@@ -367,3 +369,7 @@ MonoBehaviour:
     - {x: -7, y: -11}
     - {x: -7, y: -10}
     - {x: -7, y: -9}
+  keycards: []
+  gates: []
+  portals: []
+  deflectors: []

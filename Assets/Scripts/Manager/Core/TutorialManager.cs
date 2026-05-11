@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
 using Pixelplacement;
+
 public interface ITutorialCondition
 {
     bool IsApplicable(LevelDataSO levelData);
@@ -16,7 +17,8 @@ public enum TutorialTrigger
     MemoryMode,
     HasPortals,
     HasKeycards,
-    HasSnakes
+    HasSnakes,
+    HasDeflectors,
 }
 
 public enum TutorialHandMode
@@ -33,16 +35,20 @@ public class TutorialStepConfig
     public MonoBehaviour conditionProvider;
     [TextArea] public string instruction;
     public TutorialHandMode handMode = TutorialHandMode.Tap;
+    
+    [Header("Targeting / Position")]
     public RectTransform target;
     public bool useCustomAnchoredPos = false;
     public Vector2 customAnchoredPos = Vector2.zero;
+    
+    [Header("Fallbacks")]
     public bool fallbackToFirstSnake = false;
     public Vector2 fallbackAnchoredPos = Vector2.zero;
 }
 
-
 public class TutorialManager : Singleton<TutorialManager>
 {
+    [Header("UI References")]
     public CanvasGroup tutorialCanvasGroup;
     public RectTransform handPointer;
     public TextMeshProUGUI instructionText;
@@ -50,28 +56,8 @@ public class TutorialManager : Singleton<TutorialManager>
     [Header("Tutorial Timing")]
     [Min(0f)] public float delayBeforeShowingStep = 0f;
 
-    [Header("Tutorial Steps (Optional)")]
+    [Header("Tutorial Steps List")]
     public List<TutorialStepConfig> tutorialSteps = new List<TutorialStepConfig>();
-
-    [Header("Basic Move Tutorial")]
-    public RectTransform basicMoveTarget;
-    public bool useCustomBasicMovePosition = false;
-    public Vector2 customBasicMoveAnchoredPos = Vector2.zero;
-
-    [Header("Portal Tutorial")]
-    public RectTransform portalTarget;
-    public bool useCustomPortalPosition = false;
-    public Vector2 customPortalAnchoredPos = Vector2.zero;
-
-    [Header("Gate Tutorial")]
-    public RectTransform gateTarget;
-    public bool useCustomGatePosition = false;
-    public Vector2 customGateAnchoredPos = Vector2.zero;
-
-    [Header("Memory Tutorial")]
-    public RectTransform memoryHoldTarget;
-    public bool useCustomMemoryHoldPosition = false;
-    public Vector2 customMemoryHoldAnchoredPos = Vector2.zero;
 
     private bool _isTutorialActive = false;
     private bool _isWaitingForIntro = false;
@@ -94,6 +80,39 @@ public class TutorialManager : Singleton<TutorialManager>
         StopTutorialImmediate();
     }
 
+    private void StopTutorialImmediate()
+    {
+        _isTutorialActive = false;
+        _isWaitingForIntro = false;
+        _pendingLevelData = null;
+        _introFinished = false;
+        _completedByFirstPress = false;
+
+        CameraController.IsCameraInputBlocked = false;
+
+        if (_tutorialRoutine != null)
+        {
+            StopCoroutine(_tutorialRoutine);
+            _tutorialRoutine = null;
+        }
+
+        KillOverlayTweens();
+
+        if (tutorialCanvasGroup != null)
+        {
+            tutorialCanvasGroup.DOKill();
+            tutorialCanvasGroup.alpha = 0f;
+            tutorialCanvasGroup.blocksRaycasts = false;
+        }
+
+        if (handPointer != null) handPointer.gameObject.SetActive(false);
+
+        if (instructionText != null)
+        {
+            instructionText.gameObject.SetActive(false);
+        }
+    }
+
     private void HandleIntroFinished()
     {
         _introFinished = true;
@@ -111,6 +130,7 @@ public class TutorialManager : Singleton<TutorialManager>
         {
             StopTutorialImmediate();
             CameraController.IsCameraInputBlocked = false;
+            
             if (tutorialCanvasGroup != null)
             {
                 tutorialCanvasGroup.DOKill();
@@ -130,7 +150,6 @@ public class TutorialManager : Singleton<TutorialManager>
         // Block camera interaction during tutorial (until first arrow press).
         CameraController.IsCameraInputBlocked = true;
 
-        // Tutorial is informational only; do not block gameplay input.
         KillOverlayTweens();
         if (tutorialCanvasGroup != null)
         {
@@ -160,7 +179,6 @@ public class TutorialManager : Singleton<TutorialManager>
         KillOverlayTweens();
         if (tutorialCanvasGroup != null)
         {
-            // Keep hidden until a tutorial step starts (so hand + text appear together)
             tutorialCanvasGroup.DOKill();
             tutorialCanvasGroup.alpha = 0;
             tutorialCanvasGroup.blocksRaycasts = false;
@@ -171,6 +189,100 @@ public class TutorialManager : Singleton<TutorialManager>
 
         if (_tutorialRoutine != null) StopCoroutine(_tutorialRoutine);
         _tutorialRoutine = StartCoroutine(TutorialFlowRoutine(levelData));
+    }
+
+    private IEnumerator TutorialFlowRoutine(LevelDataSO levelData)
+    {
+        // Give UI a frame to settle after intro, then optionally delay.
+        yield return null;
+        if (delayBeforeShowingStep > 0f)
+            yield return new WaitForSeconds(delayBeforeShowingStep);
+            
+        // GỌI DUY NHẤT HỆ THỐNG MỚI
+        TryPlayConfiguredStep(levelData);
+    }
+
+    private bool TryPlayConfiguredStep(LevelDataSO levelData)
+    {
+        if (tutorialSteps == null || tutorialSteps.Count == 0 || levelData == null) return false;
+
+        for (int i = 0; i < tutorialSteps.Count; i++)
+        {
+            TutorialStepConfig step = tutorialSteps[i];
+            if (step == null) continue;
+            
+            // Check điều kiện
+            if (!IsStepApplicable(step, levelData)) continue;
+
+            PlayStep(step);
+            return true; // Chỉ play 1 step đầu tiên thỏa mãn
+        }
+
+        return false;
+    }
+
+    private bool IsStepApplicable(TutorialStepConfig step, LevelDataSO levelData)
+    {
+        // Ưu tiên chạy Strategy Pattern nếu có
+        if (step.conditionProvider != null)
+        {
+            ITutorialCondition condition = step.conditionProvider as ITutorialCondition;
+            return condition != null && condition.IsApplicable(levelData);
+        }
+
+        // Fallback về các Enum chung
+        switch (step.trigger)
+        {
+            case TutorialTrigger.Always:
+                return true;
+            case TutorialTrigger.MemoryMode:
+                return levelData.gameMode == GameMode.Memory;
+            case TutorialTrigger.HasPortals:
+                return levelData.portals != null && levelData.portals.Count > 0;
+            case TutorialTrigger.HasKeycards:
+                return levelData.keycards != null && levelData.keycards.Count > 0;
+            case TutorialTrigger.HasSnakes:
+                return levelData.snakes != null && levelData.snakes.Count > 0;
+            default:
+                return false;
+        }
+    }
+
+    private void PlayStep(TutorialStepConfig step)
+    {
+        if (instructionText != null) instructionText.text = step.instruction;
+
+        if (step.useCustomAnchoredPos)
+        {
+            ShowOverlayForStep(step, step.customAnchoredPos);
+            return;
+        }
+
+        if (TryGetHandAnchoredPosFromTargetRect(step.target, out Vector2 anchoredPosFromTarget))
+        {
+            ShowOverlayForStep(step, anchoredPosFromTarget);
+            return;
+        }
+
+        if (step.fallbackToFirstSnake && TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
+        {
+            ShowOverlayForStep(step, anchoredPosFromSnake);
+            return;
+        }
+
+        ShowOverlayForStep(step, step.fallbackAnchoredPos);
+    }
+
+    private void ShowOverlayForStep(TutorialStepConfig step, Vector2 anchoredPos)
+    {
+        if (step.handMode == TutorialHandMode.Hold)
+        {
+            ShowOverlayWithHandHold(anchoredPos);
+        }
+        else
+        {
+            ShowOverlayWithHandTap(anchoredPos);
+        }
     }
 
     private void ShowOverlayWithHandTap(Vector2 anchoredPos)
@@ -184,7 +296,6 @@ public class TutorialManager : Singleton<TutorialManager>
         }
 
         if (instructionText != null) instructionText.gameObject.SetActive(true);
-
         if (handPointer == null) return;
 
         KillHandTweens();
@@ -216,7 +327,6 @@ public class TutorialManager : Singleton<TutorialManager>
         }
 
         if (instructionText != null) instructionText.gameObject.SetActive(true);
-
         if (handPointer == null) return;
 
         KillHandTweens();
@@ -285,150 +395,6 @@ public class TutorialManager : Singleton<TutorialManager>
         return TryGetHandAnchoredPosFromScreenPoint(targetScreenPos, out anchoredPos);
     }
 
-
-    private void StopTutorialImmediate()
-    {
-        _isTutorialActive = false;
-        _isWaitingForIntro = false;
-        _pendingLevelData = null;
-        _introFinished = false;
-        _completedByFirstPress = false;
-
-        CameraController.IsCameraInputBlocked = false;
-
-        if (_tutorialRoutine != null)
-        {
-            StopCoroutine(_tutorialRoutine);
-            _tutorialRoutine = null;
-        }
-
-        KillOverlayTweens();
-
-        if (tutorialCanvasGroup != null)
-        {
-            tutorialCanvasGroup.DOKill();
-            tutorialCanvasGroup.alpha = 0f;
-            tutorialCanvasGroup.blocksRaycasts = false;
-        }
-
-        if (handPointer != null) handPointer.gameObject.SetActive(false);
-
-        if (instructionText != null)
-        {
-            instructionText.gameObject.SetActive(false);
-        }
-    }
-
-    private IEnumerator TutorialFlowRoutine(LevelDataSO levelData)
-    {
-        // Give UI a frame to settle after intro, then optionally delay.
-        yield return null;
-        if (delayBeforeShowingStep > 0f)
-            yield return new WaitForSeconds(delayBeforeShowingStep);
-        if (TryPlayConfiguredStep(levelData))
-        {
-            yield break;
-        }
-
-        if (levelData.gameMode == GameMode.Memory)
-        {
-            PlayMemoryHoldTutorial();
-        }
-        else if (levelData.portals != null && levelData.portals.Count > 0)
-        {
-            PlayPortalTutorial();
-        }
-        else if (levelData.keycards != null && levelData.keycards.Count > 0)
-        {
-            PlayGateTutorial();
-        }
-        else if (levelData.snakes != null && levelData.snakes.Count > 0)
-        {
-            PlayBasicMoveTutorial(levelData.snakes[0].direction);
-        }
-    }
-
-    private bool TryPlayConfiguredStep(LevelDataSO levelData)
-    {
-        if (tutorialSteps == null || tutorialSteps.Count == 0 || levelData == null) return false;
-
-        for (int i = 0; i < tutorialSteps.Count; i++)
-        {
-            TutorialStepConfig step = tutorialSteps[i];
-            if (step == null) continue;
-            if (!IsStepApplicable(step, levelData)) continue;
-
-            PlayStep(step);
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool IsStepApplicable(TutorialStepConfig step, LevelDataSO levelData)
-    {
-        if (step == null || levelData == null) return false;
-
-        if (step.conditionProvider != null)
-        {
-            ITutorialCondition condition = step.conditionProvider as ITutorialCondition;
-            return condition != null && condition.IsApplicable(levelData);
-        }
-
-        switch (step.trigger)
-        {
-            case TutorialTrigger.Always:
-                return true;
-            case TutorialTrigger.MemoryMode:
-                return levelData.gameMode == GameMode.Memory;
-            case TutorialTrigger.HasPortals:
-                return levelData.portals != null && levelData.portals.Count > 0;
-            case TutorialTrigger.HasKeycards:
-                return levelData.keycards != null && levelData.keycards.Count > 0;
-            case TutorialTrigger.HasSnakes:
-                return levelData.snakes != null && levelData.snakes.Count > 0;
-            default:
-                return false;
-        }
-    }
-
-    private void PlayStep(TutorialStepConfig step)
-    {
-        if (instructionText != null) instructionText.text = step.instruction;
-
-        if (step.useCustomAnchoredPos)
-        {
-            ShowOverlayForStep(step, step.customAnchoredPos);
-            return;
-        }
-
-        if (TryGetHandAnchoredPosFromTargetRect(step.target, out Vector2 anchoredPosFromTarget))
-        {
-            ShowOverlayForStep(step, anchoredPosFromTarget);
-            return;
-        }
-
-        if (step.fallbackToFirstSnake && TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
-        {
-            ShowOverlayForStep(step, anchoredPosFromSnake);
-            return;
-        }
-
-        ShowOverlayForStep(step, step.fallbackAnchoredPos);
-    }
-
-    private void ShowOverlayForStep(TutorialStepConfig step, Vector2 anchoredPos)
-    {
-        if (step.handMode == TutorialHandMode.Hold)
-        {
-            ShowOverlayWithHandHold(anchoredPos);
-        }
-        else
-        {
-            ShowOverlayWithHandTap(anchoredPos);
-        }
-    }
-
     private bool TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPos)
     {
         anchoredPos = Vector2.zero;
@@ -444,101 +410,6 @@ public class TutorialManager : Singleton<TutorialManager>
 
         Vector2 screenPos = playCam.WorldToScreenPoint(firstSnake.transform.position);
         return TryGetHandAnchoredPosFromScreenPoint(screenPos, out anchoredPos);
-    }
-
-    private void PlayBasicMoveTutorial(ArrowDir dir)
-    {
-        if (instructionText != null) instructionText.text = "Nhấn vào mũi tên để giải phóng";
-
-        if (useCustomBasicMovePosition)
-        {
-            ShowOverlayWithHandTap(customBasicMoveAnchoredPos);
-            return;
-        }
-
-        if (TryGetHandAnchoredPosFromTargetRect(basicMoveTarget, out Vector2 anchoredPosFromTarget))
-        {
-            ShowOverlayWithHandTap(anchoredPosFromTarget);
-            return;
-        }
-
-        if (TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
-        {
-            ShowOverlayWithHandTap(anchoredPosFromSnake);
-        }
-    }
-
-    private void PlayMemoryHoldTutorial()
-    {
-        if (instructionText != null) instructionText.text = "Giữ để hiện mũi tên và di ra chỗ khác để hủy";
-
-        if (useCustomMemoryHoldPosition)
-        {
-            ShowOverlayWithHandHold(customMemoryHoldAnchoredPos);
-            return;
-        }
-
-        if (TryGetHandAnchoredPosFromTargetRect(memoryHoldTarget, out Vector2 anchoredPos))
-        {
-            ShowOverlayWithHandHold(anchoredPos);
-            return;
-        }
-
-        if (TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
-        {
-            ShowOverlayWithHandHold(anchoredPosFromSnake);
-            return;
-        }
-
-        ShowOverlayWithHandHold(Vector2.zero);
-    }
-
-    private void PlayGateTutorial()
-    {
-        if (instructionText != null) instructionText.text = "Nhấn nút để mở các cửa cùng màu";
-        if (useCustomGatePosition)
-        {
-            ShowOverlayWithHandTap(customGateAnchoredPos);
-            return;
-        }
-
-        if (TryGetHandAnchoredPosFromTargetRect(gateTarget, out Vector2 anchoredPosFromTarget))
-        {
-            ShowOverlayWithHandTap(anchoredPosFromTarget);
-            return;
-        }
-
-        ShowOverlayWithHandTap(Vector2.zero);
-    }
-
-    private void PlayPortalTutorial()
-    {
-        if (instructionText != null) instructionText.text = "Mũi tên vào hố đen sẽ ra ở cổng cùng màu, theo hướng của cổng ra";
-        if (useCustomPortalPosition)
-        {
-            ShowOverlayWithHandTap(customPortalAnchoredPos);
-            return;
-        }
-
-        if (TryGetHandAnchoredPosFromTargetRect(portalTarget, out Vector2 anchoredPosFromTarget))
-        {
-            ShowOverlayWithHandTap(anchoredPosFromTarget);
-            return;
-        }
-
-        ShowOverlayWithHandTap(Vector2.zero);
-    }
-
-    private Vector2 GetSwipeVector(ArrowDir dir)
-    {
-        switch (dir)
-        {
-            case ArrowDir.Up: return Vector2.up;
-            case ArrowDir.Down: return Vector2.down;
-            case ArrowDir.Left: return Vector2.left;
-            case ArrowDir.Right: return Vector2.right;
-            default: return Vector2.up;
-        }
     }
 
     public void CompleteTutorial()
@@ -593,7 +464,6 @@ public class TutorialManager : Singleton<TutorialManager>
         _overlayFadeTween = null;
     }
 
-    // Called from gameplay input when the player taps an arrow for the first time.
     public void NotifyFirstArrowPressed()
     {
         if (!_isTutorialActive) return;

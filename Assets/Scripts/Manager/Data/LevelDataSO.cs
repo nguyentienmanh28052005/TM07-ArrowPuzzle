@@ -52,6 +52,7 @@ public partial class PortalData
 [CreateAssetMenu(fileName = "NewLevel", menuName = "ArrowPuzzle/LevelData")]
 public class LevelDataSO : ScriptableObject
 {
+    public int levelIndex;
     public GameMode gameMode;
     public LevelDifficulty levelDifficulty;
 

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_1_CardGate
   m_EditorClassIdentifier: 
+  levelIndex: 6
   gameMode: 0
   levelDifficulty: 1
   timeLimit: 60
@@ -357,3 +358,4 @@ MonoBehaviour:
   - position: {x: -9, y: 7}
     color: {r: 1, g: 0, b: 0, a: 1}
   portals: []
+  deflectors: []
