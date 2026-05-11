@@ -292,10 +292,11 @@ public class SnakeBlock : MonoBehaviour
 
     private void TryCollectKeycardAtGridProgress(int gridProgress)
     {
-        if (GridManager.Instance == null || GridManager.Instance.KeycardMap == null) return;
+        if (GridManager.Instance == null) return;
         float headTrackIdx = -(gridProgress * _nodesPerUnit);
         Vector2Int headCell = GetGridPosFromTrackIndex(headTrackIdx);
-        if (GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
+        if (GridManager.Instance.KeycardMap != null && GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
+        if (GridManager.Instance.ElectricButtonMap != null && GridManager.Instance.ElectricButtonMap.TryGetValue(headCell, out GridElectricButton button)) button.Press();
     }
 
     private IEnumerator ProcessBlockedMovement(Vector3 moveDir, float targetMaxShift, float distToObstacle)
@@ -434,7 +435,8 @@ public class SnakeBlock : MonoBehaviour
         foreach(var cell in _occupiedCells) GridManager.Instance.GridMap[cell] = this;
 
         Vector2Int headCell = GetGridPosFromTrackIndex(headIdx);
-        if (GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
+        if (GridManager.Instance.KeycardMap != null && GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
+        if (GridManager.Instance.ElectricButtonMap != null && GridManager.Instance.ElectricButtonMap.TryGetValue(headCell, out GridElectricButton button)) button.Press();
     }
 
     private Vector3 GetPositionAtTrackIndex(float trackIndex, bool snapToPortalEntryForRender = false)
@@ -529,6 +531,10 @@ public class SnakeBlock : MonoBehaviour
             if (obstacle != null && obstacle != this) return d - 1; 
 
             if (GridManager.Instance.GateMap.ContainsKey(checkPos)) return d - 1; 
+
+            if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(checkPos)) return d - 1;
+
+            if (GridManager.Instance.CountdownBlockMap.ContainsKey(checkPos)) return d - 1;
 
             if (GridManager.Instance.PortalMap.TryGetValue(checkPos, out GridManager.PortalLink link))
             {

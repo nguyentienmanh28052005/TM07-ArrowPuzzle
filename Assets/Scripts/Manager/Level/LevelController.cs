@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -32,6 +32,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
     {
         if (_isLevelComplete) return;
         countArrowInGame--;
+        if (GridManager.Instance != null) GridManager.Instance.RaiseArrowExited();
         if (countArrowInGame <= 0)
         {
             _isLevelComplete = true;

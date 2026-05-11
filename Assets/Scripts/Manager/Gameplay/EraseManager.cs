@@ -47,6 +47,9 @@ public class EraseManager : MonoBehaviour
         {
             erasePanel.gameObject.SetActive(true);
             IsEraseModeActive = !IsEraseModeActive;
+
+            if (IsEraseModeActive && BoosterTutorialManager.Instance != null)
+                BoosterTutorialManager.Instance.NotifyEraseModeActivated();
             
             if (IsEraseModeActive) Debug.Log("CHẾ ĐỘ TẨY: Đã Bật. Hãy nhấp vào một con rắn!");
             else Debug.Log("CHẾ ĐỘ TẨY: Đã Tắt.");
@@ -60,6 +63,9 @@ public class EraseManager : MonoBehaviour
 
         IsEraseModeActive = false;
         IsExecutingErase = true; 
+
+        if (BoosterTutorialManager.Instance != null)
+            BoosterTutorialManager.Instance.NotifyEraseExecuted();
 
         Vector3 spawnWorldPos = Camera.main.ScreenToWorldPoint(uiButtonRect.position);
         spawnWorldPos.z = 0f;

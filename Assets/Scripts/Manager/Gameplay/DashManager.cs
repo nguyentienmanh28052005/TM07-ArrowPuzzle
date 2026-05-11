@@ -26,6 +26,8 @@ public class DashManager : MonoBehaviour
         if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
 
             MessageManager.Instance.SendMessage(ManhMessageType.OnSelectDashDirection, false);
+            if (BoosterTutorialManager.Instance != null)
+                BoosterTutorialManager.Instance.NotifyDashDirectionSelected(targetDir);
             StartCoroutine(DashRoutine(targetDir));
     }
 
@@ -36,6 +38,8 @@ public class DashManager : MonoBehaviour
         if(CurrencyManager.Instance.SpendDashTool(1))
         {
             MessageManager.Instance.SendMessage(ManhMessageType.OnSelectDashDirection, true);
+            if (BoosterTutorialManager.Instance != null)
+                BoosterTutorialManager.Instance.NotifyDashTriggered();
         }
     }
 

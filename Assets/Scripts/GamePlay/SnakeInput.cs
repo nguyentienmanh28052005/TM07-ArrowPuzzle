@@ -130,6 +130,7 @@ public class SnakeInput : MonoBehaviour
     private void HandleInputDown()
     {
         if (CameraController.IsGameplayBlocking) return;
+        if (BoosterTutorialManager.Instance != null && BoosterTutorialManager.Instance.IsBlockingArrowInput) return;
         if (parentScript != null && parentScript.IsMoving) return;
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 

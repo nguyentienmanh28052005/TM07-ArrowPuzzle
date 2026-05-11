@@ -193,6 +193,16 @@ public class ArrowGuideline : MonoBehaviour
                 {
                     break;
                 }
+
+                if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(nextCell))
+                {
+                    break;
+                }
+
+                if (GridManager.Instance.CountdownBlockMap != null && GridManager.Instance.CountdownBlockMap.ContainsKey(nextCell))
+                {
+                    break;
+                }
             }
 
             if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(nextCell, out GridManager.PortalLink link))

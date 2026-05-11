@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -11,7 +11,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 
-public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector }
+public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector, CountdownBlock, ElectricButton, ElectricWall }
 
 public class LevelEditor : MonoBehaviour
 {
@@ -24,7 +24,10 @@ public class LevelEditor : MonoBehaviour
     public GameObject portalPrefab;
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
+    public GameObject electricButtonPrefab;
+    public GameObject electricWallPrefab;
     public GameObject deflectorPrefab;
+    public GameObject countdownBlockPrefab;
     public Color highlightColor = Color.yellow;
 
     [Header("Data")]
@@ -52,6 +55,10 @@ public class LevelEditor : MonoBehaviour
     public TMP_InputField inputRewardCoins;
     public TMP_InputField inputRewardDiamonds;
 
+    [Header("Countdown Block")]
+    public int editorCountdownValue = 3;
+    public TMP_InputField inputCountdownValue;
+
     private GameObject currentSnakeObj;
     private EditorSnakeVisual currentSnakeScript;
     private EditorSnakeVisual selectedSnakeToModify;
@@ -68,6 +75,12 @@ public class LevelEditor : MonoBehaviour
     private Color draftPortalColor = Color.white;
     private List<PortalData> currentDraftPortals = new List<PortalData>();
     private List<GameObject> spawnedPortalVisuals = new List<GameObject>();
+
+    private bool isPlacingElectricWallEnd = false;
+    private Vector2Int draftElectricWallStart;
+    private Color draftElectricWallColor = Color.white;
+    private List<ElectricWallSaveData> currentDraftElectricWalls = new List<ElectricWallSaveData>();
+    private List<GameObject> spawnedElectricWallVisuals = new List<GameObject>();
 
     private Camera mainCam;
     private Vector2Int lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -126,6 +139,7 @@ public class LevelEditor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha6)) UI_SetTool(5);
         if (Input.GetKeyDown(KeyCode.Alpha7)) UI_SetTool(6);
         if (Input.GetKeyDown(KeyCode.Alpha8)) UI_SetTool(7);
+        if (Input.GetKeyDown(KeyCode.Alpha9)) UI_SetTool(8);
 
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) UI_SetDirection(0);
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) UI_SetDirection(1);
@@ -150,6 +164,9 @@ public class LevelEditor : MonoBehaviour
             else if (currentTool == EditorToolType.Keycard) HandleObjectPlacement<GridKeycard>(keycardPrefab);
             else if (currentTool == EditorToolType.Gate) HandleObjectPlacement<GridLaserGate>(gatePrefab);
             else if (currentTool == EditorToolType.Deflector) HandleDeflectorPlacement();
+            else if (currentTool == EditorToolType.CountdownBlock) HandleCountdownBlockPlacement();
+            else if (currentTool == EditorToolType.ElectricButton) HandleObjectPlacement<GridElectricButton>(electricButtonPrefab);
+            else if (currentTool == EditorToolType.ElectricWall) HandleElectricWallClick();
         }
         else if (Input.GetMouseButton(0)) 
         {
@@ -185,6 +202,7 @@ public class LevelEditor : MonoBehaviour
         UpdateToolText(); 
         if (currentTool != EditorToolType.Select) ClearSelectionHighlight();
         if (currentTool != EditorToolType.Portal) isPlacingPortalExit = false;
+        if (currentTool != EditorToolType.ElectricWall) isPlacingElectricWallEnd = false;
     }
 
     public void UI_SetDirection(int dirIndex)
@@ -260,12 +278,22 @@ public class LevelEditor : MonoBehaviour
     {
         foreach (var node in currentDraftNodes) if (node == pos) return true;
         if (GetSnakeAtGridPos(pos) != null) return true;
+
+        for (int i = 0; i < currentDraftElectricWalls.Count; i++)
+        {
+            if (IsCellOnElectricWall(pos, currentDraftElectricWalls[i])) return true;
+        }
+
         foreach (Transform child in levelContainer)
         {
             if (child.TryGetComponent(out GridKeycard k) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridLaserGate g) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridElectricButton eb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            GridElectricWall ew = child.GetComponent<GridElectricWall>();
+            if (ew != null && ew.ContainsCell(pos)) return true;
             GridDeflector d = child.GetComponentInChildren<GridDeflector>();
             if (d != null && Mathf.RoundToInt(d.transform.position.x) == pos.x && Mathf.RoundToInt(d.transform.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridCountdownBlock cb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
         }
         return false;
     }
@@ -325,6 +353,7 @@ public class LevelEditor : MonoBehaviour
 
         if (obj.TryGetComponent(out GridKeycard k)) k.keyColor = currentColor;
         if (obj.TryGetComponent(out GridLaserGate g)) g.gateColor = currentColor;
+        if (obj.TryGetComponent(out GridElectricButton eb)) eb.SetColor(currentColor);
         
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
     }
@@ -337,6 +366,22 @@ public class LevelEditor : MonoBehaviour
         GameObject obj = Instantiate(deflectorPrefab, new Vector3(gridPos.x, gridPos.y, 0), GetRotationForDir(currentDir), levelContainer);
         GridDeflector deflector = obj.GetComponentInChildren<GridDeflector>();
         if (deflector != null) deflector.SetDirection(currentDir);
+
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void HandleCountdownBlockPlacement()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        if (IsPositionOccupied(gridPos) || countdownBlockPrefab == null) return;
+
+        if (inputCountdownValue != null)
+            int.TryParse(inputCountdownValue.text, out editorCountdownValue);
+        if (editorCountdownValue < 1) editorCountdownValue = 1;
+
+        GameObject obj = Instantiate(countdownBlockPrefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
+        GridCountdownBlock block = obj.GetComponent<GridCountdownBlock>();
+        if (block != null) block.SetCount(editorCountdownValue);
 
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
     }
@@ -437,13 +482,19 @@ public class LevelEditor : MonoBehaviour
         foreach (Transform child in levelContainer)
         {
             GridDeflector deflector = child.GetComponentInChildren<GridDeflector>();
-            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || deflector != null)
+            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || child.GetComponent<GridElectricButton>() != null || deflector != null || child.GetComponent<GridCountdownBlock>() != null)
                 && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
                 Destroy(child.gameObject);
                 lastCalculatedGridPos = new Vector2Int(-9999, -9999);
                 return;
             }
+        }
+
+        if (TryRemoveElectricWallAtPos(gridPos))
+        {
+            lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+            return;
         }
 
         for (int i = currentDraftPortals.Count - 1; i >= 0; i--)
@@ -478,10 +529,25 @@ public class LevelEditor : MonoBehaviour
                     break;
                 }
 
+                if (child.TryGetComponent(out GridElectricButton eb))
+                {
+                    hasLinkedGroupColor = true;
+                    linkedGroupColor = eb.buttonColor;
+                    break;
+                }
+
                 if (child.TryGetComponent(out GridLaserGate g))
                 {
                     hasLinkedGroupColor = true;
                     linkedGroupColor = g.gateColor;
+                    break;
+                }
+
+                GridElectricWall ew = child.GetComponent<GridElectricWall>();
+                if (ew != null)
+                {
+                    hasLinkedGroupColor = true;
+                    linkedGroupColor = ew.wallColor;
                     break;
                 }
             }
@@ -498,11 +564,22 @@ public class LevelEditor : MonoBehaviour
                     if (keySr != null) keySr.color = currentColor;
                 }
 
+                if (child.TryGetComponent(out GridElectricButton eb) && AreColorsEquivalent(eb.buttonColor, linkedGroupColor))
+                {
+                    eb.SetColor(currentColor);
+                }
+
                 if (child.TryGetComponent(out GridLaserGate g) && AreColorsEquivalent(g.gateColor, linkedGroupColor))
                 {
                     g.gateColor = currentColor;
                     SpriteRenderer gateSr = child.GetComponent<SpriteRenderer>();
                     if (gateSr != null) gateSr.color = currentColor;
+                }
+
+                GridElectricWall ew = child.GetComponent<GridElectricWall>();
+                if (ew != null && AreColorsEquivalent(ew.wallColor, linkedGroupColor))
+                {
+                    ew.SetColor(currentColor);
                 }
             }
         }
@@ -513,6 +590,18 @@ public class LevelEditor : MonoBehaviour
             {
                 currentDraftPortals[i].portalColor = currentColor;
                 RefreshPortalVisuals();
+                return;
+            }
+        }
+
+        for (int i = 0; i < currentDraftElectricWalls.Count; i++)
+        {
+            if (IsCellOnElectricWall(gridPos, currentDraftElectricWalls[i]))
+            {
+                ElectricWallSaveData wall = currentDraftElectricWalls[i];
+                wall.color = currentColor;
+                currentDraftElectricWalls[i] = wall;
+                RefreshElectricWallVisuals();
                 return;
             }
         }
@@ -589,6 +678,107 @@ public class LevelEditor : MonoBehaviour
         }
     }
 
+    private void HandleElectricWallClick()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+
+        if (!isPlacingElectricWallEnd)
+        {
+            if (IsPositionOccupied(gridPos)) return;
+            draftElectricWallStart = gridPos;
+            draftElectricWallColor = currentColor;
+            isPlacingElectricWallEnd = true;
+        }
+        else
+        {
+            if (gridPos == draftElectricWallStart) return;
+            if (!IsElectricWallAligned(draftElectricWallStart, gridPos)) { isPlacingElectricWallEnd = false; return; }
+            if (!IsElectricWallPathClear(draftElectricWallStart, gridPos)) { isPlacingElectricWallEnd = false; return; }
+
+            ElectricWallSaveData newWall = new ElectricWallSaveData
+            {
+                start = draftElectricWallStart,
+                end = gridPos,
+                color = draftElectricWallColor
+            };
+
+            currentDraftElectricWalls.Add(newWall);
+            isPlacingElectricWallEnd = false;
+            RefreshElectricWallVisuals();
+        }
+
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void RefreshElectricWallVisuals()
+    {
+        foreach (var obj in spawnedElectricWallVisuals) Destroy(obj);
+        spawnedElectricWallVisuals.Clear();
+        if (electricWallPrefab == null) return;
+
+        for (int i = 0; i < currentDraftElectricWalls.Count; i++)
+        {
+            ElectricWallSaveData w = currentDraftElectricWalls[i];
+            GameObject obj = Instantiate(electricWallPrefab, Vector3.zero, Quaternion.identity, levelContainer);
+            GridElectricWall wall = obj.GetComponent<GridElectricWall>();
+            if (wall != null) wall.Initialize(w.start, w.end, w.color, false);
+            spawnedElectricWallVisuals.Add(obj);
+        }
+    }
+
+    private bool TryRemoveElectricWallAtPos(Vector2Int gridPos)
+    {
+        for (int i = currentDraftElectricWalls.Count - 1; i >= 0; i--)
+        {
+            if (IsCellOnElectricWall(gridPos, currentDraftElectricWalls[i]))
+            {
+                currentDraftElectricWalls.RemoveAt(i);
+                RefreshElectricWallVisuals();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsElectricWallAligned(Vector2Int start, Vector2Int end)
+    {
+        return start.x == end.x || start.y == end.y;
+    }
+
+    private bool IsElectricWallPathClear(Vector2Int start, Vector2Int end)
+    {
+        if (!IsElectricWallAligned(start, end)) return false;
+
+        int stepX = start.x == end.x ? 0 : (start.x < end.x ? 1 : -1);
+        int stepY = start.y == end.y ? 0 : (start.y < end.y ? 1 : -1);
+
+        int length = Mathf.Max(Mathf.Abs(end.x - start.x), Mathf.Abs(end.y - start.y));
+        for (int i = 0; i <= length; i++)
+        {
+            Vector2Int cell = new Vector2Int(start.x + stepX * i, start.y + stepY * i);
+            if (IsPositionOccupied(cell)) return false;
+        }
+        return true;
+    }
+
+    private static bool IsCellOnElectricWall(Vector2Int cell, ElectricWallSaveData wall)
+    {
+        if (!IsElectricWallAligned(wall.start, wall.end)) return false;
+
+        if (wall.start.x == wall.end.x)
+        {
+            if (cell.x != wall.start.x) return false;
+            int minY = Mathf.Min(wall.start.y, wall.end.y);
+            int maxY = Mathf.Max(wall.start.y, wall.end.y);
+            return cell.y >= minY && cell.y <= maxY;
+        }
+
+        if (cell.y != wall.start.y) return false;
+        int minX = Mathf.Min(wall.start.x, wall.end.x);
+        int maxX = Mathf.Max(wall.start.x, wall.end.x);
+        return cell.x >= minX && cell.x <= maxX;
+    }
+
     private static Quaternion GetRotationForDir(ArrowDir dir)
     {
         float angle = 0f;
@@ -652,6 +842,13 @@ public class LevelEditor : MonoBehaviour
             return;
         }
 
+        if (currentTool == EditorToolType.ElectricWall && isPlacingElectricWallEnd)
+        {
+            isPlacingElectricWallEnd = false;
+            lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+            return;
+        }
+
         if (currentSnakeObj != null && currentDraftNodes.Count > 0)
         {
             currentDraftNodes.RemoveAt(currentDraftNodes.Count - 1);
@@ -692,7 +889,7 @@ public class LevelEditor : MonoBehaviour
         }
         else if (currentTool == EditorToolType.Erase) previewCursor.color = new Color(1, 0, 0, 0.5f);
         else if (currentTool == EditorToolType.Select) previewCursor.color = new Color(1, 1, 0, 0.3f);
-        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector) 
+        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector || currentTool == EditorToolType.CountdownBlock || currentTool == EditorToolType.ElectricButton || currentTool == EditorToolType.ElectricWall) 
             previewCursor.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.8f);
     }
 
@@ -731,6 +928,11 @@ public class LevelEditor : MonoBehaviour
             isPlacingPortalExit = false;
         }
 
+        if (currentTool == EditorToolType.ElectricWall && isPlacingElectricWallEnd)
+        {
+            isPlacingElectricWallEnd = false;
+        }
+
         SaveLevel();
 
         PlaytestSession.StartPlaytest(
@@ -767,7 +969,10 @@ public class LevelEditor : MonoBehaviour
         currentData.snakes.Clear();
         currentData.keycards.Clear();
         currentData.gates.Clear();
+        currentData.electricButtons.Clear();
+        currentData.electricWalls.Clear();
         currentData.deflectors.Clear();
+        currentData.countdownBlocks.Clear();
 
         foreach (Transform s in levelContainer) {
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
@@ -782,12 +987,19 @@ public class LevelEditor : MonoBehaviour
             if (s.TryGetComponent(out GridLaserGate g))
                 currentData.gates.Add(new GateSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = g.gateColor });
 
+            if (s.TryGetComponent(out GridElectricButton eb))
+                currentData.electricButtons.Add(new ElectricButtonSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = eb.buttonColor });
+
             GridDeflector d = s.GetComponentInChildren<GridDeflector>();
             if (d != null)
                 currentData.deflectors.Add(new DeflectorSaveData { position = new Vector2Int((int)d.transform.position.x, (int)d.transform.position.y), direction = d.direction });
+
+            if (s.TryGetComponent(out GridCountdownBlock cb))
+                currentData.countdownBlocks.Add(new CountdownBlockSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), count = cb.count });
         }
 
         currentData.portals = new List<PortalData>(currentDraftPortals);
+        currentData.electricWalls = new List<ElectricWallSaveData>(currentDraftElectricWalls);
 
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(currentData); 
@@ -828,11 +1040,26 @@ public class LevelEditor : MonoBehaviour
             }
         }
 
+        if (currentData.electricButtons != null && electricButtonPrefab != null) {
+            foreach (var bData in currentData.electricButtons) {
+                GameObject b = Instantiate(electricButtonPrefab, new Vector3(bData.position.x, bData.position.y, 0), Quaternion.identity, levelContainer);
+                if (b.TryGetComponent(out GridElectricButton script)) script.SetColor(bData.color);
+            }
+        }
+
         if (currentData.deflectors != null && deflectorPrefab != null) {
             foreach (var dData in currentData.deflectors) {
                 GameObject d = Instantiate(deflectorPrefab, new Vector3(dData.position.x, dData.position.y, 0), GetRotationForDir(dData.direction), levelContainer);
                 GridDeflector script = d.GetComponentInChildren<GridDeflector>();
                 if (script != null) script.SetDirection(dData.direction);
+            }
+        }
+
+        if (currentData.countdownBlocks != null && countdownBlockPrefab != null) {
+            foreach (var cbData in currentData.countdownBlocks) {
+                GameObject cb = Instantiate(countdownBlockPrefab, new Vector3(cbData.position.x, cbData.position.y, 0), Quaternion.identity, levelContainer);
+                GridCountdownBlock script = cb.GetComponent<GridCountdownBlock>();
+                if (script != null) script.SetCount(cbData.count);
             }
         }
 
@@ -842,5 +1069,15 @@ public class LevelEditor : MonoBehaviour
             foreach(var p in currentData.portals) currentDraftPortals.Add(p);
         }
         RefreshPortalVisuals();
+
+        currentDraftElectricWalls.Clear();
+        if (currentData.electricWalls != null)
+        {
+            for (int i = 0; i < currentData.electricWalls.Count; i++)
+            {
+                currentDraftElectricWalls.Add(currentData.electricWalls[i]);
+            }
+        }
+        RefreshElectricWallVisuals();
     }
 }

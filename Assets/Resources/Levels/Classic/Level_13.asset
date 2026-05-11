@@ -300,5 +300,15 @@ MonoBehaviour:
     - {x: -3, y: -10}
   keycards: []
   gates: []
+  electricButtons:
+  - position: {x: 3, y: 14}
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+  electricWalls:
+  - start: {x: -11, y: 1}
+    end: {x: -11, y: -5}
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
   portals: []
   deflectors: []
+  countdownBlocks:
+  - position: {x: 5, y: 12}
+    count: 5

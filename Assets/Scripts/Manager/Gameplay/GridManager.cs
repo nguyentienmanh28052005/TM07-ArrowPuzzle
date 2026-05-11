@@ -15,10 +15,15 @@ public class GridManager : MonoBehaviour
     public Dictionary<Vector2Int, SnakeBlock> GridMap = new Dictionary<Vector2Int, SnakeBlock>();
     public Dictionary<Vector2Int, GridKeycard> KeycardMap = new Dictionary<Vector2Int, GridKeycard>();
     public Dictionary<Vector2Int, GridLaserGate> GateMap = new Dictionary<Vector2Int, GridLaserGate>();
+    public Dictionary<Vector2Int, GridElectricButton> ElectricButtonMap = new Dictionary<Vector2Int, GridElectricButton>();
+    public Dictionary<Vector2Int, GridElectricWall> ElectricWallMap = new Dictionary<Vector2Int, GridElectricWall>();
     public Dictionary<Vector2Int, PortalLink> PortalMap = new Dictionary<Vector2Int, PortalLink>();
     public Dictionary<Vector2Int, GridDeflector> DeflectorMap = new Dictionary<Vector2Int, GridDeflector>();
+    public Dictionary<Vector2Int, GridCountdownBlock> CountdownBlockMap = new Dictionary<Vector2Int, GridCountdownBlock>();
 
     public Action<Color> OnKeyCollectedEvent;
+    public Action<Color> OnElectricButtonPressedEvent;
+    public Action OnArrowExitedEvent;
 
     public void RaiseKeyCollected(Color keyColor)
     {
@@ -26,6 +31,16 @@ public class GridManager : MonoBehaviour
         Debug.LogWarning($"[GridManager] RaiseKeyCollected color={keyColor} instanceId={GetInstanceID()}");
 #endif
         OnKeyCollectedEvent?.Invoke(keyColor);
+    }
+
+    public void RaiseElectricButtonPressed(Color buttonColor)
+    {
+        OnElectricButtonPressedEvent?.Invoke(buttonColor);
+    }
+
+    public void RaiseArrowExited()
+    {
+        OnArrowExitedEvent?.Invoke();
     }
 
     private void Awake()
@@ -68,7 +83,10 @@ public class GridManager : MonoBehaviour
         GridMap.Clear();
         KeycardMap.Clear();
         GateMap.Clear();
+        ElectricButtonMap.Clear();
+        ElectricWallMap.Clear();
         PortalMap.Clear();
         DeflectorMap.Clear();
+        CountdownBlockMap.Clear();
     }
 }

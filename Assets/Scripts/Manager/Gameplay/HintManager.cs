@@ -44,6 +44,9 @@ public class HintManager : MonoBehaviour
             {
                 Debug.Log("HINT: Không tìm thấy nước đi nào tốt hơn!");
             }
+
+            if (BoosterTutorialManager.Instance != null)
+                BoosterTutorialManager.Instance.NotifyHintTriggered();
         }
     }
 
@@ -80,6 +83,18 @@ public class HintManager : MonoBehaviour
                 }
 
                 if (GridManager.Instance.GateMap != null && GridManager.Instance.GateMap.ContainsKey(checkPos))
+                {
+                    isBlocked = true;
+                    break;
+                }
+
+                if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(checkPos))
+                {
+                    isBlocked = true;
+                    break;
+                }
+
+                if (GridManager.Instance.CountdownBlockMap != null && GridManager.Instance.CountdownBlockMap.ContainsKey(checkPos))
                 {
                     isBlocked = true;
                     break;

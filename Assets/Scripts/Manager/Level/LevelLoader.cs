@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,8 +12,11 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     public GameObject dotPrefab;   
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
+    public GameObject electricButtonPrefab;
+    public GameObject electricWallPrefab;
     public GameObject portalPrefab;
     public GameObject deflectorPrefab;
+    public GameObject countdownBlockPrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -144,6 +147,9 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
         if (TutorialManager.Instance != null) 
             TutorialManager.Instance.CheckAndStartTutorial(levelToPlay);
+
+        if (BoosterTutorialManager.Instance != null)
+            BoosterTutorialManager.Instance.CheckAndStartBoosterTutorial(levelToPlay);
     }
 
     [ContextMenu("Reload Level (Instant)")]
@@ -252,6 +258,25 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             }
         }
 
+        if (levelToPlay.electricButtons != null && electricButtonPrefab != null)
+        {
+            foreach (var b in levelToPlay.electricButtons)
+            {
+                GameObject obj = Instantiate(electricButtonPrefab, new Vector3(b.position.x, b.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
+                if (obj.TryGetComponent(out GridElectricButton script)) script.SetColor(b.color);
+            }
+        }
+
+        if (levelToPlay.electricWalls != null && electricWallPrefab != null)
+        {
+            foreach (var w in levelToPlay.electricWalls)
+            {
+                GameObject obj = Instantiate(electricWallPrefab, Vector3.zero, Quaternion.identity, _obstaclesContainer.transform);
+                GridElectricWall wall = obj.GetComponent<GridElectricWall>();
+                if (wall != null) wall.Initialize(w.start, w.end, w.color, true);
+            }
+        }
+
         if (levelToPlay.deflectors != null && deflectorPrefab != null)
         {
             foreach (var d in levelToPlay.deflectors)
@@ -260,6 +285,16 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 GridDeflector deflector = obj.GetComponentInChildren<GridDeflector>();
                 if (deflector != null) deflector.SetDirection(d.direction);
                 if (obj.GetComponent<GridDeflectorVisual>() == null) obj.AddComponent<GridDeflectorVisual>();
+            }
+        }
+
+        if (levelToPlay.countdownBlocks != null && countdownBlockPrefab != null)
+        {
+            foreach (var cb in levelToPlay.countdownBlocks)
+            {
+                GameObject obj = Instantiate(countdownBlockPrefab, new Vector3(cb.position.x, cb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
+                GridCountdownBlock script = obj.GetComponent<GridCountdownBlock>();
+                if (script != null) script.SetCount(cb.count);
             }
         }
 
