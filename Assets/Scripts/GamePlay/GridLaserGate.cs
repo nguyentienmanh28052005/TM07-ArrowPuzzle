@@ -80,21 +80,53 @@ public class GridLaserGate : MonoBehaviour
         Debug.LogWarning($"Gate {gateColor} received key event with color {collectedColor}");
         if (_isOpen) return;
 
+        if (MatchesColor(collectedColor)) 
+        {
+            _isOpen = true;
+            PlayInstantOpen();
+        }
+    }
+
+    public bool MatchesColor(Color collectedColor)
+    {
         float rDiff = Mathf.Abs(collectedColor.r - gateColor.r);
         float gDiff = Mathf.Abs(collectedColor.g - gateColor.g);
         float bDiff = Mathf.Abs(collectedColor.b - gateColor.b);
+        return rDiff < 0.1f && gDiff < 0.1f && bDiff < 0.1f;
+    }
 
-        if (rDiff < 0.1f && gDiff < 0.1f && bDiff < 0.1f) 
+    public bool TryReserveForCardGateEffect()
+    {
+        if (_isOpen) return false;
+        _isOpen = true;
+        return true;
+    }
+
+    public void RemoveAfterCardGateEffect(bool destroyGate, bool disableGate)
+    {
+        RemoveFromGateMap();
+
+        if (destroyGate)
         {
-            _isOpen = true;
-            
-            Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-            if (GridManager.Instance != null && GridManager.Instance.GateMap.ContainsKey(pos))
-            {
-                GridManager.Instance.GateMap.Remove(pos);
-            }
+            Destroy(gameObject);
+            return;
+        }
 
-            transform.DOScale(0f, 0.3f).SetEase(Ease.InBack).OnComplete(() => Destroy(gameObject));
+        if (disableGate) gameObject.SetActive(false);
+    }
+
+    private void PlayInstantOpen()
+    {
+        RemoveFromGateMap();
+        transform.DOScale(0f, 0.3f).SetEase(Ease.InBack).OnComplete(() => Destroy(gameObject));
+    }
+
+    private void RemoveFromGateMap()
+    {
+        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
+        if (GridManager.Instance != null && GridManager.Instance.GateMap.ContainsKey(pos))
+        {
+            GridManager.Instance.GateMap.Remove(pos);
         }
     }
 }

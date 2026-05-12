@@ -14,6 +14,8 @@ public class GridCountdownBlock : MonoBehaviour
     private Coroutine _subscribeRoutine;
     private GridManager _subscribedManager;
 
+    [SerializeField] private ParticleSystem explosionEffect;
+
     private void Start()
     {
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
@@ -89,36 +91,72 @@ public class GridCountdownBlock : MonoBehaviour
         count--;
         UpdateCountText();
 
-        // Hiệu ứng shake + flash
         transform.DOKill();
-        transform.DOShakePosition(0.3f, 0.15f, 20, 90f, false, true).SetLink(gameObject);
-
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr != null)
-        {
-            Color originalColor = sr.color;
-            sr.DOKill();
-            sr.DOColor(Color.white, 0.1f).OnComplete(() =>
-            {
-                sr.DOColor(originalColor, 0.2f).SetLink(gameObject);
-            }).SetLink(gameObject);
-        }
+        if (sr != null) sr.DOKill();
 
-        if (count <= 0)
+        if (count > 0)
         {
+            // --- BỊ TRỪ ĐIỂM (CHƯA NỔ) ---
+            transform.DOShakePosition(0.2f, 0.1f, 20, 90f, false, true).SetLink(gameObject);
+            if (sr != null)
+            {
+                Color originalColor = sr.color;
+                sr.DOColor(Color.white, 0.1f).OnComplete(() =>
+                {
+                    sr.DOColor(originalColor, 0.1f).SetLink(gameObject);
+                }).SetLink(gameObject);
+            }
+        }
+        else
+        {
+            // --- CHUẨN BỊ NỔ TUNG ---
             _isDestroyed = true;
 
-            // Xóa khỏi GridManager
+            // Xóa khỏi hệ thống Grid để các mũi tên khác có thể đi qua ngay
             Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
             if (GridManager.Instance != null && GridManager.Instance.CountdownBlockMap.ContainsKey(pos))
             {
                 GridManager.Instance.CountdownBlockMap.Remove(pos);
             }
-
             Unsubscribe();
 
-            // Hiệu ứng nổ tung
-            transform.DOScale(0f, 0.3f).SetEase(Ease.InBack).OnComplete(() => Destroy(gameObject));
+            // Chớp trắng liên tục trong suốt quá trình phình to
+            if (sr != null) sr.DOColor(Color.white, 0.6f).SetLink(gameObject);
+
+            Sequence explodeSequence = DOTween.Sequence().SetLink(gameObject);
+
+            float anticipationTime = 0.6f; // Thời gian vừa rung vừa phình (0.35 giây)
+
+            // Lệnh Append đầu tiên: Phình to 1.35 lần. 
+            // Dùng Ease.InExpo để ban đầu phình chậm, càng về sau phình càng nhanh (tạo cảm giác sắp nổ).
+            explodeSequence.Append(transform.DOScale(transform.localScale * 1.2f, anticipationTime).SetEase(Ease.InExpo));
+            
+            // DÙNG .Join() ĐỂ CHẠY CÙNG LÚC VỚI LỆNH APPEND Ở TRÊN
+            // Rung vị trí và rung góc xoay bạo lực hơn (vibrato = 35)
+            explodeSequence.Join(transform.DOShakePosition(anticipationTime, 0.15f, 35, 90f, false, true));
+            //explodeSequence.Join(transform.DOShakeRotation(anticipationTime, new Vector3(0, 0, 15f), 30));
+
+            // BÙM! 
+            explodeSequence.OnComplete(() => 
+            {
+                // Tắt hình ảnh ngay lập tức
+                if (sr != null) sr.enabled = false;
+                if (countText != null) countText.gameObject.SetActive(false);
+
+                // Kích hoạt Particle Nổ
+                if (explosionEffect != null)
+                {
+                    explosionEffect.transform.SetParent(null); 
+                    explosionEffect.transform.localScale = Vector3.one; 
+                    explosionEffect.Play();
+                    
+                    Destroy(explosionEffect.gameObject, 1.5f);
+                }
+
+                // Hủy Game Object
+                Destroy(gameObject);
+            });
         }
     }
 
