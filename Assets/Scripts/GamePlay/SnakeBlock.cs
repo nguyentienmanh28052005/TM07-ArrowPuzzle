@@ -63,6 +63,21 @@ public class SnakeBlock : MonoBehaviour
     private bool _isSpawning = false;
     private bool _hasDealtDamage = false;
 
+    private enum ObstacleType
+    {
+        None,
+        Snake,
+        Gate,
+        ElectricWall,
+        CountdownBlock
+    }
+
+    private ObstacleType _lastObstacleType = ObstacleType.None;
+    private Vector2Int _lastObstacleCell = new Vector2Int(int.MinValue, int.MinValue);
+
+    public string LastObstacleType => _lastObstacleType.ToString();
+    public Vector2Int LastObstacleCell => _lastObstacleCell;
+
     private HashSet<Vector2Int> _occupiedCells = new HashSet<Vector2Int>();
     
     private struct WarpEvent 
@@ -518,6 +533,8 @@ public class SnakeBlock : MonoBehaviour
 
         _activeWarps.Clear();
         _lastPassedPortalIndex = -1; 
+        _lastObstacleType = ObstacleType.None;
+        _lastObstacleCell = new Vector2Int(int.MinValue, int.MinValue);
 
         Vector2Int currentPos = new Vector2Int(Mathf.RoundToInt(_originalState[0].x), Mathf.RoundToInt(_originalState[0].y));
         Vector2Int step = new Vector2Int(Mathf.RoundToInt(dir.x), Mathf.RoundToInt(dir.y));
@@ -528,13 +545,33 @@ public class SnakeBlock : MonoBehaviour
             if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) return float.MaxValue;
 
             SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(checkPos);
-            if (obstacle != null && obstacle != this) return d - 1; 
+            if (obstacle != null && obstacle != this)
+            {
+                _lastObstacleType = ObstacleType.Snake;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
 
-            if (GridManager.Instance.GateMap.ContainsKey(checkPos)) return d - 1; 
+            if (GridManager.Instance.GateMap.ContainsKey(checkPos))
+            {
+                _lastObstacleType = ObstacleType.Gate;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
 
-            if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(checkPos)) return d - 1;
+            if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(checkPos))
+            {
+                _lastObstacleType = ObstacleType.ElectricWall;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
 
-            if (GridManager.Instance.CountdownBlockMap.ContainsKey(checkPos)) return d - 1;
+            if (GridManager.Instance.CountdownBlockMap.ContainsKey(checkPos))
+            {
+                _lastObstacleType = ObstacleType.CountdownBlock;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
 
             if (GridManager.Instance.PortalMap.TryGetValue(checkPos, out GridManager.PortalLink link))
             {

@@ -15,12 +15,23 @@ public class GridElectricWall : MonoBehaviour
     [Header("VFX")]
     [SerializeField] private LightningConnector lightning;
 
+    [Header("Spawn/Despawn FX")]
+    [SerializeField] private float endpointAppearDuration = 0.12f;
+    [SerializeField] private float lightningAppearDuration = 0.25f;
+    [SerializeField] private bool appearFromStart = true;
+    [SerializeField] private float lightningDisappearDuration = 0.2f;
+    [SerializeField] private bool disappearFromStart = false;
+    [SerializeField] private float endpointDisappearDuration = 0.12f;
+
     private readonly List<Vector2Int> _cells = new List<Vector2Int>();
     private bool _isDisabled;
     private bool _isInitialized;
     private Vector2Int _startCell;
     private Vector2Int _endCell;
     private bool _allowGridRegistration = true;
+    private bool _spawnPlayed;
+    private Sequence _spawnSequence;
+    private Sequence _despawnSequence;
 
     private bool _isSubscribed;
     private Coroutine _subscribeRoutine;
@@ -35,6 +46,7 @@ public class GridElectricWall : MonoBehaviour
     {
         InitializeFromTransformsIfNeeded(true);
         TrySubscribe();
+        if (Application.isPlaying && _allowGridRegistration) PlaySpawnEffect();
     }
 
     private void OnEnable()
@@ -42,6 +54,7 @@ public class GridElectricWall : MonoBehaviour
         EnsureReferences();
         InitializeFromTransformsIfNeeded(true);
         TrySubscribe();
+        if (Application.isPlaying && _allowGridRegistration) PlaySpawnEffect();
     }
 
     private void OnDisable()
@@ -51,6 +64,7 @@ public class GridElectricWall : MonoBehaviour
             StopCoroutine(_subscribeRoutine);
             _subscribeRoutine = null;
         }
+        KillSequences();
         UnregisterCells();
         Unsubscribe();
     }
@@ -71,6 +85,7 @@ public class GridElectricWall : MonoBehaviour
         else BuildCells();
 
         if (registerToGrid) TrySubscribe();
+        if (Application.isPlaying && registerToGrid) PlaySpawnEffect();
     }
 
     public void SetColor(Color color)
@@ -136,6 +151,32 @@ public class GridElectricWall : MonoBehaviour
         {
             lightning.SetTargets(startPoint, endPoint);
         }
+    }
+
+    private void PlaySpawnEffect()
+    {
+        if (_spawnPlayed) return;
+        _spawnPlayed = true;
+
+        KillSequences();
+        SetEndpointScale(0f);
+
+        if (lightning != null) lightning.SetActive(false);
+
+        _spawnSequence = DOTween.Sequence();
+        if (startPoint != null)
+            _spawnSequence.Join(startPoint.DOScale(1f, endpointAppearDuration).SetEase(Ease.OutBack));
+        if (endPoint != null)
+            _spawnSequence.Join(endPoint.DOScale(1f, endpointAppearDuration).SetEase(Ease.OutBack));
+
+        _spawnSequence.AppendCallback(() => {
+            if (lightning != null)
+            {
+                lightning.SetActive(true);
+                lightning.PlayAppear(lightningAppearDuration, appearFromStart);
+            }
+        });
+        _spawnSequence.AppendInterval(lightningAppearDuration);
     }
 
     private void SetEndpointPositions()
@@ -256,8 +297,40 @@ public class GridElectricWall : MonoBehaviour
 
         _isDisabled = true;
         UnregisterCells();
-        if (lightning != null) lightning.SetActive(false);
-        transform.DOScale(0f, 0.25f).SetEase(Ease.InBack).OnComplete(() => Destroy(gameObject));
+        StartCoroutine(PlayDisableSequence());
+    }
+
+    private System.Collections.IEnumerator PlayDisableSequence()
+    {
+        KillSequences();
+
+        if (lightning != null)
+        {
+            lightning.PlayDisappear(lightningDisappearDuration, disappearFromStart);
+            yield return new WaitForSeconds(lightningDisappearDuration);
+            lightning.SetActive(false);
+        }
+
+        _despawnSequence = DOTween.Sequence();
+        if (startPoint != null)
+            _despawnSequence.Join(startPoint.DOScale(0f, endpointDisappearDuration).SetEase(Ease.InBack));
+        if (endPoint != null)
+            _despawnSequence.Join(endPoint.DOScale(0f, endpointDisappearDuration).SetEase(Ease.InBack));
+
+        yield return new WaitForSeconds(endpointDisappearDuration);
+        Destroy(gameObject);
+    }
+
+    private void SetEndpointScale(float scale)
+    {
+        if (startPoint != null) startPoint.localScale = Vector3.one * scale;
+        if (endPoint != null) endPoint.localScale = Vector3.one * scale;
+    }
+
+    private void KillSequences()
+    {
+        if (_spawnSequence != null && _spawnSequence.IsActive()) _spawnSequence.Kill();
+        if (_despawnSequence != null && _despawnSequence.IsActive()) _despawnSequence.Kill();
     }
 
     private static bool IsAligned(Vector2Int startCell, Vector2Int endCell)
