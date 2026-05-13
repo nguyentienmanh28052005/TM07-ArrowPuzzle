@@ -683,6 +683,8 @@ MonoBehaviour:
     - {x: 8, y: 17}
   keycards: []
   gates: []
+  electricButtons: []
+  electricWalls: []
   portals:
   - entrance: {x: -16, y: 9}
     entranceDir: 1
@@ -698,10 +700,11 @@ MonoBehaviour:
     entranceDir: 2
     exit: {x: 8, y: 11}
     exitDir: 0
-    portalColor: {r: 0, g: 0.645283, b: 0.32590044, a: 1}
+    portalColor: {r: 1, g: 0.68964195, b: 0, a: 1}
   - entrance: {x: 2, y: -3}
     entranceDir: 1
     exit: {x: 6, y: 3}
     exitDir: 2
     portalColor: {r: 0, g: 1, b: 0.9425249, a: 1}
   deflectors: []
+  countdownBlocks: []

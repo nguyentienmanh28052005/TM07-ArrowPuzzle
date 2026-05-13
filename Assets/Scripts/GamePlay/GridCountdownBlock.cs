@@ -16,6 +16,13 @@ public class GridCountdownBlock : MonoBehaviour
 
     [SerializeField] private ParticleSystem explosionEffect;
 
+    [Header("Explosion Camera Shake")]
+    [SerializeField] private bool shakeCameraOnExplosion = true;
+    [SerializeField] private float cameraShakeDuration = 0.28f;
+    [SerializeField] private float cameraShakeStrength = 0.55f;
+    [SerializeField] private float cameraShakeHitStop = 0.03f;
+    [SerializeField] private Color cameraShakeFlashColor = new Color(1f, 1f, 1f, 0.22f);
+
     private void Start()
     {
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
@@ -140,6 +147,8 @@ public class GridCountdownBlock : MonoBehaviour
             // BÙM! 
             explodeSequence.OnComplete(() => 
             {
+                PlayExplosionCameraShake();
+
                 // Tắt hình ảnh ngay lập tức
                 if (sr != null) sr.enabled = false;
                 if (countText != null) countText.gameObject.SetActive(false);
@@ -158,6 +167,33 @@ public class GridCountdownBlock : MonoBehaviour
                 Destroy(gameObject);
             });
         }
+    }
+
+    private void PlayExplosionCameraShake()
+    {
+        if (!shakeCameraOnExplosion) return;
+
+        ScreenJuiceManager juiceManager = ScreenJuiceManager.Instance;
+        if (juiceManager == null) juiceManager = FindObjectOfType<ScreenJuiceManager>();
+
+        if (juiceManager != null)
+        {
+            juiceManager.PlayCustomJuice(cameraShakeDuration, cameraShakeStrength, cameraShakeHitStop, cameraShakeFlashColor);
+            return;
+        }
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return;
+
+        Transform cameraTransform = mainCamera.transform;
+        cameraTransform.DOKill();
+        Vector3 originalLocalPosition = cameraTransform.localPosition;
+        cameraTransform.DOShakePosition(cameraShakeDuration, cameraShakeStrength, 20, 90f, false, true)
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (cameraTransform != null) cameraTransform.localPosition = originalLocalPosition;
+            });
     }
 
     private void UpdateCountText()
