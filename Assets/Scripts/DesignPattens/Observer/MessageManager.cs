@@ -21,6 +21,7 @@ public enum ManhMessageType
     OnEraseToolChanged,
     OnHintToolChanged,
     OnDashToolChanged,
+    OnSpinToolChanged,
     OnSelectDashDirection,
 }
 

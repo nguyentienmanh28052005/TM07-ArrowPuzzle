@@ -9975,16 +9975,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   arrowsPerSpin: 5
-  sparkFlightDuration: 0.1
+  firstArrowFlightDuration: 0.35
+  sparkFlightDuration: 0.06
   sparkFlightEase: 4
   delayBetweenReleases: 0.05
   spinSpeed: 0.15
   curvePower: 0
   arrivalPunchScale: 0
-  explosionPrefab: {fileID: 0}
-  explosionDuration: 0.25
-  explosionScale: 2.2
-  explosionVibrato: 18
+  finalFlightDuration: 0.45
+  finalFlightEase: 4
+  finalFlightDirection: {x: 1, y: 0}
+  finalFlightDistance: 5.54
+  finalFlightJitter: 0.45
+  finalFlightPointCount: 5
+  explosionPrefab: {fileID: 4897657186069544243, guid: 6dd4d0205a071574e925a78e15502a50,
+    type: 3}
+  explosionParticleLifetime: 1.5
+  shakeCameraOnExplosion: 1
+  cameraShakeDuration: 0.28
+  cameraShakeStrength: 0.55
+  cameraShakeHitStop: 0.03
+  cameraShakeFlashColor: {r: 1, g: 1, b: 1, a: 0.22}
   dashSparkPrefab: {fileID: 4342923792365335770, guid: aad551d9d95f8e847ba598628fddff26,
     type: 3}
   sparkOrigin: {fileID: 1136856272}
@@ -40140,6 +40151,7 @@ MonoBehaviour:
   _eraseToolCount: 0
   _hintToolCount: 0
   _dashToolCount: 0
+  _spinToolCount: 0
 --- !u!4 &1672180462
 Transform:
   m_ObjectHideFlags: 0
@@ -47323,6 +47335,7 @@ MonoBehaviour:
   currentEraseToolText: {fileID: 1060121666}
   currentHintToolText: {fileID: 1366749237}
   currentDashToolText: {fileID: 1035453574}
+  currentSpinToolText: {fileID: 1418652498}
   dashToolPanel: {fileID: 818739271}
   cinematicIntroPanel: {fileID: 200637774}
   cinematicIntroIcon: {fileID: 1521355070}

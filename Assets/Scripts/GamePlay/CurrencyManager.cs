@@ -10,6 +10,7 @@ public class CurrencyManager : Singleton<CurrencyManager>
     private const int ERASE_TOOL = 200;
     private const int HINT_TOOL = 201;
     private const int DASH_TOOL = 202;
+    private const int SPIN_TOOL = 203;
 
     [SerializeField] private float _coins;
     public float Coins 
@@ -71,6 +72,18 @@ public class CurrencyManager : Singleton<CurrencyManager>
         }
     }
 
+    [SerializeField] private int _spinToolCount;
+    public int SpinToolCount
+    {
+        get => _spinToolCount;
+        private set
+        {
+            _spinToolCount = value;
+            MessageManager.Instance.SendMessage(ManhMessageType.OnSpinToolChanged, _spinToolCount);
+            SaveDataPlayer.Instance.Save(SPIN_TOOL, _spinToolCount);
+        }
+    }
+
 
     public void Update()
     {
@@ -88,6 +101,7 @@ public class CurrencyManager : Singleton<CurrencyManager>
         EraseToolCount = _eraseToolCount;
         HintToolCount = _hintToolCount;
         DashToolCount = _dashToolCount;
+        SpinToolCount = _spinToolCount;
     }
 
 
@@ -98,10 +112,12 @@ public class CurrencyManager : Singleton<CurrencyManager>
         _eraseToolCount = (int)SaveDataPlayer.Instance.Value(ERASE_TOOL);
         _hintToolCount = (int)SaveDataPlayer.Instance.Value(HINT_TOOL);
         _dashToolCount = (int)SaveDataPlayer.Instance.Value(DASH_TOOL);
+        _spinToolCount = (int)SaveDataPlayer.Instance.Value(SPIN_TOOL);
 
         AddHintTool(30);
         AddEraseTool(30);
         AddDashTool(30);
+        AddSpinTool(30);
         AddCoins(100000);
         AddDiamonds(20000);
     }
@@ -185,6 +201,22 @@ public class CurrencyManager : Singleton<CurrencyManager>
         if (DashToolCount >= amount)
         {
             DashToolCount -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    public void AddSpinTool(int amount)
+    {
+        if (amount < 0) return;
+        SpinToolCount += amount;
+    }
+
+    public bool SpendSpinTool(int amount)
+    {
+        if (SpinToolCount >= amount)
+        {
+            SpinToolCount -= amount;
             return true;
         }
         return false;

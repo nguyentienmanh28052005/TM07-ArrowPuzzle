@@ -10,6 +10,9 @@ public class SpinManager : MonoBehaviour
 
     [Header("Spin Settings")]
     [Min(1)] public int arrowsPerSpin = 5;
+    [Tooltip("Flight time from the spawn/origin position to the first arrow.")]
+    public float firstArrowFlightDuration = 0.35f;
+    [Tooltip("Flight time from one released arrow to the next arrow.")]
     public float sparkFlightDuration = 0.2f;
     public Ease sparkFlightEase = Ease.InOutSine;
     public float delayBetweenReleases = 0.05f;
@@ -21,11 +24,24 @@ public class SpinManager : MonoBehaviour
     public float curvePower = 2.5f;
     public float arrivalPunchScale = 0.4f;
 
+    [Header("Final Directional Flight")]
+    public float finalFlightDuration = 0.45f;
+    public Ease finalFlightEase = Ease.InOutSine;
+    public Vector2 finalFlightDirection = Vector2.right;
+    public float finalFlightDistance = 3f;
+    public float finalFlightJitter = 0.45f;
+    [Range(3, 12)] public int finalFlightPointCount = 5;
+
     [Header("Explosion")]
     public GameObject explosionPrefab;
-    public float explosionDuration = 0.25f;
-    public float explosionScale = 2.2f;
-    public int explosionVibrato = 18;
+    public float explosionParticleLifetime = 1.5f;
+
+    [Header("Explosion Camera Shake")]
+    public bool shakeCameraOnExplosion = true;
+    public float cameraShakeDuration = 0.28f;
+    public float cameraShakeStrength = 0.55f;
+    public float cameraShakeHitStop = 0.03f;
+    public Color cameraShakeFlashColor = new Color(1f, 1f, 1f, 0.22f);
 
     [Header("Visual Effects")]
     public GameObject dashSparkPrefab;
@@ -44,7 +60,7 @@ public class SpinManager : MonoBehaviour
         if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
         if (!HasLaunchableArrow()) return;
 
-        if (CurrencyManager.Instance != null && !CurrencyManager.Instance.SpendDashTool(1))
+        if (CurrencyManager.Instance != null && !CurrencyManager.Instance.SpendSpinTool(1))
             return;
 
         ExecuteSpin();
@@ -106,35 +122,26 @@ public class SpinManager : MonoBehaviour
         }
 
         bool curveToLeft = true;
-        int remainingReleaseTargets = CountLaunchableTargets(targets);
         int releasedTargets = 0;
 
         foreach (SnakeBlock targetSnake in targets)
         {
             if (!IsLaunchable(targetSnake))
-            {
-                remainingReleaseTargets--;
-                if (releasedTargets >= remainingReleaseTargets)
-                    SetTrailDrawing(sparkTrails, false, false);
                 continue;
-            }
 
             Vector3 targetPos = targetSnake.HeadPosition;
 
             if (spark != null)
-                yield return MoveSparkToTarget(spark, targetPos, curveToLeft);
+                yield return MoveSparkToTarget(spark, targetPos, curveToLeft, releasedTargets == 0 ? firstArrowFlightDuration : sparkFlightDuration);
             else
-                yield return new WaitForSeconds(sparkFlightDuration);
+                yield return new WaitForSeconds(releasedTargets == 0 ? firstArrowFlightDuration : sparkFlightDuration);
 
             curveToLeft = !curveToLeft;
 
             if (!IsLaunchable(targetSnake))
-            {
-                remainingReleaseTargets--;
-                if (releasedTargets >= remainingReleaseTargets)
-                    SetTrailDrawing(sparkTrails, false, false);
                 continue;
-            }
+            
+            bool isFinalRelease = CountLaunchableTargets(targets) <= 1;
 
             releasedTargets++;
             if (releasedTargets == 1)
@@ -148,7 +155,7 @@ public class SpinManager : MonoBehaviour
             if (AudioManager.Instance != null)
                 AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
 
-            if (releasedTargets >= remainingReleaseTargets)
+            if (isFinalRelease)
                 SetTrailDrawing(sparkTrails, false, false);
 
             if (delayBetweenReleases > 0f)
@@ -158,7 +165,12 @@ public class SpinManager : MonoBehaviour
         SetTrailDrawing(sparkTrails, false, false);
 
         if (spark != null)
+        {
+            if (releasedTargets > 0)
+                yield return MoveSparkInFinalDirection(spark);
+
             yield return ExplodeAndDestroy(spark);
+        }
 
         yield return new WaitForSeconds(0.2f);
         CameraController.IsGameplayBlocking = false;
@@ -246,7 +258,7 @@ public class SpinManager : MonoBehaviour
         }
     }
 
-    private IEnumerator MoveSparkToTarget(GameObject spark, Vector3 targetPos, bool curveToLeft)
+    private IEnumerator MoveSparkToTarget(GameObject spark, Vector3 targetPos, bool curveToLeft, float duration)
     {
         bool hasReached = false;
         Vector3 currentPos = spark.transform.position;
@@ -260,7 +272,7 @@ public class SpinManager : MonoBehaviour
         midPoint += perpendicularOffset * curvePower;
 
         Vector3[] pathPoints = new Vector3[] { currentPos, midPoint, targetPos };
-        spark.transform.DOPath(pathPoints, sparkFlightDuration, PathType.CatmullRom)
+        spark.transform.DOPath(pathPoints, Mathf.Max(0.01f, duration), PathType.CatmullRom)
             .SetEase(sparkFlightEase)
             .OnComplete(() => hasReached = true)
             .SetLink(spark);
@@ -269,42 +281,100 @@ public class SpinManager : MonoBehaviour
             yield return null;
     }
 
-    private IEnumerator ExplodeAndDestroy(GameObject spark)
+    private IEnumerator MoveSparkInFinalDirection(GameObject spark)
     {
-        if (explosionPrefab != null)
+        if (spark == null || finalFlightDuration <= 0f || finalFlightDistance <= 0f)
+            yield break;
+
+        bool hasFinished = false;
+        Vector3 startPos = spark.transform.position;
+        int pointCount = Mathf.Max(3, finalFlightPointCount);
+        Vector3[] pathPoints = new Vector3[pointCount];
+        Vector2 forward = finalFlightDirection.sqrMagnitude > 0.001f ? finalFlightDirection.normalized : Vector2.right;
+        Vector2 perpendicular = new Vector2(-forward.y, forward.x);
+
+        for (int i = 0; i < pointCount; i++)
         {
-            GameObject explosion = Instantiate(explosionPrefab, spark.transform.position, Quaternion.identity);
-            Destroy(explosion, Mathf.Max(0.1f, explosionDuration * 2f));
+            float progress = (i + 1f) / pointCount;
+            float sideOffset = Random.Range(-finalFlightJitter, finalFlightJitter);
+            Vector2 offset = forward * (finalFlightDistance * progress) + perpendicular * sideOffset;
+            pathPoints[i] = startPos + new Vector3(offset.x, offset.y, 0f);
         }
 
-        spark.transform.DOKill();
+        spark.transform.DOPath(pathPoints, finalFlightDuration, PathType.CatmullRom)
+            .SetEase(finalFlightEase)
+            .OnComplete(() => hasFinished = true)
+            .SetLink(spark);
 
-        bool completed = false;
-        Sequence explosionSeq = DOTween.Sequence();
-        explosionSeq.Append(
-            spark.transform.DOScale(Vector3.one * explosionScale, explosionDuration * 0.5f)
-                .SetEase(Ease.OutBack)
-        );
-        explosionSeq.Join(
-            spark.transform.DOShakeRotation(
-                explosionDuration,
-                new Vector3(0f, 0f, 90f),
-                explosionVibrato,
-                90f,
-                false
-            )
-        );
-        explosionSeq.Append(
-            spark.transform.DOScale(Vector3.zero, explosionDuration * 0.5f)
-                .SetEase(Ease.InBack)
-        );
-        explosionSeq.OnComplete(() =>
-        {
-            completed = true;
-            Destroy(spark);
-        });
-
-        while (spark != null && !completed)
+        while (spark != null && !hasFinished)
             yield return null;
+    }
+
+    private IEnumerator ExplodeAndDestroy(GameObject spark)
+    {
+        spark.transform.DOKill();
+        PlayExplosionCameraShake();
+        HideSparkVisuals(spark);
+        PlayExplosionParticles(spark.transform.position);
+        Destroy(spark, 0.05f);
+        yield break;
+    }
+
+    private void HideSparkVisuals(GameObject spark)
+    {
+        Renderer[] renderers = spark.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer != null)
+                renderer.enabled = false;
+        }
+    }
+
+    private void PlayExplosionParticles(Vector3 position)
+    {
+        if (explosionPrefab == null) return;
+
+        GameObject explosion = Instantiate(explosionPrefab, position, Quaternion.identity);
+        explosion.transform.localScale = Vector3.one;
+
+        ParticleSystem[] particleSystems = explosion.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (ParticleSystem particleSystem in particleSystems)
+        {
+            if (particleSystem == null) continue;
+
+            particleSystem.gameObject.SetActive(true);
+            particleSystem.Clear(true);
+            particleSystem.Play(true);
+        }
+
+        Destroy(explosion, Mathf.Max(0.1f, explosionParticleLifetime));
+    }
+
+    private void PlayExplosionCameraShake()
+    {
+        if (!shakeCameraOnExplosion) return;
+
+        ScreenJuiceManager juiceManager = ScreenJuiceManager.Instance;
+        if (juiceManager == null) juiceManager = FindObjectOfType<ScreenJuiceManager>();
+
+        if (juiceManager != null)
+        {
+            juiceManager.PlayCustomJuice(cameraShakeDuration, cameraShakeStrength, cameraShakeHitStop, cameraShakeFlashColor);
+            return;
+        }
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return;
+
+        Transform cameraTransform = mainCamera.transform;
+        cameraTransform.DOKill();
+        Vector3 originalLocalPosition = cameraTransform.localPosition;
+        cameraTransform.DOShakePosition(cameraShakeDuration, cameraShakeStrength, 20, 90f, false, true)
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (cameraTransform != null)
+                    cameraTransform.localPosition = originalLocalPosition;
+            });
     }
 }

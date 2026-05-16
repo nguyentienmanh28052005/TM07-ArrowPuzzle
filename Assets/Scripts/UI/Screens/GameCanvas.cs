@@ -65,6 +65,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     [SerializeField] private TextMeshProUGUI currentEraseToolText;
     [SerializeField] private TextMeshProUGUI currentHintToolText;
     [SerializeField] private TextMeshProUGUI currentDashToolText;
+    [SerializeField] private TextMeshProUGUI currentSpinToolText;
     [SerializeField] private GameObject dashToolPanel;
 
     [Header("Cinematic Level Intro")]
@@ -320,6 +321,18 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
                 currentDashToolText.text = CurrencyManager.Instance.DashToolCount.ToString();
             }
         }
+
+        if (currentSpinToolText != null)
+        {
+            if(CurrencyManager.Instance.SpinToolCount > 99)
+            {
+                currentSpinToolText.text = "99+";
+            }
+            else
+            {
+                currentSpinToolText.text = CurrencyManager.Instance.SpinToolCount.ToString();
+            }
+        }
     }
 
     private void InitializePopups()
@@ -348,6 +361,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnHintToolChanged, UpdateToolCountText);
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnEraseToolChanged, UpdateToolCountText);
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
+        MessageManager.Instance.AddSubscriber(ManhMessageType.OnSpinToolChanged, UpdateToolCountText);
         MessageManager.Instance.AddSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
 
         if (TransitionManager.Instance != null)
@@ -363,6 +377,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnHintToolChanged, UpdateToolCountText); 
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnEraseToolChanged, UpdateToolCountText);
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnDashToolChanged, UpdateToolCountText);
+        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnSpinToolChanged, UpdateToolCountText);
         MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnSelectDashDirection, SetDashToolPanelActive);
 
         if (TransitionManager.Instance != null)

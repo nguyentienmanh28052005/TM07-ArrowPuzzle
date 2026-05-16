@@ -458,6 +458,7 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
         CurrencyManager.Instance.AddHintTool(5);
         CurrencyManager.Instance.AddEraseTool(5);
         CurrencyManager.Instance.AddDashTool(5);
+        CurrencyManager.Instance.AddSpinTool(5);
         CurrencyManager.Instance.AddCoins(10000);
         CurrencyManager.Instance.AddDiamonds(2000);
     }
