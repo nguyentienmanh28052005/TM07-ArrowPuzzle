@@ -27,6 +27,7 @@ public class SpinManager : MonoBehaviour
     [Header("Final Directional Flight")]
     public float finalFlightDuration = 0.45f;
     public Ease finalFlightEase = Ease.InOutSine;
+    [Tooltip("Runtime direction calculated from the penultimate released arrow to the final released arrow.")]
     public Vector2 finalFlightDirection = Vector2.right;
     public float finalFlightDistance = 3f;
     public float finalFlightJitter = 0.45f;
@@ -123,6 +124,8 @@ public class SpinManager : MonoBehaviour
 
         bool curveToLeft = true;
         int releasedTargets = 0;
+        Vector3 finalDirectionFromPos = startPos;
+        Vector3 finalDirectionToPos = startPos;
 
         foreach (SnakeBlock targetSnake in targets)
         {
@@ -143,6 +146,8 @@ public class SpinManager : MonoBehaviour
             
             bool isFinalRelease = CountLaunchableTargets(targets) <= 1;
 
+            finalDirectionFromPos = releasedTargets > 0 ? finalDirectionToPos : startPos;
+            finalDirectionToPos = targetPos;
             releasedTargets++;
             if (releasedTargets == 1)
                 SetTrailDrawing(sparkTrails, true, true);
@@ -167,7 +172,7 @@ public class SpinManager : MonoBehaviour
         if (spark != null)
         {
             if (releasedTargets > 0)
-                yield return MoveSparkInFinalDirection(spark);
+                yield return MoveSparkInFinalDirection(spark, GetFinalFlightDirection(finalDirectionFromPos, finalDirectionToPos));
 
             yield return ExplodeAndDestroy(spark);
         }
@@ -281,7 +286,7 @@ public class SpinManager : MonoBehaviour
             yield return null;
     }
 
-    private IEnumerator MoveSparkInFinalDirection(GameObject spark)
+    private IEnumerator MoveSparkInFinalDirection(GameObject spark, Vector2 flightDirection)
     {
         if (spark == null || finalFlightDuration <= 0f || finalFlightDistance <= 0f)
             yield break;
@@ -290,7 +295,8 @@ public class SpinManager : MonoBehaviour
         Vector3 startPos = spark.transform.position;
         int pointCount = Mathf.Max(3, finalFlightPointCount);
         Vector3[] pathPoints = new Vector3[pointCount];
-        Vector2 forward = finalFlightDirection.sqrMagnitude > 0.001f ? finalFlightDirection.normalized : Vector2.right;
+        finalFlightDirection = flightDirection.sqrMagnitude > 0.001f ? flightDirection.normalized : Vector2.right;
+        Vector2 forward = finalFlightDirection;
         Vector2 perpendicular = new Vector2(-forward.y, forward.x);
 
         for (int i = 0; i < pointCount; i++)
@@ -308,6 +314,12 @@ public class SpinManager : MonoBehaviour
 
         while (spark != null && !hasFinished)
             yield return null;
+    }
+
+    private Vector2 GetFinalFlightDirection(Vector3 fromPos, Vector3 toPos)
+    {
+        Vector2 direction = new Vector2(toPos.x - fromPos.x, toPos.y - fromPos.y);
+        return direction.sqrMagnitude > 0.001f ? direction.normalized : Vector2.right;
     }
 
     private IEnumerator ExplodeAndDestroy(GameObject spark)

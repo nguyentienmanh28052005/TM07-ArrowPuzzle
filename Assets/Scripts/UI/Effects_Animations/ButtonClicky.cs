@@ -57,6 +57,18 @@ public class ButtonClicky : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
         UpdateVisualState();
     }
 
+    public Sprite DefaultSprite => _defaultSprite;
+    public Sprite PressedSprite => _pressedSprite;
+    public Sprite DisabledSprite => _disabledSprite;
+
+    public void SetSprites(Sprite defaultSprite, Sprite pressedSprite, Sprite disabledSprite)
+    {
+        _defaultSprite = defaultSprite;
+        _pressedSprite = pressedSprite;
+        _disabledSprite = disabledSprite;
+        UpdateVisualState();
+    }
+
     private void SetSpriteDisplay(Sprite spriteToDisplay, bool isDisabledState = false)
     {
         if (spriteToDisplay == null)

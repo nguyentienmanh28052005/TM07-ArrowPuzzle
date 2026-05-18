@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using DG.Tweening;
 using Solo.MOST_IN_ONE;
 
@@ -28,6 +29,8 @@ public class SnakeBlock : MonoBehaviour
 
     [Header("Visuals")]
     [SerializeField] private Transform arrowVisual;
+    [FormerlySerializedAs("arrowPressedMaterial")]
+    [SerializeField] private Material linePressedMaterial;
     public Color snakeColor = Color.white;
     public Color snakeMoveColor = Color.white;
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
@@ -56,8 +59,14 @@ public class SnakeBlock : MonoBehaviour
     private Vector3 _originalArrowScale = Vector3.one;
     private Tweener _colorTweener;
     private Color _currentLineColor;
+    private Color _lastFocusTargetColor;
+    private bool _hasFocusVisualState = false;
+    private bool _isFocusVisualActive = false;
     private bool _forceRedraw = false;
     private bool _isInitialized = false;
+    private SpriteRenderer _arrowSpriteRenderer;
+    private Material _originalLineMaterial;
+    private bool _isLinePressedMaterialActive = false;
 
     private float _visiblePoints;
     private bool _isSpawning = false;
@@ -95,7 +104,11 @@ public class SnakeBlock : MonoBehaviour
     public List<Vector3> LogicNodes => _logicNodes;
     public Vector3 HeadPosition => (_isInitialized && _originalState != null && _originalState.Length > 0) ? GetPositionAtTrackIndex(-_accumulatedShift) : transform.position;
 
-    private void Awake() { SetupLineRenderer(); }
+    private void Awake()
+    {
+        SetupLineRenderer();
+    }
+
     private void Start() { levelController = FindObjectOfType<LevelController>(); }
 
     private void OnDestroy()
@@ -119,6 +132,7 @@ public class SnakeBlock : MonoBehaviour
         lineRenderer.endColor = snakeColor;
         lineRenderer.sortingOrder = 10;
         _originalWidthMultiplier = lineRenderer.widthMultiplier;
+        _originalLineMaterial = lineRenderer.sharedMaterial;
         
         _lineRenderers.Add(lineRenderer);
     }
@@ -151,7 +165,7 @@ public class SnakeBlock : MonoBehaviour
             lr.startColor = _currentLineColor;
             lr.endColor = _currentLineColor;
             lr.sortingOrder = lineRenderer.sortingOrder;
-            lr.material = lineRenderer.material;
+            lr.sharedMaterial = lineRenderer.sharedMaterial;
             
             _lineRenderers.Add(lr);
         }
@@ -189,12 +203,30 @@ public class SnakeBlock : MonoBehaviour
     public void SetFocusColor(bool isFocusing, float duration)
     {
         Color targetColor = isFocusing ? snakeMoveColor : snakeColor;
+        SetLinePressedMaterial(isFocusing);
+
+        if (_hasFocusVisualState && _isFocusVisualActive == isFocusing && _lastFocusTargetColor == targetColor)
+        {
+            return;
+        }
+
+        _hasFocusVisualState = true;
+        _isFocusVisualActive = isFocusing;
+        _lastFocusTargetColor = targetColor;
         RunColorTween(targetColor, duration);
     }
 
     private void RunColorTween(Color targetColor, float duration)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
+
+        if (duration <= 0f || _currentLineColor == targetColor)
+        {
+            _currentLineColor = targetColor;
+            ApplyColorToAll(_currentLineColor);
+            return;
+        }
+
         _colorTweener = DOTween.To(() => _currentLineColor, x => _currentLineColor = x, targetColor, duration)
             .OnUpdate(() => ApplyColorToAll(_currentLineColor))
             .SetLink(gameObject);
@@ -203,6 +235,7 @@ public class SnakeBlock : MonoBehaviour
     public void SetColorImmediate(Color color)
     {
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
+        _hasFocusVisualState = false;
         _currentLineColor = color;
         ApplyColorToAll(color);
     }
@@ -213,7 +246,31 @@ public class SnakeBlock : MonoBehaviour
         {
             if (lr != null) { lr.startColor = color; lr.endColor = color; }
         }
-        if (arrowVisual != null) { var sr = arrowVisual.GetComponentInChildren<SpriteRenderer>(); if (sr) sr.color = color; }
+        CacheArrowRenderer();
+        if (_arrowSpriteRenderer != null) _arrowSpriteRenderer.color = color;
+    }
+
+    private void CacheArrowRenderer()
+    {
+        if (_arrowSpriteRenderer != null || arrowVisual == null) return;
+
+        _arrowSpriteRenderer = arrowVisual.GetComponentInChildren<SpriteRenderer>(true);
+    }
+
+    private void SetLinePressedMaterial(bool isPressed, bool force = false)
+    {
+        if (lineRenderer == null) return;
+
+        bool shouldUsePressedMaterial = isPressed && linePressedMaterial != null;
+        if (!force && _isLinePressedMaterialActive == shouldUsePressedMaterial) return;
+
+        Material targetMaterial = shouldUsePressedMaterial ? linePressedMaterial : _originalLineMaterial;
+        foreach (var lr in _lineRenderers)
+        {
+            if (lr != null) lr.sharedMaterial = targetMaterial;
+        }
+
+        _isLinePressedMaterialActive = shouldUsePressedMaterial;
     }
 
     public bool OnHeadClicked()
@@ -680,8 +737,10 @@ public class SnakeBlock : MonoBehaviour
         _accumulatedShift = 0f;
         _isMoving = false;
         _hasDealtDamage = false;
+        _hasFocusVisualState = false;
 
         ApplyColorToAll(color);
+        SetLinePressedMaterial(false);
         UpdateVisualRotation();
         UpdateGridOccupancy(); 
 
