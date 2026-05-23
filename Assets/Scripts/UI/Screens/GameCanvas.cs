@@ -478,6 +478,9 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     {
         if (data is bool isActive)
         {
+            if (!isActive && DashManager.Instance != null)
+                DashManager.Instance.BeginQueuedDashRelease();
+
             if (dashToolPanel != null) dashToolPanel.SetActive(isActive);
         }
     }

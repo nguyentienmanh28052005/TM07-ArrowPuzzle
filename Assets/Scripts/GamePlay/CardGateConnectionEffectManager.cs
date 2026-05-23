@@ -6,71 +6,33 @@ using UnityEngine;
 
 public class CardGateConnectionEffectManager : MonoBehaviour
 {
-    private struct ConnectionKey : IEquatable<ConnectionKey>
-    {
-        public readonly int CardId;
-        public readonly int GateId;
-
-        public ConnectionKey(GridKeycard card, GridLaserGate gate)
-        {
-            CardId = card != null ? card.GetInstanceID() : 0;
-            GateId = gate != null ? gate.GetInstanceID() : 0;
-        }
-
-        public bool Equals(ConnectionKey other)
-        {
-            return CardId == other.CardId && GateId == other.GateId;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is ConnectionKey other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (CardId * 397) ^ GateId;
-            }
-        }
-    }
-
-    private sealed class ConnectionWire
-    {
-        public GridKeycard Card;
-        public GridLaserGate Gate;
-        public LineRenderer Line;
-        public bool IsAnimating;
-    }
-
     public static CardGateConnectionEffectManager Instance { get; private set; }
 
     [Header("Prefabs")]
-    [SerializeField] private LineRenderer lineRendererPrefab;
-    [SerializeField] private GameObject travelingPulsePrefab;
     [SerializeField] private GameObject gateDisappearParticlePrefab;
 
     [Header("Timing")]
     [SerializeField] private float cardPulseDuration = 0.18f;
-    [SerializeField] private float wireDrawDuration = 0.18f;
-    [SerializeField] private float pulseTravelDuration = 0.28f;
-    [SerializeField] private float gateDisappearDuration = 0.25f;
+    [SerializeField] private float gateExplosionAnticipationDuration = 0.6f;
+    [SerializeField] private float gateExplosionParticleLifetime = 1.5f;
 
     [Header("Animation")]
-    [SerializeField] private AnimationCurve wireDrawCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
-    [SerializeField] private AnimationCurve gateScaleCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
     [SerializeField] private float cardPulseScale = 1.18f;
-    [SerializeField] private float gateFlashIntensity = 1.75f;
+    [SerializeField] private float gateExplosionScaleMultiplier = 1.2f;
+    [SerializeField] private float gateExplosionShakeStrength = 0.15f;
+    [SerializeField] private int gateExplosionShakeVibrato = 35;
+
+    [Header("Explosion Camera Shake")]
+    [SerializeField] private bool shakeCameraOnGateExplosion = true;
+    [SerializeField] private float cameraShakeDuration = 0.6f;
+    [SerializeField] private float cameraShakeStrength = 1f;
+    [SerializeField] private float cameraShakeHitStop = 0f;
+    [SerializeField] private Color cameraShakeFlashColor = new Color(1f, 1f, 1f, 0.22f);
 
     [Header("Neon")]
     [SerializeField] private Gradient neonGradient;
     [SerializeField] private Color fallbackNeonColor = Color.white;
     [SerializeField] private float neonIntensity = 2.5f;
-    [SerializeField] private Material wireMaterial;
-    [SerializeField] private float wireStartWidth = 0.07f;
-    [SerializeField] private float wireEndWidth = 0.035f;
-    [SerializeField] private float activeWireWidthMultiplier = 1.65f;
 
     [Header("Removal")]
     [SerializeField] private bool destroyGateAfterEffect = true;
@@ -80,10 +42,6 @@ public class CardGateConnectionEffectManager : MonoBehaviour
     [SerializeField] private Transform effectRoot;
 
     private readonly HashSet<int> _activeGateIds = new HashSet<int>();
-    private readonly Dictionary<ConnectionKey, ConnectionWire> _wires = new Dictionary<ConnectionKey, ConnectionWire>();
-    private readonly HashSet<ConnectionKey> _seenConnections = new HashSet<ConnectionKey>();
-    private readonly List<ConnectionKey> _staleConnections = new List<ConnectionKey>();
-    private Sprite _fallbackPulseSprite;
 
     public bool DestroyGateAfterEffect => destroyGateAfterEffect;
     public bool DisableGateAfterEffect => disableGateAfterEffect;
@@ -117,11 +75,6 @@ public class CardGateConnectionEffectManager : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
-    private void LateUpdate()
-    {
-        SyncPersistentWires();
-    }
-
     public void PlayEffect(GridKeycard card, List<GridLaserGate> gates, Action<GridLaserGate> onGateShouldDisappear)
     {
         if (card == null) return;
@@ -138,79 +91,25 @@ public class CardGateConnectionEffectManager : MonoBehaviour
             if (!gate.TryReserveForCardGateEffect()) continue;
 
             _activeGateIds.Add(gate.GetInstanceID());
-            ConnectionWire wire = EnsureWire(card, gate, effectColor);
-            if (wire != null) wire.IsAnimating = true;
-            StartCoroutine(PlayConnectionSequence(card.transform, gate, effectColor, onGateShouldDisappear, wire));
+            StartCoroutine(PlayGateSequence(gate, effectColor, onGateShouldDisappear));
         }
     }
 
-    private IEnumerator PlayConnectionSequence(Transform cardTransform, GridLaserGate gate, Color effectColor, Action<GridLaserGate> onGateShouldDisappear, ConnectionWire wire)
+    private IEnumerator PlayGateSequence(GridLaserGate gate, Color effectColor, Action<GridLaserGate> onGateShouldDisappear)
     {
         int gateId = gate != null ? gate.GetInstanceID() : 0;
-        GameObject pulse = null;
 
-        if (cardTransform != null && gate != null)
-        {
-            Vector3 start = cardTransform.position;
-            Vector3 end = gate.transform.position;
-
-            if (wire != null && wire.Line != null)
-            {
-                yield return HighlightWire(wire.Line);
-            }
-
-            pulse = CreatePulse(effectColor, start);
-            yield return AnimatePulse(pulse, start, end);
-        }
-
-        if (pulse != null) Destroy(pulse);
+        float delay = Mathf.Max(0f, cardPulseDuration);
+        if (delay > 0f) yield return new WaitForSeconds(delay);
 
         if (gate != null)
         {
-            yield return PlayGateDisappear(gate, effectColor);
-            // Existing Gate removal logic is called here, after the visual effect finishes.
+            Color particleColor = GetGateParticleColor(gate);
+            yield return PlayGateDisappear(gate, effectColor, particleColor);
             onGateShouldDisappear?.Invoke(gate);
         }
 
-        if (wire != null)
-        {
-            wire.IsAnimating = false;
-            RemoveWire(new ConnectionKey(wire.Card, wire.Gate));
-        }
-
         if (gateId != 0) _activeGateIds.Remove(gateId);
-    }
-
-    private IEnumerator HighlightWire(LineRenderer line)
-    {
-        if (line == null) yield break;
-
-        float duration = Mathf.Max(0.01f, wireDrawDuration);
-        float originalStartWidth = line.startWidth;
-        float originalEndWidth = line.endWidth;
-        float boostedStartWidth = wireStartWidth * activeWireWidthMultiplier;
-        float boostedEndWidth = wireEndWidth * activeWireWidthMultiplier;
-
-        Tween tween = DOTween.To(() => 0f, value =>
-        {
-            line.startWidth = Mathf.Lerp(originalStartWidth, boostedStartWidth, value);
-            line.endWidth = Mathf.Lerp(originalEndWidth, boostedEndWidth, value);
-        }, 1f, duration);
-
-        if (wireDrawCurve != null) tween.SetEase(wireDrawCurve);
-        else tween.SetEase(Ease.Linear);
-
-        yield return tween.WaitForCompletion();
-    }
-
-    private IEnumerator AnimatePulse(GameObject pulse, Vector3 start, Vector3 end)
-    {
-        if (pulse == null) yield break;
-
-        float duration = Mathf.Max(0.01f, pulseTravelDuration);
-        pulse.transform.position = start;
-        yield return pulse.transform.DOMove(end, duration).SetEase(Ease.Linear).WaitForCompletion();
-        pulse.transform.position = end;
     }
 
     private IEnumerator PlayCardPulse(Transform target, Color effectColor)
@@ -237,207 +136,119 @@ public class CardGateConnectionEffectManager : MonoBehaviour
         RestoreColors(renderers, originalColors);
     }
 
-    private IEnumerator PlayGateDisappear(GridLaserGate gate, Color effectColor)
+    private IEnumerator PlayGateDisappear(GridLaserGate gate, Color effectColor, Color particleColor)
     {
         if (gate == null) yield break;
 
         Transform target = gate.transform;
         Vector3 originalScale = target.localScale;
         SpriteRenderer[] renderers = target.GetComponentsInChildren<SpriteRenderer>(true);
-        Color[] originalColors = CaptureColors(renderers);
 
-        SpawnGateParticles(gate.transform.position, effectColor);
-
-        float duration = Mathf.Max(0.01f, gateDisappearDuration);
-        float progress = 0f;
-        Tween tween = null;
-
-        tween = DOTween.To(() => progress, value =>
+        target.DOKill();
+        for (int i = 0; i < renderers.Length; i++)
         {
-            if (gate == null)
-            {
-                tween?.Kill();
-                return;
-            }
-
-            progress = value;
-            float scaleRatio = gateScaleCurve != null ? gateScaleCurve.Evaluate(progress) : 1f - progress;
-            float flash = Mathf.Clamp01(1f - progress) * gateFlashIntensity;
-
-            target.localScale = originalScale * Mathf.Max(0f, scaleRatio);
-            ApplyFadeAndFlash(renderers, originalColors, effectColor, progress, flash);
-        }, 1f, duration).SetEase(Ease.Linear);
-
-        yield return tween.WaitForCompletion();
-
-        if (gate != null)
-        {
-            target.localScale = Vector3.zero;
-            ApplyAlpha(renderers, 0f);
-        }
-    }
-
-    private LineRenderer CreateWire(Color effectColor)
-    {
-        LineRenderer line = lineRendererPrefab != null
-            ? Instantiate(lineRendererPrefab, GetRoot())
-            : new GameObject("Card Gate Neon Wire").AddComponent<LineRenderer>();
-
-        if (lineRendererPrefab == null) line.transform.SetParent(GetRoot(), true);
-
-        line.useWorldSpace = true;
-        line.positionCount = 2;
-        line.startWidth = wireStartWidth;
-        line.endWidth = wireEndWidth;
-        line.numCapVertices = 4;
-        line.numCornerVertices = 4;
-        line.sortingOrder = 30;
-        line.startColor = effectColor;
-        line.endColor = effectColor;
-
-        Material material = wireMaterial != null ? new Material(wireMaterial) : CreateDefaultWireMaterial();
-        ApplyMaterialColor(material, effectColor);
-        line.material = material;
-
-        return line;
-    }
-
-    private void SyncPersistentWires()
-    {
-        GridManager manager = GridManager.Instance;
-        if (manager == null || manager.KeycardMap == null || manager.GateMap == null) return;
-
-        _seenConnections.Clear();
-
-        foreach (GridKeycard card in manager.KeycardMap.Values)
-        {
-            if (card == null || !card.isActiveAndEnabled) continue;
-
-            foreach (GridLaserGate gate in manager.GateMap.Values)
-            {
-                if (gate == null || !gate.isActiveAndEnabled) continue;
-                if (!gate.MatchesColor(card.keyColor)) continue;
-
-                ConnectionWire wire = EnsureWire(card, gate, GetEffectColor(card.keyColor));
-                if (wire == null) continue;
-
-                _seenConnections.Add(new ConnectionKey(card, gate));
-                UpdateWirePosition(wire);
-            }
+            if (renderers[i] == null) continue;
+            renderers[i].DOKill();
         }
 
-        _staleConnections.Clear();
-        foreach (KeyValuePair<ConnectionKey, ConnectionWire> pair in _wires)
+        FlashRenderersToWhite(renderers, gateExplosionAnticipationDuration);
+
+        Sequence explodeSequence = DOTween.Sequence().SetLink(gate.gameObject);
+        float anticipationTime = Mathf.Max(0.01f, gateExplosionAnticipationDuration);
+        explodeSequence.Append(target.DOScale(originalScale * gateExplosionScaleMultiplier, anticipationTime).SetEase(Ease.InExpo));
+        explodeSequence.Join(target.DOShakePosition(anticipationTime, gateExplosionShakeStrength, gateExplosionShakeVibrato, 90f, false, true));
+
+        explodeSequence.OnComplete(() =>
         {
-            if (_seenConnections.Contains(pair.Key)) continue;
-            if (pair.Value != null && pair.Value.IsAnimating) continue;
-            _staleConnections.Add(pair.Key);
-        }
+            PlayGateExplosionCameraShake();
+            SetSpriteRenderersEnabled(renderers, false);
+            SpawnGateParticles(target.position, particleColor);
+        });
 
-        for (int i = 0; i < _staleConnections.Count; i++)
-        {
-            RemoveWire(_staleConnections[i]);
-        }
+        yield return explodeSequence.WaitForCompletion();
     }
 
-    private ConnectionWire EnsureWire(GridKeycard card, GridLaserGate gate, Color effectColor)
+    private Color GetGateParticleColor(GridLaserGate gate)
     {
-        if (card == null || gate == null) return null;
+        if (gate == null) return Color.white;
 
-        ConnectionKey key = new ConnectionKey(card, gate);
-        if (_wires.TryGetValue(key, out ConnectionWire existing) && existing != null && existing.Line != null)
-        {
-            existing.Card = card;
-            existing.Gate = gate;
-            UpdateWireColor(existing.Line, effectColor);
-            UpdateWirePosition(existing);
-            return existing;
-        }
-
-        LineRenderer line = CreateWire(effectColor);
-        ConnectionWire wire = new ConnectionWire
-        {
-            Card = card,
-            Gate = gate,
-            Line = line
-        };
-
-        _wires[key] = wire;
-        UpdateWirePosition(wire);
-        return wire;
-    }
-
-    private void UpdateWirePosition(ConnectionWire wire)
-    {
-        if (wire == null || wire.Line == null || wire.Card == null || wire.Gate == null) return;
-
-        wire.Line.positionCount = 2;
-        wire.Line.SetPosition(0, wire.Card.transform.position);
-        wire.Line.SetPosition(1, wire.Gate.transform.position);
-    }
-
-    private void UpdateWireColor(LineRenderer line, Color effectColor)
-    {
-        if (line == null) return;
-
-        line.startColor = effectColor;
-        line.endColor = effectColor;
-        if (line.material != null) ApplyMaterialColor(line.material, effectColor);
-    }
-
-    private void RemoveWire(ConnectionKey key)
-    {
-        if (!_wires.TryGetValue(key, out ConnectionWire wire)) return;
-
-        if (wire != null && wire.Line != null)
-        {
-            Destroy(wire.Line.gameObject);
-        }
-
-        _wires.Remove(key);
-    }
-
-    private GameObject CreatePulse(Color effectColor, Vector3 position)
-    {
-        GameObject pulse = travelingPulsePrefab != null
-            ? Instantiate(travelingPulsePrefab, position, Quaternion.identity, GetRoot())
-            : CreateFallbackPulse(position);
-
-        TintRenderers(pulse, effectColor);
-        return pulse;
-    }
-
-    private GameObject CreateFallbackPulse(Vector3 position)
-    {
-        GameObject pulse = new GameObject("Card Gate Energy Pulse");
-        pulse.transform.SetParent(GetRoot(), true);
-        pulse.transform.position = position;
-        pulse.transform.localScale = Vector3.one * 0.28f;
-
-        SpriteRenderer renderer = pulse.AddComponent<SpriteRenderer>();
-        renderer.sprite = GetFallbackPulseSprite();
-        renderer.color = Color.white;
-        renderer.sortingOrder = 20;
-
-        return pulse;
+        Color color = gate.gateColor;
+        color.a = 1f;
+        return color;
     }
 
     private void SpawnGateParticles(Vector3 position, Color effectColor)
     {
-        if (gateDisappearParticlePrefab == null) return;
-
-        GameObject particles = Instantiate(gateDisappearParticlePrefab, position, Quaternion.identity, GetRoot());
+        GameObject particles = gateDisappearParticlePrefab != null
+            ? Instantiate(gateDisappearParticlePrefab, position, Quaternion.identity, GetRoot())
+            : CreateFallbackExplosion(position, effectColor);
         TintRenderers(particles, effectColor);
 
         ParticleSystem[] systems = particles.GetComponentsInChildren<ParticleSystem>(true);
         foreach (ParticleSystem system in systems)
         {
+            system.gameObject.SetActive(true);
             ParticleSystem.MainModule main = system.main;
             main.startColor = effectColor;
             system.Play();
         }
 
-        Destroy(particles, Mathf.Max(1f, gateDisappearDuration + 1f));
+        Destroy(particles, Mathf.Max(1f, gateExplosionParticleLifetime));
+    }
+
+    private GameObject CreateFallbackExplosion(Vector3 position, Color effectColor)
+    {
+        GameObject explosion = new GameObject("Gate Explosion");
+        explosion.transform.SetParent(GetRoot(), true);
+        explosion.transform.position = position;
+
+        ParticleSystem system = explosion.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = system.main;
+        main.loop = false;
+        main.playOnAwake = false;
+        main.duration = 0.12f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.65f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(2.2f, 4.8f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startColor = effectColor;
+
+        ParticleSystem.EmissionModule emission = system.emission;
+        emission.enabled = true;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 30) });
+
+        ParticleSystem.ShapeModule shape = system.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.12f;
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(effectColor, 0f),
+                new GradientColorKey(Color.white, 0.35f),
+                new GradientColorKey(effectColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.8f, 0.45f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        ParticleSystemRenderer renderer = system.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            renderer.sortingOrder = 40;
+            renderer.material = CreateParticleMaterial();
+        }
+
+        return explosion;
     }
 
     private Transform GetRoot()
@@ -474,26 +285,13 @@ public class CardGateConnectionEffectManager : MonoBehaviour
             });
     }
 
-    private Material CreateDefaultWireMaterial()
+    private Material CreateParticleMaterial()
     {
         Shader shader = Shader.Find("Sprites/Default");
         if (shader == null) shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        if (shader == null) shader = Shader.Find("Unlit/Color");
+        if (shader == null) shader = Shader.Find("Particles/Standard Unlit");
 
         return shader != null ? new Material(shader) : null;
-    }
-
-    private void ApplyMaterialColor(Material material, Color effectColor)
-    {
-        if (material == null) return;
-
-        if (material.HasProperty("_Color")) material.SetColor("_Color", effectColor);
-        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", effectColor);
-        if (material.HasProperty("_EmissionColor"))
-        {
-            material.EnableKeyword("_EMISSION");
-            material.SetColor("_EmissionColor", effectColor);
-        }
     }
 
     private void TintRenderers(GameObject target, Color effectColor)
@@ -505,13 +303,55 @@ public class CardGateConnectionEffectManager : MonoBehaviour
         {
             renderer.color = effectColor;
         }
+    }
 
-        LineRenderer[] lineRenderers = target.GetComponentsInChildren<LineRenderer>(true);
-        foreach (LineRenderer renderer in lineRenderers)
+    private void FlashRenderersToWhite(SpriteRenderer[] renderers, float duration)
+    {
+        if (renderers == null) return;
+
+        float safeDuration = Mathf.Max(0.01f, duration);
+        for (int i = 0; i < renderers.Length; i++)
         {
-            renderer.startColor = effectColor;
-            renderer.endColor = effectColor;
+            if (renderers[i] == null) continue;
+            renderers[i].DOColor(Color.white, safeDuration).SetLink(renderers[i].gameObject);
         }
+    }
+
+    private void SetSpriteRenderersEnabled(SpriteRenderer[] renderers, bool isEnabled)
+    {
+        if (renderers == null) return;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null) renderers[i].enabled = isEnabled;
+        }
+    }
+
+    private void PlayGateExplosionCameraShake()
+    {
+        if (!shakeCameraOnGateExplosion) return;
+
+        ScreenJuiceManager juiceManager = ScreenJuiceManager.Instance;
+        if (juiceManager == null) juiceManager = FindObjectOfType<ScreenJuiceManager>();
+
+        if (juiceManager != null)
+        {
+            juiceManager.PlayCustomJuice(cameraShakeDuration, cameraShakeStrength, cameraShakeHitStop, cameraShakeFlashColor);
+            return;
+        }
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return;
+
+        Transform cameraTransform = mainCamera.transform;
+        cameraTransform.DOKill();
+        Vector3 originalLocalPosition = cameraTransform.localPosition;
+        cameraTransform.DOShakePosition(cameraShakeDuration, cameraShakeStrength, 20, 90f, false, true)
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (cameraTransform != null) cameraTransform.localPosition = originalLocalPosition;
+            });
     }
 
     private Color[] CaptureColors(SpriteRenderer[] renderers)
@@ -541,51 +381,4 @@ public class CardGateConnectionEffectManager : MonoBehaviour
         }
     }
 
-    private void ApplyFadeAndFlash(SpriteRenderer[] renderers, Color[] originalColors, Color effectColor, float fadeRatio, float flashAmount)
-    {
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (renderers[i] == null) continue;
-            Color original = originalColors[i];
-            Color color = Color.Lerp(original, effectColor, Mathf.Clamp01(flashAmount));
-            color.a = Mathf.Lerp(original.a, 0f, fadeRatio);
-            renderers[i].color = color;
-        }
-    }
-
-    private void ApplyAlpha(SpriteRenderer[] renderers, float alpha)
-    {
-        foreach (SpriteRenderer renderer in renderers)
-        {
-            if (renderer == null) continue;
-            Color color = renderer.color;
-            color.a = alpha;
-            renderer.color = color;
-        }
-    }
-
-    private Sprite GetFallbackPulseSprite()
-    {
-        if (_fallbackPulseSprite != null) return _fallbackPulseSprite;
-
-        const int size = 16;
-        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        texture.name = "Runtime Card Gate Pulse";
-        texture.wrapMode = TextureWrapMode.Clamp;
-
-        Vector2 center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float distance = Vector2.Distance(new Vector2(x, y), center) / (size * 0.5f);
-                float alpha = Mathf.Clamp01(1f - distance);
-                texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha * alpha));
-            }
-        }
-
-        texture.Apply();
-        _fallbackPulseSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
-        return _fallbackPulseSprite;
-    }
 }

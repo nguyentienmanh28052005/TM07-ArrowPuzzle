@@ -155,6 +155,7 @@ public class DashDirectionUI : MonoBehaviour
 
         Sequence seq = DOTween.Sequence();
         seq.SetUpdate(true);
+        bool dashReleaseStarted = false;
 
         Canvas.ForceUpdateCanvases();
 
@@ -246,6 +247,17 @@ public class DashDirectionUI : MonoBehaviour
 
         seq.AppendCallback(() =>
         {
+            if (dashReleaseStarted)
+                return;
+
+            dashReleaseStarted = true;
+
+            if (DashManager.Instance != null)
+                DashManager.Instance.ExecuteDashFromDirectionUI(selectedDir);
+        });
+
+        seq.AppendCallback(() =>
+        {
             // Nếu muốn bật haptic thì mở lại đoạn này:
             // if (SettingManager.Instance != null)
             //     SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
@@ -281,9 +293,6 @@ public class DashDirectionUI : MonoBehaviour
 
         seq.OnComplete(() =>
         {
-            if (DashManager.Instance != null)
-                DashManager.Instance.ExecuteDash(selectedDir);
-
             gameObject.SetActive(false);
         });
     }

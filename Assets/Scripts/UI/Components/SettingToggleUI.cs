@@ -21,6 +21,13 @@ public class SettingToggleUI : MonoBehaviour, IPointerClickHandler
     [Header("Hiệu Ứng Nảy (Juice)")]
     [SerializeField] private float punchScale = 0.2f;
 
+    [SerializeField, Range(0f, 1f)] private float offColorMultiplier = 0.7f;
+
+    private Color _baseToggleColor = Color.white;
+    private Color _lastAppliedColor = Color.clear;
+    private bool _hasBaseToggleColor;
+    private bool _hasAppliedColor;
+
     /// <summary>
     /// Bật cái đài lên và dò đúng tần số mà nút này đang quan tâm
     /// </summary>
@@ -98,13 +105,42 @@ public class SettingToggleUI : MonoBehaviour, IPointerClickHandler
     {
         if (toggleImage != null)
         {
+            CaptureBaseToggleColor();
+
             // Tráo ảnh Bật/Tắt
             toggleImage.sprite = isOn ? spriteOn : spriteOff;
-            if(isOn && offBar != null) offBar.SetActive(false);
-            else if(offBar != null) offBar.SetActive(true);
+            if (isOn && offBar != null) offBar.SetActive(false);
+            else if (offBar != null) offBar.SetActive(true);
             
             // Ép màu tối đi một chút nếu đang Tắt cho ngầu
-            toggleImage.color = isOn ? Color.white : new Color(0.7f, 0.7f, 0.7f, 1f);
+            Color visualColor = GetToggleVisualColor(isOn);
+            toggleImage.color = visualColor;
+            _lastAppliedColor = visualColor;
+            _hasAppliedColor = true;
         }
+    }
+
+    private void CaptureBaseToggleColor()
+    {
+        if (toggleImage == null) return;
+
+        if (!_hasBaseToggleColor || !_hasAppliedColor || toggleImage.color != _lastAppliedColor)
+        {
+            _baseToggleColor = toggleImage.color;
+            _hasBaseToggleColor = true;
+        }
+    }
+
+    private Color GetToggleVisualColor(bool isOn)
+    {
+        Color color = _baseToggleColor;
+        if (!isOn)
+        {
+            color.r *= offColorMultiplier;
+            color.g *= offColorMultiplier;
+            color.b *= offColorMultiplier;
+        }
+
+        return color;
     }
 }

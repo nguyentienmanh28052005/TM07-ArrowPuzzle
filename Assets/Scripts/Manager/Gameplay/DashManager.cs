@@ -1,15 +1,23 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Solo.MOST_IN_ONE; // Đảm bảo namespace này khớp với enum ArrowDir của bạn
+using Solo.MOST_IN_ONE;
 
 public class DashManager : MonoBehaviour
 {
     public static DashManager Instance;
 
     [Header("Dash Settings")]
-    [Tooltip("Thời gian chờ giữa mỗi lần phóng rắn để tạo cảm giác liên hoàn và tránh đụng đuôi nhau")]
+    [Tooltip("Delay between each launched arrow.")]
     public float delayBetweenLaunches = 0.15f;
+
+    [Header("Release Highlight")]
+    public Color releaseHighlightColor = new Color(1f, 0.92f, 0.25f, 1f);
+    public float releaseHighlightScale = 1.2f;
+    public float releaseHighlightInDuration = 0.18f;
+
+    private List<SnakeBlock> _queuedDashSnakes;
+    private Coroutine _dashReleaseRoutine;
 
     private void Awake()
     {
@@ -17,25 +25,33 @@ public class DashManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    /// <summary>
-    /// Gắn hàm này vào 4 nút bấm chọn hướng trên UI của bạn
-    /// (Hoặc gọi qua script UI)
-    /// </summary>
     public void ExecuteDash(ArrowDir targetDir)
     {
         if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
 
-            MessageManager.Instance.SendMessage(ManhMessageType.OnSelectDashDirection, false);
-            if (BoosterTutorialManager.Instance != null)
-                BoosterTutorialManager.Instance.NotifyDashDirectionSelected(targetDir);
-            StartCoroutine(DashRoutine(targetDir));
+        PrepareDashRelease(targetDir);
+
+        MessageManager.Instance.SendMessage(ManhMessageType.OnSelectDashDirection, false);
+        if (BoosterTutorialManager.Instance != null)
+            BoosterTutorialManager.Instance.NotifyDashDirectionSelected(targetDir);
+    }
+
+    public void ExecuteDashFromDirectionUI(ArrowDir targetDir)
+    {
+        if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+
+        PrepareDashRelease(targetDir);
+        if (BoosterTutorialManager.Instance != null)
+            BoosterTutorialManager.Instance.NotifyDashDirectionSelected(targetDir);
+
+        BeginQueuedDashRelease();
     }
 
     public void TriggerDash()
     {
         if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
 
-        if(CurrencyManager.Instance.SpendDashTool(1))
+        if (CurrencyManager.Instance.SpendDashTool(1))
         {
             MessageManager.Instance.SendMessage(ManhMessageType.OnSelectDashDirection, true);
             if (BoosterTutorialManager.Instance != null)
@@ -48,11 +64,23 @@ public class DashManager : MonoBehaviour
     public void DashLeft() { ExecuteDash(ArrowDir.Left); }
     public void DashRight() { ExecuteDash(ArrowDir.Right); }
 
-    private IEnumerator DashRoutine(ArrowDir targetDir)
+    public void BeginQueuedDashRelease()
     {
-        CameraController.IsGameplayBlocking = true; // Khóa màn hình không cho chạm lung tung
+        if (_queuedDashSnakes == null || _queuedDashSnakes.Count == 0) return;
 
-        // 1. Thu thập tất cả các con rắn hợp lệ
+        if (_dashReleaseRoutine != null)
+            StopCoroutine(_dashReleaseRoutine);
+
+        List<SnakeBlock> snakesToRelease = _queuedDashSnakes;
+        _queuedDashSnakes = null;
+        _dashReleaseRoutine = StartCoroutine(DashReleaseRoutine(snakesToRelease));
+    }
+
+    private void PrepareDashRelease(ArrowDir targetDir)
+    {
+        CameraController.IsGameplayBlocking = true;
+        _queuedDashSnakes = null;
+
         SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
         List<SnakeBlock> matchingSnakes = new List<SnakeBlock>();
 
@@ -66,37 +94,72 @@ public class DashManager : MonoBehaviour
 
         if (matchingSnakes.Count == 0)
         {
-            Debug.Log($"<color=yellow>DASH: Không có mũi tên nào hướng {targetDir} trên bàn cờ!</color>");
+            Debug.Log($"<color=yellow>DASH: No arrow points {targetDir} on the board.</color>");
             CameraController.IsGameplayBlocking = false;
-            yield break;
+            return;
         }
 
-        // 2. THUẬT TOÁN SẮP XẾP (SECRET SAUCE)
-        // Tránh tình trạng 2 con cùng hướng đâm vào đít nhau. Phải cho con ở gần lối thoát chạy trước.
         SortSnakesForSafeLaunch(matchingSnakes, targetDir);
+        _queuedDashSnakes = matchingSnakes;
 
-        // 3. Hiệu ứng làm chậm thời gian nhẹ trước khi phóng (Game Feel)
-        if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.RigidImpact);
-        yield return new WaitForSeconds(0.2f);
+        if (SettingManager.Instance != null)
+            SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.RigidImpact);
+    }
 
-        // 4. Lần lượt phóng các con rắn
-        foreach (var snake in matchingSnakes)
-        {
-            if (snake != null)
-            {
-                snake.ForceDashExit(); 
-                
-                if (AudioManager.Instance != null) 
-                    AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
+    private IEnumerator DashReleaseRoutine(List<SnakeBlock> matchingSnakes)
+    {
+        yield return StartCoroutine(PlayReleaseHighlightAndLaunchRoutine(matchingSnakes));
 
-                yield return new WaitForSeconds(delayBetweenLaunches); // Delay liên hoàn
-            }
-        }
-
-        // 5. Trả lại quyền điều khiển
-        // Chờ thêm một chút để con rắn cuối cùng đi qua hết mới mở khóa
         yield return new WaitForSeconds(0.5f);
         CameraController.IsGameplayBlocking = false;
+        _dashReleaseRoutine = null;
+    }
+
+    private IEnumerator PlayReleaseHighlightAndLaunchRoutine(List<SnakeBlock> snakes)
+    {
+        if (snakes == null) yield break;
+
+        float highlightDuration = Mathf.Max(0f, releaseHighlightInDuration);
+        float launchDelay = Mathf.Max(0f, delayBetweenLaunches);
+        int validCount = 0;
+        for (int i = 0; i < snakes.Count; i++)
+        {
+            SnakeBlock snake = snakes[i];
+            if (snake != null && !snake.IsMoving) validCount++;
+        }
+
+        if (validCount == 0) yield break;
+
+        int startedCount = 0;
+        bool startedAnyLaunch = false;
+
+        for (int i = 0; i < snakes.Count; i++)
+        {
+            SnakeBlock snake = snakes[i];
+            if (snake == null || snake.IsMoving) continue;
+
+            startedAnyLaunch = true;
+            startedCount++;
+            StartCoroutine(HighlightThenLaunch(snake, highlightDuration));
+
+            if (startedCount < validCount && launchDelay > 0f)
+                yield return new WaitForSeconds(launchDelay);
+        }
+
+        if (startedAnyLaunch && highlightDuration > 0f)
+            yield return new WaitForSeconds(highlightDuration);
+    }
+
+    private IEnumerator HighlightThenLaunch(SnakeBlock snake, float highlightDuration)
+    {
+        if (snake == null || snake.IsMoving) yield break;
+
+        snake.PlayDashReadyVisual(releaseHighlightColor, releaseHighlightScale, releaseHighlightInDuration);
+        if (highlightDuration > 0f) yield return new WaitForSeconds(highlightDuration);
+
+        if (snake == null || snake.IsMoving) yield break;
+
+        snake.ForceDashRelease(keepCurrentVisual: true);
     }
 
     private void SortSnakesForSafeLaunch(List<SnakeBlock> snakes, ArrowDir dir)
@@ -104,20 +167,16 @@ public class DashManager : MonoBehaviour
         switch (dir)
         {
             case ArrowDir.Up:
-                // Ưu tiên Y lớn nhất (Nằm cao nhất) bay trước
-                snakes.Sort((a, b) => b.transform.position.y.CompareTo(a.transform.position.y)); 
+                snakes.Sort((a, b) => b.transform.position.y.CompareTo(a.transform.position.y));
                 break;
             case ArrowDir.Down:
-                // Ưu tiên Y nhỏ nhất (Nằm thấp nhất) bay trước
-                snakes.Sort((a, b) => a.transform.position.y.CompareTo(b.transform.position.y)); 
+                snakes.Sort((a, b) => a.transform.position.y.CompareTo(b.transform.position.y));
                 break;
             case ArrowDir.Right:
-                // Ưu tiên X lớn nhất (Nằm sát biên phải nhất) bay trước
-                snakes.Sort((a, b) => b.transform.position.x.CompareTo(a.transform.position.x)); 
+                snakes.Sort((a, b) => b.transform.position.x.CompareTo(a.transform.position.x));
                 break;
             case ArrowDir.Left:
-                // Ưu tiên X nhỏ nhất (Nằm sát biên trái nhất) bay trước
-                snakes.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x)); 
+                snakes.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
                 break;
         }
     }

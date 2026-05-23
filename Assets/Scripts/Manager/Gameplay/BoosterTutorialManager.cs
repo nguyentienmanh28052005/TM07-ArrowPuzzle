@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using DG.Tweening;
 using TMPro;
@@ -16,23 +17,30 @@ public class BoosterTutorialManager : MonoBehaviour
     [SerializeField] private RectTransform hintButton;
     [SerializeField] private RectTransform eraseButton;
     [SerializeField] private RectTransform dashButton;
+    [SerializeField] private RectTransform spinButton;
 
     [Header("Fallback Anchors")]
     [SerializeField] private Vector2 hintFallbackAnchoredPos = new Vector2(0f, -250f);
     [SerializeField] private Vector2 eraseFallbackAnchoredPos = new Vector2(0f, -250f);
     [SerializeField] private Vector2 eraseSnakeFallbackAnchoredPos = new Vector2(0f, 0f);
     [SerializeField] private Vector2 dashFallbackAnchoredPos = new Vector2(0f, -250f);
+    [SerializeField] private Vector2 spinFallbackAnchoredPos = new Vector2(0f, -250f);
 
     [Header("Texts")]
     [TextArea] [SerializeField] private string hintStepText = "Tap HINT de xem goi y.";
     [TextArea] [SerializeField] private string eraseStep1Text = "Tap ERASER de bat che do tay.";
     [TextArea] [SerializeField] private string eraseStep2Text = "Tap vao con ran de xoa.";
     [TextArea] [SerializeField] private string dashStep1Text = "Tap DASH de chon huong.";
+    [TextArea] [SerializeField] private string spinStepText = "Tap SPIN de quay va giai phong nhieu mui ten.";
+
+    [Header("Timing")]
+    [SerializeField, Min(0f)] private float delayBeforeShowingStep = 0.5f;
 
     [Header("Triggers")]
     [SerializeField] private int hintTutorialLevelIndex = 2;
     [SerializeField] private int eraseTutorialLevelIndex = 3;
     [SerializeField] private int dashTutorialLevelIndex = 4;
+    [SerializeField] private int spinTutorialLevelIndex = 17;
     [SerializeField] private bool disableInTutorialDifficulty = true;
 
     [Header("Progress")]
@@ -42,8 +50,9 @@ public class BoosterTutorialManager : MonoBehaviour
     private const int HINT_TUTORIAL_DONE = 310;
     private const int ERASE_TUTORIAL_DONE = 311;
     private const int DASH_TUTORIAL_DONE = 312;
+    private const int SPIN_TUTORIAL_DONE = 313;
 
-    private enum BoosterType { None, Hint, Erase, Dash }
+    private enum BoosterType { None, Hint, Erase, Dash, Spin }
 
     private BoosterType _activeBooster = BoosterType.None;
     private BoosterType _pendingBooster = BoosterType.None;
@@ -54,8 +63,10 @@ public class BoosterTutorialManager : MonoBehaviour
 
     private Sequence _handTapSequence;
     private Tween _overlayFadeTween;
+    private Coroutine _showDelayRoutine;
 
     public bool IsBlockingArrowInput => _blockArrowInput;
+    public bool IsWaitingForSpinButtonPress => _isActive && _activeBooster == BoosterType.Spin && _stepIndex == 0;
 
     private void Awake()
     {
@@ -111,6 +122,8 @@ public class BoosterTutorialManager : MonoBehaviour
             return BoosterType.Erase;
         if (levelIndex == dashTutorialLevelIndex && !IsBoosterCompleted(BoosterType.Dash))
             return BoosterType.Dash;
+        if (levelIndex == spinTutorialLevelIndex && !IsBoosterCompleted(BoosterType.Spin))
+            return BoosterType.Spin;
 
         return BoosterType.None;
     }
@@ -122,10 +135,26 @@ public class BoosterTutorialManager : MonoBehaviour
         _activeBooster = booster;
         _isActive = true;
         _stepIndex = 0;
+        _blockArrowInput = true;
 
         CameraController.IsCameraInputBlocked = true;
 
+        if (delayBeforeShowingStep > 0f)
+        {
+            _showDelayRoutine = StartCoroutine(ShowCurrentStepAfterDelay());
+            return;
+        }
+
         ShowCurrentStep();
+    }
+
+    private IEnumerator ShowCurrentStepAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(delayBeforeShowingStep);
+        _showDelayRoutine = null;
+
+        if (_isActive)
+            ShowCurrentStep();
     }
 
     private void ShowCurrentStep()
@@ -166,6 +195,16 @@ public class BoosterTutorialManager : MonoBehaviour
                 {
                     overlayPanel.gameObject.SetActive(true);
                     ShowStepOnTarget(dashButton, dashFallbackAnchoredPos, dashStep1Text);
+                }
+                else
+                    CompleteTutorial();
+                break;
+
+            case BoosterType.Spin:
+                if (_stepIndex == 0)
+                {
+                    overlayPanel.gameObject.SetActive(true);
+                    ShowStepOnTarget(spinButton, spinFallbackAnchoredPos, spinStepText);
                 }
                 else
                     CompleteTutorial();
@@ -314,6 +353,12 @@ public class BoosterTutorialManager : MonoBehaviour
 
     private void StopTutorialImmediate()
     {
+        if (_showDelayRoutine != null)
+        {
+            StopCoroutine(_showDelayRoutine);
+            _showDelayRoutine = null;
+        }
+
         _isActive = false;
         _isWaitingForIntro = false;
         _pendingBooster = BoosterType.None;
@@ -376,6 +421,7 @@ public class BoosterTutorialManager : MonoBehaviour
             case BoosterType.Hint: return HINT_TUTORIAL_DONE;
             case BoosterType.Erase: return ERASE_TUTORIAL_DONE;
             case BoosterType.Dash: return DASH_TUTORIAL_DONE;
+            case BoosterType.Spin: return SPIN_TUTORIAL_DONE;
             default: return 0;
         }
     }
@@ -404,6 +450,13 @@ public class BoosterTutorialManager : MonoBehaviour
     public void NotifyDashTriggered()
     {
         if (!_isActive || _activeBooster != BoosterType.Dash || _stepIndex != 0) return;
+        _stepIndex++;
+        CompleteTutorial();
+    }
+
+    public void NotifySpinTriggered()
+    {
+        if (!_isActive || _activeBooster != BoosterType.Spin || _stepIndex != 0) return;
         _stepIndex++;
         CompleteTutorial();
     }

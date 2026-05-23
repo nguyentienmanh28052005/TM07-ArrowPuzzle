@@ -11,6 +11,9 @@ public class HintManager : MonoBehaviour
     [Header("Hint Settings")]
     public Color hintGlowColor = Color.yellow;
     [SerializeField] private float hintDuration = 2f;
+    [SerializeField] private float hintGlowScale = 1.18f;
+    [SerializeField] private float hintGlowPulseDuration = 0.4f;
+    [SerializeField] private float hintGlowRestoreDuration = 0.15f;
 
     [Header("Hint Camera")]
     [SerializeField] private bool moveCameraToHintTarget = true;
@@ -155,14 +158,18 @@ public class HintManager : MonoBehaviour
 
         if (_currentHintSeq != null && _currentHintSeq.IsActive()) _currentHintSeq.Kill();
 
-        _currentHintSeq = DOTween.Sequence();
-        
-        _currentHintSeq.AppendCallback(() => { if (guideline != null) guideline.SetLineActive(true); });
+        float safePulseDuration = Mathf.Max(0.05f, hintGlowPulseDuration);
+        float halfPulseDuration = safePulseDuration * 0.5f;
+        int loopCount = Mathf.Max(1, Mathf.CeilToInt(hintDuration / safePulseDuration));
 
-        _currentHintSeq.Append(DOVirtual.Color(originalColor, hintGlowColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
-        _currentHintSeq.Append(DOVirtual.Color(hintGlowColor, originalColor, 0.2f, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
-        
-        int loopCount = Mathf.RoundToInt(hintDuration / 0.4f);
+        if (guideline != null) guideline.SetLineActive(true);
+        snake.BeginHintGlowVisual(hintGlowScale, halfPulseDuration);
+
+        _currentHintSeq = DOTween.Sequence();
+
+        _currentHintSeq.Append(DOVirtual.Color(originalColor, hintGlowColor, halfPulseDuration, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
+        _currentHintSeq.Append(DOVirtual.Color(hintGlowColor, originalColor, halfPulseDuration, (c) => snake.SetColorImmediate(c)).SetEase(Ease.InOutSine));
+
         _currentHintSeq.SetLoops(loopCount);
         
         _currentHintSeq.OnKill(() => {
@@ -170,7 +177,7 @@ public class HintManager : MonoBehaviour
             if (snake != null)
             {
                 if (guideline != null) guideline.SetLineActive(false);
-                snake.SetColorImmediate(originalColor);
+                snake.EndHintGlowVisual(originalColor, hintGlowRestoreDuration);
             }
         });
         

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_6
   m_EditorClassIdentifier: 
-  levelIndex: 12
+  levelIndex: 11
   gameMode: 0
   levelDifficulty: 2
   timeLimit: 60
@@ -908,5 +908,8 @@ MonoBehaviour:
     - {x: -4, y: -19}
   keycards: []
   gates: []
+  electricButtons: []
+  electricWalls: []
   portals: []
   deflectors: []
+  countdownBlocks: []

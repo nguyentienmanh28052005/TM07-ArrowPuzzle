@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Tutorial_Portal
   m_EditorClassIdentifier: 
-  levelIndex: 13
+  levelIndex: 23
   gameMode: 0
   levelDifficulty: 0
   timeLimit: 30
@@ -181,6 +181,8 @@ MonoBehaviour:
     - {x: -7, y: -7}
   keycards: []
   gates: []
+  electricButtons: []
+  electricWalls: []
   portals:
   - entrance: {x: -1, y: 9}
     entranceDir: 0
@@ -193,3 +195,4 @@ MonoBehaviour:
     exitDir: 1
     portalColor: {r: 1, g: 0, b: 0, a: 1}
   deflectors: []
+  countdownBlocks: []

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e3345a3e5d17b84fa7970a60bf5cac6, type: 3}
   m_Name: Level_1_Deflector
   m_EditorClassIdentifier: 
-  levelIndex: 10
+  levelIndex: 21
   gameMode: 0
   levelDifficulty: 2
   timeLimit: 60
@@ -381,6 +381,8 @@ MonoBehaviour:
     - {x: 5, y: 3}
   keycards: []
   gates: []
+  electricButtons: []
+  electricWalls: []
   portals: []
   deflectors:
   - position: {x: -5, y: 13}
@@ -399,3 +401,4 @@ MonoBehaviour:
     direction: 2
   - position: {x: 7, y: 5}
     direction: 0
+  countdownBlocks: []

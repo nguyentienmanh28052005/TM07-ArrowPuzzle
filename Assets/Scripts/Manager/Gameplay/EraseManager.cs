@@ -19,6 +19,9 @@ public class EraseManager : MonoBehaviour
     [Tooltip("Tốc độ tẩy mỗi đốt rắn (giây/đốt)")]
     public float eraseSpeedPerNode = 0.5f;
 
+    [Tooltip("World-space radius erased around the eraser while it moves.")]
+    public float eraseBrushRadius = 0.35f;
+
     [Tooltip("Vị trí Nút Cục Tẩy trên UI (Kéo thả RectTransform của nút vào đây)")]
     public RectTransform uiButtonRect;
 
@@ -71,6 +74,7 @@ public class EraseManager : MonoBehaviour
         spawnWorldPos.z = 0f;
 
         GameObject eraserObj = Instantiate(eraserPrefab, spawnWorldPos, Quaternion.identity);
+        targetSnake.BeginEraseVisual();
         
         // ĐÃ SỬA: Lấy danh sách tọa độ Toán học
         List<Vector3> nodes = targetSnake.LogicNodes;
@@ -87,14 +91,19 @@ public class EraseManager : MonoBehaviour
         }
 
         float totalEraseTime = nodes.Count * eraseSpeedPerNode;
-        Tween pathTween = eraserObj.transform.DOPath(pathPositions, totalEraseTime, PathType.Linear).SetEase(Ease.Linear);
+        Tween pathTween = eraserObj.transform.DOPath(pathPositions, totalEraseTime, PathType.Linear)
+            .SetEase(Ease.Linear)
+            .OnUpdate(() =>
+            {
+                if (targetSnake != null)
+                    targetSnake.EraseVisualAtWorldPosition(eraserObj.transform.position, eraseBrushRadius);
+            })
+            .OnComplete(() =>
+            {
+                if (targetSnake != null)
+                    targetSnake.CompleteEraseVisual();
+            });
         eraseSeq.Append(pathTween);
-
-        eraseSeq.Join(DOVirtual.Float(1f, 0.3f, totalEraseTime, (alpha) => {
-            Color fadedColor = targetSnake.snakeColor;
-            fadedColor.a = alpha;
-            targetSnake.SetColorImmediate(fadedColor);
-        }));
 
         eraseSeq.OnComplete(() => {
             eraserObj.transform.DOScale(0f, 0.2f).SetEase(Ease.InBack).OnComplete(() => {

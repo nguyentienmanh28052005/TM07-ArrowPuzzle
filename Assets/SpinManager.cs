@@ -58,11 +58,20 @@ public class SpinManager : MonoBehaviour
 
     public void TriggerSpin()
     {
+        bool shouldCompleteSpinTutorialOnPress = BoosterTutorialManager.Instance != null
+            && BoosterTutorialManager.Instance.IsWaitingForSpinButtonPress;
+
+        if (shouldCompleteSpinTutorialOnPress)
+            BoosterTutorialManager.Instance.NotifySpinTriggered();
+
         if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
         if (!HasLaunchableArrow()) return;
 
         if (CurrencyManager.Instance != null && !CurrencyManager.Instance.SpendSpinTool(1))
             return;
+
+        if (!shouldCompleteSpinTutorialOnPress && BoosterTutorialManager.Instance != null)
+            BoosterTutorialManager.Instance.NotifySpinTriggered();
 
         ExecuteSpin();
     }
