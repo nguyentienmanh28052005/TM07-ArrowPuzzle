@@ -45,6 +45,16 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
     public void OnScreenShow()
     {
+        if (ComboManager.Instance != null)
+        {
+            ComboManager.Instance.ResetComboImmediate();
+        }
+
+        if (TimeAttackManager.Instance != null)
+        {
+            TimeAttackManager.Instance.ResetTimer();
+        }
+
         if (_loadRoutine != null)
         {
             StopCoroutine(_loadRoutine);
@@ -55,6 +65,16 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
     public void OnScreenHide()
     {
+        if (ComboManager.Instance != null)
+        {
+            ComboManager.Instance.ResetComboImmediate();
+        }
+
+        if (TimeAttackManager.Instance != null)
+        {
+            TimeAttackManager.Instance.ResetTimer();
+        }
+
         if (_loadRoutine != null)
         {
             StopCoroutine(_loadRoutine);
@@ -86,6 +106,11 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             yield break;
         }
 
+        if (ComboManager.Instance != null)
+        {
+            ComboManager.Instance.ResetForLevel(levelToPlay);
+        }
+
         if (GridManager.Instance != null)
         {
             GridManager.Instance.ClearLevelState();
@@ -112,6 +137,11 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
         FinishLoadingProgress();
 
+        if (TimeAttackManager.Instance != null)
+        {
+            TimeAttackManager.Instance.InitializeTimer(levelToPlay.timeLimit);
+        }
+
         CameraController camController = Camera.main != null ? Camera.main.GetComponent<CameraController>() : null;
         if (camController != null)
         {
@@ -132,14 +162,6 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         while (IsTransitionActive())
         {
             yield return null;
-        }
-
-        if (TimeAttackManager.Instance != null)
-        {
-            if (levelToPlay != null && levelToPlay.gameMode == GameMode.TimeAttack)
-                TimeAttackManager.Instance.InitializeTimer(levelToPlay.timeLimit);
-            else
-                TimeAttackManager.Instance.DisableTimer();
         }
 
         if (camController == null) 

@@ -24,6 +24,11 @@ public class TimeAttackManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void OnEnable()
     {
         CameraController.OnIntroFinished += StartTimer;
@@ -37,12 +42,13 @@ public class TimeAttackManager : MonoBehaviour
     public void InitializeTimer(float timeLimit)
     {
         _isTimeAttackMode = true;
-        _currentTime = timeLimit;
+        _currentTime = Mathf.Max(0f, timeLimit);
         _isRunning = false;
         _lastDisplayedSecond = -1; 
         
         if (timerText != null)
         {
+            ResetTimerVisual(false);
             timerText.gameObject.SetActive(true);
             UpdateTimerUI();
         }
@@ -50,11 +56,41 @@ public class TimeAttackManager : MonoBehaviour
 
     public void DisableTimer()
     {
+        ResetTimer();
+    }
+
+    public void ResetTimer()
+    {
         _isTimeAttackMode = false;
         _isRunning = false;
+        _currentTime = 0f;
+        _lastDisplayedSecond = -1;
+        ResetTimerVisual(true);
+    }
+
+    public void StopTimer()
+    {
+        _isRunning = false;
+    }
+
+    public void ResumeTimer()
+    {
+        if (_isTimeAttackMode && _currentTime > 0f)
+        {
+            _isRunning = true;
+        }
+    }
+
+    private void ResetTimerVisual(bool hideTimer)
+    {
         if (timerText != null)
         {
-            timerText.gameObject.SetActive(false);
+            timerText.DOKill(false);
+            timerText.transform.DOKill(false);
+            timerText.transform.localScale = Vector3.one;
+            timerText.color = normalColor;
+            timerText.text = "00:00";
+            timerText.gameObject.SetActive(!hideTimer);
         }
     }
 
@@ -141,7 +177,7 @@ public class TimeAttackManager : MonoBehaviour
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null)
         {
-            canvas.ShowLosePopup(null); 
+            canvas.ShowLosePopup(GameCanvas.LoseReason.TimeOut); 
         }
     }
 

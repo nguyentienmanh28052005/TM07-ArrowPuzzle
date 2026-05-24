@@ -370,25 +370,36 @@ public class SnakeBlock : MonoBehaviour
 
     public void ForceDashRelease(bool keepCurrentVisual = true)
     {
-        if (!_isMoving && !_isSpawning) 
-        {
-            _isMoving = true;
-            if (!keepCurrentVisual)
-            {
-                SetFocusEffect(false, 1f, 0.2f);
-                SetFocusColor(false, 0.5f);
-            }
-            foreach (var lr in _lineRenderers) lr.sortingOrder = 20;
-
-            System.Array.Copy(_originalState, _currentPositions, _totalPoints);
-            _accumulatedShift = 0f;
-            StartCoroutine(ProcessDashExitMovement(GetDirVector(direction)));
-        }
+        BeginForcedExitRelease(keepCurrentVisual, isSpinRelease: false);
     }
 
     public void ForceDashExit(bool keepCurrentVisual = false)
     {
         ForceDashRelease(keepCurrentVisual);
+    }
+
+    public void ForceSpinRelease(bool keepCurrentVisual = true)
+    {
+        BeginForcedExitRelease(keepCurrentVisual, isSpinRelease: true);
+    }
+
+    private void BeginForcedExitRelease(bool keepCurrentVisual, bool isSpinRelease)
+    {
+        if (_isMoving || _isSpawning) return;
+
+        _isMoving = true;
+        if (!keepCurrentVisual)
+        {
+            SetFocusEffect(false, 1f, 0.2f);
+            SetFocusColor(false, 0.5f);
+        }
+        foreach (var lr in _lineRenderers) lr.sortingOrder = 20;
+
+        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
+        _accumulatedShift = 0f;
+
+        Vector3 moveDir = GetDirVector(direction);
+        StartCoroutine(isSpinRelease ? ProcessSpinExitMovement(moveDir) : ProcessDashExitMovement(moveDir));
     }
 
     private IEnumerator ProcessMovementMaster()
@@ -421,6 +432,11 @@ public class SnakeBlock : MonoBehaviour
     }
 
     private IEnumerator ProcessDashExitMovement(Vector3 moveDir)
+    {
+        yield return StartCoroutine(ProcessExitMovementInternal(moveDir, dashExitStartSpeed, dashExitMaxSpeed, dashExitAcceleration));
+    }
+
+    private IEnumerator ProcessSpinExitMovement(Vector3 moveDir)
     {
         yield return StartCoroutine(ProcessExitMovementInternal(moveDir, dashExitStartSpeed, dashExitMaxSpeed, dashExitAcceleration));
     }

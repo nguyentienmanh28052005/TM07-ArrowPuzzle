@@ -48,6 +48,11 @@ public class SpinManager : MonoBehaviour
     public GameObject dashSparkPrefab;
     public Transform sparkOrigin;
 
+    [Header("Release Highlight")]
+    public Color releaseHighlightColor = new Color(1f, 0.92f, 0.25f, 1f);
+    public float releaseHighlightScale = 1.2f;
+    public float releaseHighlightInDuration = 0.18f;
+
     private Coroutine _spinRoutine;
 
     private void Awake()
@@ -152,7 +157,12 @@ public class SpinManager : MonoBehaviour
 
             if (!IsLaunchable(targetSnake))
                 continue;
-            
+
+            targetSnake.PlayDashReadyVisual(releaseHighlightColor, releaseHighlightScale, releaseHighlightInDuration);
+
+            if (!IsLaunchable(targetSnake))
+                continue;
+
             bool isFinalRelease = CountLaunchableTargets(targets) <= 1;
 
             finalDirectionFromPos = releasedTargets > 0 ? finalDirectionToPos : startPos;
@@ -161,7 +171,7 @@ public class SpinManager : MonoBehaviour
             if (releasedTargets == 1)
                 SetTrailDrawing(sparkTrails, true, true);
 
-            targetSnake.ForceDashExit();
+            targetSnake.ForceSpinRelease(keepCurrentVisual: true);
 
             if (spark != null && arrivalPunchScale > 0f)
                 spark.transform.DOPunchScale(Vector3.one * arrivalPunchScale, 0.1f, 1).SetLink(spark);

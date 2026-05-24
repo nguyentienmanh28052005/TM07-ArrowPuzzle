@@ -36,6 +36,11 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
         if (countArrowInGame <= 0)
         {
             _isLevelComplete = true;
+            if (TimeAttackManager.Instance != null)
+            {
+                TimeAttackManager.Instance.StopTimer();
+            }
+
             Debug.Log("Level Complete");
 
             LevelDataSO currentLevelData = null;
@@ -74,7 +79,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
             completedLevelData = PlaytestSession.LevelData;
             if (completedLevelData != null && ComboManager.Instance != null && completedLevelData.snakes != null)
             {
-                isFullCombo = (ComboManager.Instance.currentCombo >= completedLevelData.snakes.Count);
+                isFullCombo = (ComboManager.Instance.currentCombo == completedLevelData.snakes.Count);
             }
 
             if (completedLevelData != null && MessageManager.Instance != null)
@@ -96,7 +101,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
                 if (ComboManager.Instance != null)
                 {
                     // Nếu số combo hiện tại >= tổng số mũi tên ban đầu -> Người chơi đã đánh 1 mạch không lỗi
-                    isFullCombo = (ComboManager.Instance.currentCombo >= completedLevelData.snakes.Count);
+                    isFullCombo = (ComboManager.Instance.currentCombo == completedLevelData.snakes.Count);
                 }
 
                 if (CurrencyManager.Instance != null)

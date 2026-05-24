@@ -9,7 +9,10 @@ using UnityEngine.UI;
 public class GameCanvas : MonoBehaviour, IScreenLifecycle
 {
     public enum PopupState { None, Pause, Complete, GameOver }
+    public enum LoseReason { OutOfHearts, TimeOut }
+
     private PopupState _currentPopup = PopupState.None;
+    private LoseReason _lastLoseReason = LoseReason.OutOfHearts;
 
     #region [ REFERENCES & SETTINGS ]
     [Header("Core UI")]
@@ -123,6 +126,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     public void OnScreenHide()
     {
         _currentPopup = PopupState.None;
+        _lastLoseReason = LoseReason.OutOfHearts;
         _isShowing = false;
         StopAllCoroutines();
         ResetScreenJuice();
@@ -274,10 +278,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void SetupModeUI(GameMode mode)
     {
-        hearthRevive1.gameObject.SetActive(mode == GameMode.Classic || mode == GameMode.Memory);
-        hearthRevive2.gameObject.SetActive(mode == GameMode.Classic || mode == GameMode.Memory);
-        timeRevive1.gameObject.SetActive(mode == GameMode.TimeAttack);
-        timeRevive2.gameObject.SetActive(mode == GameMode.TimeAttack);
+        SetReviveButtonsForLoseReason(LoseReason.OutOfHearts);
         if (healthContainer != null)
         {
             healthContainer.gameObject.SetActive(mode == GameMode.Classic || mode == GameMode.Memory);
@@ -525,6 +526,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     public void ShowCompletePopup(object data)
     {
         if (_currentPopup != PopupState.None || _isTransitioning) return;
+        if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.StopTimer();
 
         int earnedCoins = 0;
         int earnedDiamonds = 0;
@@ -578,6 +580,10 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         if (_currentPopup != PopupState.None || _isTransitioning) return;
 
         _currentPopup = PopupState.GameOver;
+        _lastLoseReason = ResolveLoseReason(data);
+        SetReviveButtonsForLoseReason(_lastLoseReason);
+
+        if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.StopTimer();
 
         if (currentCoinTextLose != null) currentCoinTextLose.text = CurrencyManager.Instance.Coins.ToString();
     
@@ -935,7 +941,8 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void DecreaseHeart(object data)
     {
-        if (GameManager.Instance.GetCurrentLevelData().gameMode == GameMode.TimeAttack) return;
+        LevelDataSO currentLevelData = GameManager.Instance != null ? GameManager.Instance.GetCurrentLevelData() : null;
+        if (currentLevelData != null && currentLevelData.gameMode == GameMode.TimeAttack) return;
 
         if (countHeart <= 0 || _currentPopup != PopupState.None) return;
 
@@ -960,7 +967,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         // ShowText("Game Over", Color.yellow);
         
         // yield return new WaitForSeconds(2f);
-        ShowLosePopup(null); 
+        ShowLosePopup(LoseReason.OutOfHearts); 
     }
 
     private void PlayHeartLossEffect(GameObject heart)
@@ -1035,22 +1042,23 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     private void OnReviveSuccess(int heartsToAdd, bool isFullTimeRevive)
     {
-        LevelDataSO currentLevelData = GameManager.Instance.GetCurrentLevelData();
-        GameMode currentMode = currentLevelData.gameMode;
+        LevelDataSO currentLevelData = GameManager.Instance != null ? GameManager.Instance.GetCurrentLevelData() : null;
 
         ResetScreenJuice();
 
-        if (currentMode == GameMode.TimeAttack)
+        if (_lastLoseReason == LoseReason.TimeOut)
         {
-            float timeToAdd = isFullTimeRevive ? currentLevelData.timeLimit : 30f;
+            float timeToAdd = isFullTimeRevive && currentLevelData != null ? currentLevelData.timeLimit : 30f;
             
             AddTimeToGame(timeToAdd);
+            if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.StopTimer();
 
             ClosePopupTween(gameOverPanel, gameOverContent, () => 
             {
                 _currentPopup = PopupState.None;
                 ShowOverlay(false);
                 CameraController.IsGameplayBlocking = false;
+                if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.ResumeTimer();
             });
             return;
         }
@@ -1128,6 +1136,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             _currentPopup = PopupState.None;
             ShowOverlay(false);
             CameraController.IsGameplayBlocking = false;
+            if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.ResumeTimer();
         });
     }
 
@@ -1137,6 +1146,21 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         {
             TimeAttackManager.Instance.AddTime(amount);
         }
+    }
+
+    private LoseReason ResolveLoseReason(object data)
+    {
+        return data is LoseReason reason ? reason : LoseReason.OutOfHearts;
+    }
+
+    private void SetReviveButtonsForLoseReason(LoseReason reason)
+    {
+        bool isTimeOut = reason == LoseReason.TimeOut;
+
+        if (hearthRevive1 != null) hearthRevive1.SetActive(!isTimeOut);
+        if (hearthRevive2 != null) hearthRevive2.SetActive(!isTimeOut);
+        if (timeRevive1 != null) timeRevive1.SetActive(isTimeOut);
+        if (timeRevive2 != null) timeRevive2.SetActive(isTimeOut);
     }
 
     private void ResetScreenJuice()

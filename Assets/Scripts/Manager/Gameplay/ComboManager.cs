@@ -19,6 +19,7 @@ public class ComboManager : Singleton<ComboManager>
     {
         public int comboThreshold;
         public List<string> words;
+        public AudioClip feedbackSound;
         public Material feedbackMaterial;
         public Color textColor;
         public float sizeMultiplier;
@@ -46,6 +47,7 @@ public class ComboManager : Singleton<ComboManager>
 
     [Header("Rainbow (Full Combo)")]
     [SerializeField] private float rainbowSpeed = 3f;
+    [SerializeField] private AudioClip fullComboSound;
 
     [Header("Dot Feedback Effect (Inward Wave)")]
     [SerializeField] private bool enableDotFlashOnFeedback = true;
@@ -60,6 +62,9 @@ public class ComboManager : Singleton<ComboManager>
     private Sequence _feedbackSequence;
     private Material _defaultMaterial;
     private SnakeBlock _lastComboSource;
+    private int _maxComboForCurrentLevel = 999;
+    private bool _hasShownFullCombo = false;
+    private bool _hasInitializedVisuals = false;
 
     private void Start()
     {
@@ -81,6 +86,8 @@ public class ComboManager : Singleton<ComboManager>
             feedbackTextRect.localScale = Vector3.zero;
             _originalFeedbackPos = feedbackTextRect.anchoredPosition;
         }
+
+        _hasInitializedVisuals = true;
     }
 
     private void Update()
@@ -121,6 +128,8 @@ public class ComboManager : Singleton<ComboManager>
 
         currentCombo = 0;
         _isFullComboActive = false;
+        _hasShownFullCombo = false;
+        _lastComboSource = null;
 
         if (comboText != null && comboText.gameObject.activeSelf)
         {
@@ -149,6 +158,11 @@ public class ComboManager : Singleton<ComboManager>
 
     private int GetMaxComboForCurrentLevel()
     {
+        if (_maxComboForCurrentLevel > 0)
+        {
+            return _maxComboForCurrentLevel;
+        }
+
         if (GameManager.Instance != null && GameManager.Instance.GetCurrentLevelData() != null)
         {
             return GameManager.Instance.GetCurrentLevelData().snakes.Count;
@@ -156,12 +170,62 @@ public class ComboManager : Singleton<ComboManager>
         return 999;
     }
 
+    public void ResetForLevel(LevelDataSO levelData)
+    {
+        _maxComboForCurrentLevel = levelData != null && levelData.snakes != null ? levelData.snakes.Count : 999;
+        ResetComboImmediate();
+    }
+
+    public void ResetComboImmediate()
+    {
+        currentCombo = 0;
+        _lastHitTime = 0f;
+        _isFullComboActive = false;
+        _hasShownFullCombo = false;
+        _lastComboSource = null;
+
+        _activeSequence?.Kill();
+        _feedbackSequence?.Kill();
+
+        if (comboText != null)
+        {
+            comboText.DOKill();
+            comboText.alpha = 0f;
+            comboText.color = Color.white;
+            comboText.fontSharedMaterial = _defaultMaterial != null ? _defaultMaterial : comboText.fontSharedMaterial;
+            comboText.gameObject.SetActive(false);
+        }
+
+        if (comboTextRect != null)
+        {
+            comboTextRect.DOKill();
+            if (_hasInitializedVisuals) comboTextRect.anchoredPosition = _originalTextPos;
+            comboTextRect.localScale = Vector3.zero;
+            comboTextRect.localRotation = Quaternion.identity;
+        }
+
+        if (feedbackText != null)
+        {
+            feedbackText.DOKill();
+            feedbackText.alpha = 0f;
+            feedbackText.gameObject.SetActive(false);
+        }
+
+        if (feedbackTextRect != null)
+        {
+            feedbackTextRect.DOKill();
+            if (_hasInitializedVisuals) feedbackTextRect.anchoredPosition = _originalFeedbackPos;
+            feedbackTextRect.localScale = Vector3.zero;
+            feedbackTextRect.localRotation = Quaternion.identity;
+        }
+    }
+
     private void PlayBlockBlastFeedback()
     {
         if (comboText == null || comboTextRect == null) return;
 
         int maxCombo = GetMaxComboForCurrentLevel();
-        _isFullComboActive = (currentCombo >= maxCombo);
+        _isFullComboActive = maxCombo > 0 && currentCombo == maxCombo;
 
         float sizeMult = 1.2f;
         Material targetMat = null;
@@ -170,6 +234,11 @@ public class ComboManager : Singleton<ComboManager>
         {
             comboText.text = "FULL COMBO!";
             sizeMult = maxAllowedSizeMultiplier;
+            if (!_hasShownFullCombo)
+            {
+                _hasShownFullCombo = true;
+                PlayFeedbackSound(fullComboSound);
+            }
         }
         else
         {
@@ -235,10 +304,17 @@ public class ComboManager : Singleton<ComboManager>
                 ScreenJuiceManager.Instance.PlayComboJuice(currentCombo);
                 string word = setting.words[Random.Range(0, setting.words.Count)];
                 TriggerFeedback(word, setting.feedbackMaterial, setting.sizeMultiplier, setting.textColor);
+                PlayFeedbackSound(setting.feedbackSound);
                 TriggerDotFlashEffect();
                 break;
             }
         }
+    }
+
+    private void PlayFeedbackSound(AudioClip clip)
+    {
+        if (clip == null || AudioManager.Instance == null) return;
+        AudioManager.Instance.PlaySfx(clip, 0.5f);
     }
 
     private void TriggerDotFlashEffect()
