@@ -29,11 +29,32 @@ public class LightningConnector : MonoBehaviour
     [Tooltip("Tốc độ giật chớp (Giây). Ví dụ: 0.05 là chớp liên tục")]
     public float updateRate = 0.05f;
 
+    [Header("Retract Shape")]
+    [SerializeField] private int retractMinimumPoints = 5;
+    [SerializeField] private float retractTipPull = 0.34f;
+    [SerializeField] private float retractTipWave = 0.42f;
+    [SerializeField] private float retractTipWaveFrequency = 4.2f;
+    [SerializeField] private float retractTipInfluence = 0.52f;
+    [SerializeField] private float retractShimmerSpeed = 52f;
+    [SerializeField] private float retractJoltStrength = 0.28f;
+    [SerializeField] private float retractFoldLength = 0.42f;
+    [SerializeField] private float retractWidthPulse = 0.65f;
+
+    [Header("Disappear Audio")]
+    [SerializeField] private AudioClip disappearSound;
+    [SerializeField, Range(0f, 1f)] private float disappearSoundVolume = 0.8f;
+    [SerializeField, Range(0.1f, 3f)] private float disappearSoundPitch = 1f;
+
     private LineRenderer _lineRenderer;
     private float _timer;
     private bool _useProgress;
     private float _progress;
     private bool _progressFromStart = true;
+    private bool _isRetracting;
+    private float _progressVisualTime;
+    private int _progressShapeSeed;
+    private float _baseWidthMultiplier = 1f;
+    private bool _hasBaseWidthMultiplier;
     private Coroutine _progressRoutine;
 
     private void Awake()
@@ -71,6 +92,7 @@ public class LightningConnector : MonoBehaviour
 
     public void PlayDisappear(float duration, bool fromStart)
     {
+        PlayDisappearSound();
         StartProgressAnimation(1f, 0f, duration, fromStart, true);
     }
 
@@ -90,6 +112,7 @@ public class LightningConnector : MonoBehaviour
 
         if (_useProgress)
         {
+            _progressVisualTime += Time.deltaTime;
             DrawLightningProgress(_progress, _progressFromStart);
             return;
         }
@@ -137,22 +160,6 @@ public class LightningConnector : MonoBehaviour
     {
         if (_lineRenderer == null || startPoint == null || endPoint == null) return;
 
-        float clamped = Mathf.Clamp01(progress);
-        if (clamped <= 0f)
-        {
-            _lineRenderer.positionCount = 2;
-            Vector3 pos = startPoint.position;
-            _lineRenderer.SetPosition(0, pos);
-            _lineRenderer.SetPosition(1, pos);
-            return;
-        }
-
-        if (clamped >= 1f)
-        {
-            DrawLightning();
-            return;
-        }
-
         Vector3 startPos = startPoint.position;
         Vector3 endPos = endPoint.position;
 
@@ -163,47 +170,69 @@ public class LightningConnector : MonoBehaviour
             endPos = temp;
         }
 
+        float clamped = Mathf.Clamp01(progress);
+        if (clamped <= 0f)
+        {
+            RestoreWidthMultiplier();
+            _lineRenderer.positionCount = 2;
+            _lineRenderer.SetPosition(0, startPos);
+            _lineRenderer.SetPosition(1, startPos);
+            return;
+        }
+
+        if (clamped >= 1f)
+        {
+            RestoreWidthMultiplier();
+            DrawLightning();
+            return;
+        }
+
+        ApplyProgressWidth(clamped);
+
         float distance = Vector3.Distance(startPos, endPos);
         Vector3 direction = distance > 0.001f ? (endPos - startPos).normalized : Vector3.right;
         int safeSegments = GetSegmentCount(distance);
         float segmentLength = distance / safeSegments;
         Vector3 perpendicular = new Vector3(-direction.y, direction.x, 0f);
 
-        _lineRenderer.positionCount = safeSegments + 1;
-        _lineRenderer.SetPosition(0, startPos);
-
         float scaled = clamped * safeSegments;
-        int lastFull = Mathf.FloorToInt(scaled);
+        int lastFull = Mathf.Clamp(Mathf.FloorToInt(scaled), 0, safeSegments - 1);
         float partial = scaled - lastFull;
+        bool hasPartialTip = partial > 0.001f;
+        int visiblePointCount = lastFull + (hasPartialTip ? 2 : 1);
 
-        Vector3 lastPos = startPos;
-        for (int i = 1; i <= safeSegments; i++)
+        if (_isRetracting)
         {
-            if (i < lastFull)
+            int minimumPoints = Mathf.Min(Mathf.Max(2, retractMinimumPoints), safeSegments + 1);
+            visiblePointCount = Mathf.Max(visiblePointCount, minimumPoints);
+        }
+
+        visiblePointCount = Mathf.Clamp(visiblePointCount, 2, safeSegments + 1);
+        _lineRenderer.positionCount = visiblePointCount;
+
+        for (int i = 0; i < visiblePointCount; i++)
+        {
+            float segmentIndex = Mathf.Min(i, scaled);
+            Vector3 point = GetProgressPoint(
+                startPos,
+                direction,
+                perpendicular,
+                segmentLength,
+                safeSegments,
+                segmentIndex,
+                clamped);
+
+            if (_isRetracting && i > lastFull + 1)
             {
-                lastPos = GetJaggedPoint(startPos, direction, perpendicular, segmentLength, i);
-                _lineRenderer.SetPosition(i, lastPos);
-                continue;
+                float foldedTail = i - (lastFull + 1f);
+                float foldedRatio = foldedTail / Mathf.Max(1f, visiblePointCount - lastFull - 2f);
+                float retractAmount = 1f - clamped;
+                float foldWave = Mathf.Sin((foldedRatio * 2.5f + _progressVisualTime * 12f) * Mathf.PI);
+                point += direction * (foldedRatio * segmentLength * retractFoldLength);
+                point += perpendicular * (foldWave * retractTipWave * 0.45f * retractAmount);
             }
 
-            if (i == lastFull)
-            {
-                lastPos = GetJaggedPoint(startPos, direction, perpendicular, segmentLength, i);
-                _lineRenderer.SetPosition(i, lastPos);
-                if (partial <= 0f)
-                {
-                    for (int j = i + 1; j <= safeSegments; j++) _lineRenderer.SetPosition(j, lastPos);
-                    break;
-                }
-
-                Vector3 nextPos = GetJaggedPoint(startPos, direction, perpendicular, segmentLength, i + 1);
-                Vector3 lerped = Vector3.Lerp(lastPos, nextPos, partial);
-                _lineRenderer.SetPosition(i + 1, lerped);
-                for (int j = i + 2; j <= safeSegments; j++) _lineRenderer.SetPosition(j, lerped);
-                break;
-            }
-
-            _lineRenderer.SetPosition(i, lastPos);
+            _lineRenderer.SetPosition(i, point);
         }
     }
 
@@ -212,6 +241,44 @@ public class LightningConnector : MonoBehaviour
         Vector3 basePosition = startPos + direction * (segmentLength * index);
         float offset = Random.Range(-jaggedness, jaggedness);
         return basePosition + (perpendicular * offset);
+    }
+
+    private Vector3 GetProgressPoint(
+        Vector3 startPos,
+        Vector3 direction,
+        Vector3 perpendicular,
+        float segmentLength,
+        int safeSegments,
+        float segmentIndex,
+        float visibleProgress)
+    {
+        float clampedIndex = Mathf.Clamp(segmentIndex, 0f, safeSegments);
+        float normalized = safeSegments > 0 ? clampedIndex / safeSegments : 0f;
+        Vector3 basePosition = startPos + direction * (segmentLength * clampedIndex);
+
+        if (clampedIndex <= 0.001f) return basePosition;
+
+        float seed = _progressShapeSeed * 0.173f;
+        float coarseNoise = Mathf.PerlinNoise(seed, normalized * 7.13f) * 2f - 1f;
+        float shimmer = Mathf.Sin(seed + normalized * 31.4f + _progressVisualTime * retractShimmerSpeed) * 0.22f;
+        float offset = (coarseNoise + shimmer) * jaggedness;
+
+        if (_isRetracting)
+        {
+            float influenceLength = Mathf.Max(0.001f, retractTipInfluence);
+            float tipStart = Mathf.Max(0f, visibleProgress - influenceLength);
+            float tipInfluence = Mathf.InverseLerp(tipStart, Mathf.Max(tipStart + 0.001f, visibleProgress), normalized);
+            float retractAmount = 1f - visibleProgress;
+            float wavePhase = (normalized * retractTipWaveFrequency + _progressVisualTime * 6f + seed) * Mathf.PI * 2f;
+            float joltPhase = (normalized * 17.7f + _progressVisualTime * 18f + seed) * Mathf.PI * 2f;
+            float snap = Mathf.SmoothStep(0f, 1f, retractAmount);
+
+            offset += Mathf.Sin(wavePhase) * retractTipWave * tipInfluence;
+            offset += Mathf.Sign(Mathf.Sin(joltPhase)) * retractJoltStrength * snap * tipInfluence;
+            basePosition -= direction * (retractTipPull * snap * tipInfluence);
+        }
+
+        return basePosition + perpendicular * offset;
     }
 
     private void StartProgressAnimation(float from, float to, float duration, bool fromStart, bool keepProgress)
@@ -225,10 +292,19 @@ public class LightningConnector : MonoBehaviour
         _progressRoutine = StartCoroutine(AnimateProgress(from, to, duration, fromStart, keepProgress));
     }
 
+    private void PlayDisappearSound()
+    {
+        if (disappearSound == null || AudioManager.Instance == null) return;
+        AudioManager.Instance.PlaySfx(disappearSound, disappearSoundVolume, disappearSoundPitch);
+    }
+
     private System.Collections.IEnumerator AnimateProgress(float from, float to, float duration, bool fromStart, bool keepProgress)
     {
         _useProgress = true;
         _progressFromStart = fromStart;
+        _isRetracting = to < from;
+        _progressVisualTime = 0f;
+        _progressShapeSeed = Random.Range(1, 10000);
         _progress = Mathf.Clamp01(from);
 
         if (duration <= 0f)
@@ -243,12 +319,49 @@ public class LightningConnector : MonoBehaviour
         {
             t += Time.deltaTime;
             float ratio = Mathf.Clamp01(t / duration);
-            _progress = Mathf.Lerp(from, to, ratio);
+            float easedRatio = _isRetracting ? EaseOutCubic(ratio) : ratio;
+            _progress = Mathf.Lerp(from, to, easedRatio);
             yield return null;
         }
 
         _progress = Mathf.Clamp01(to);
+        RestoreWidthMultiplier();
         if (!keepProgress && Mathf.Approximately(to, 1f)) _useProgress = false;
+    }
+
+    private void ApplyProgressWidth(float visibleProgress)
+    {
+        if (_lineRenderer == null) return;
+        CaptureBaseWidth();
+
+        if (!_isRetracting)
+        {
+            RestoreWidthMultiplier();
+            return;
+        }
+
+        float retractAmount = 1f - visibleProgress;
+        float pulse = Mathf.Sin(Mathf.Clamp01(retractAmount) * Mathf.PI);
+        _lineRenderer.widthMultiplier = _baseWidthMultiplier * (1f + retractWidthPulse * pulse);
+    }
+
+    private void CaptureBaseWidth()
+    {
+        if (_lineRenderer == null || _hasBaseWidthMultiplier) return;
+        _baseWidthMultiplier = _lineRenderer.widthMultiplier;
+        _hasBaseWidthMultiplier = true;
+    }
+
+    private void RestoreWidthMultiplier()
+    {
+        if (_lineRenderer == null || !_hasBaseWidthMultiplier) return;
+        _lineRenderer.widthMultiplier = _baseWidthMultiplier;
+    }
+
+    private static float EaseOutCubic(float value)
+    {
+        float inverse = 1f - Mathf.Clamp01(value);
+        return 1f - inverse * inverse * inverse;
     }
 
     private int GetSegmentCount(float distance)
@@ -264,6 +377,7 @@ public class LightningConnector : MonoBehaviour
     private void EnsureRenderers()
     {
         if (_lineRenderer == null) _lineRenderer = GetComponent<LineRenderer>();
+        CaptureBaseWidth();
         ApplyRendererDefaults(_lineRenderer);
 
         LineRenderer[] renderers = GetComponents<LineRenderer>();

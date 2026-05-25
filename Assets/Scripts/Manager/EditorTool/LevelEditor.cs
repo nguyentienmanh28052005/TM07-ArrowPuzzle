@@ -908,12 +908,12 @@ public class LevelEditor : MonoBehaviour
     public void UI_SaveLevel() { SaveLevel(); }
     public void UI_LoadLevel() { LoadLevelToEdit(); }
 
-    public void UI_Playtest()
+    public LevelDataSO PrepareCurrentLevelForPlaytest()
     {
         if (currentData == null)
         {
-            Debug.LogWarning("[LevelEditor] UI_Playtest aborted: currentData is null.");
-            return;
+            Debug.LogWarning("[LevelEditor] PrepareCurrentLevelForPlaytest aborted: currentData is null.");
+            return null;
         }
 
         // Commit any in-progress edit state so the saved asset matches what you see.
@@ -922,7 +922,7 @@ public class LevelEditor : MonoBehaviour
             UI_FinishSnake();
         }
 
-        // Cancel unfinished portal placement to avoid partial portal data.
+        // Cancel unfinished portal/electric-wall placement to avoid partial data.
         if (currentTool == EditorToolType.Portal && isPlacingPortalExit)
         {
             isPlacingPortalExit = false;
@@ -934,9 +934,20 @@ public class LevelEditor : MonoBehaviour
         }
 
         SaveLevel();
+        return currentData;
+    }
+
+    public void UI_Playtest()
+    {
+        LevelDataSO levelData = PrepareCurrentLevelForPlaytest();
+        if (levelData == null)
+        {
+            Debug.LogWarning("[LevelEditor] UI_Playtest aborted: currentData is null.");
+            return;
+        }
 
         PlaytestSession.StartPlaytest(
-            currentData,
+            levelData,
             SceneManager.GetActiveScene().name,
             SceneManager.GetActiveScene().path,
             "GameScene");
@@ -955,7 +966,16 @@ public class LevelEditor : MonoBehaviour
             return;
         }
 
-        Debug.LogWarning("[LevelEditor] No TransitionManager/ScreenManager found. Playtest screen not changed.");
+#if UNITY_EDITOR
+        if (Application.isPlaying)
+        {
+            EditorSceneManager.LoadSceneInPlayMode(GameScenePath, new LoadSceneParameters(LoadSceneMode.Single));
+            return;
+        }
+#endif
+
+        SceneManager.LoadScene("GameScene");
+        return;
     }
 
     private void SaveLevel()

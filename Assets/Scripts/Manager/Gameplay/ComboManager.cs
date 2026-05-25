@@ -163,9 +163,10 @@ public class ComboManager : Singleton<ComboManager>
             return _maxComboForCurrentLevel;
         }
 
-        if (GameManager.Instance != null && GameManager.Instance.GetCurrentLevelData() != null)
+        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
+        if (currentLevelData != null && currentLevelData.snakes != null)
         {
-            return GameManager.Instance.GetCurrentLevelData().snakes.Count;
+            return currentLevelData.snakes.Count;
         }
         return 999;
     }
@@ -305,6 +306,7 @@ public class ComboManager : Singleton<ComboManager>
                 string word = setting.words[Random.Range(0, setting.words.Count)];
                 TriggerFeedback(word, setting.feedbackMaterial, setting.sizeMultiplier, setting.textColor);
                 PlayFeedbackSound(setting.feedbackSound);
+                if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.AddBonusTime();
                 TriggerDotFlashEffect();
                 break;
             }
@@ -314,7 +316,7 @@ public class ComboManager : Singleton<ComboManager>
     private void PlayFeedbackSound(AudioClip clip)
     {
         if (clip == null || AudioManager.Instance == null) return;
-        AudioManager.Instance.PlaySfx(clip, 0.5f);
+        AudioManager.Instance.PlaySfx(clip, 0.6f);
     }
 
     private void TriggerDotFlashEffect()

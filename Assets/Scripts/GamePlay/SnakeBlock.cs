@@ -19,6 +19,8 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private float exitStartSpeed = 20f;
     [SerializeField] private float exitMaxSpeed = 400f;  
     [SerializeField] private float exitAcceleration = 180f;
+    [SerializeField] private float exitTravelDistance = 150f;
+    [SerializeField] private int maxPathScanCells = 180;
 
     [Header("Movement: DASH EXIT")]
     [SerializeField] private float dashExitStartSpeed = 40f;
@@ -106,6 +108,7 @@ public class SnakeBlock : MonoBehaviour
         public bool isPortal;
     }
     private List<WarpEvent> _activeWarps = new List<WarpEvent>();
+    private readonly HashSet<Vector3Int> _pathScanVisitedStates = new HashSet<Vector3Int>();
     private int _lastPassedPortalIndex = -1;
     
     public List<Vector3> LogicNodes => _logicNodes;
@@ -443,6 +446,7 @@ public class SnakeBlock : MonoBehaviour
 
     private IEnumerator ProcessExitMovementInternal(Vector3 moveDir, float startSpeed, float maxSpeedValue, float accelerationValue)
     {
+        CheckObstacleDistance(moveDir);
         ClearFromGrid(); 
         if (ComboManager.Instance != null) ComboManager.Instance.AddCombo(this);
         
@@ -450,7 +454,7 @@ public class SnakeBlock : MonoBehaviour
         int _lastProcessedGrid = 0;
         outed = false;
 
-        float exitDistance = 150f; 
+        float exitDistance = Mathf.Max(1f, exitTravelDistance);
         float finalTargetShift = exitDistance * _nodesPerUnit;
 
         while (true)
@@ -783,9 +787,15 @@ public class SnakeBlock : MonoBehaviour
 
         Vector2Int currentPos = new Vector2Int(Mathf.RoundToInt(_originalState[0].x), Mathf.RoundToInt(_originalState[0].y));
         Vector2Int step = new Vector2Int(Mathf.RoundToInt(dir.x), Mathf.RoundToInt(dir.y));
+        if (step == Vector2Int.zero) return float.MaxValue;
 
-        for (int d = 1; d < 50; d++)
+        _pathScanVisitedStates.Clear();
+        int scanLimit = Mathf.Max(50, maxPathScanCells, Mathf.CeilToInt(exitTravelDistance) + 5);
+        for (int d = 1; d <= scanLimit; d++)
         {
+            Vector3Int scanState = new Vector3Int(currentPos.x, currentPos.y, GetStepKey(step));
+            if (!_pathScanVisitedStates.Add(scanState)) return float.MaxValue;
+
             Vector2Int checkPos = currentPos + step;
             if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) return float.MaxValue;
 
@@ -855,6 +865,14 @@ public class SnakeBlock : MonoBehaviour
             currentPos = checkPos;
         }
         return float.MaxValue;
+    }
+
+    private static int GetStepKey(Vector2Int step)
+    {
+        if (step.y > 0) return 0;
+        if (step.y < 0) return 1;
+        if (step.x < 0) return 2;
+        return 3;
     }
 
     private Vector2Int GetTailGridPosAtProgress(int gridsMoved) 

@@ -17,10 +17,16 @@ public class GridElectricWall : MonoBehaviour
 
     [Header("Spawn/Despawn FX")]
     [SerializeField] private float endpointAppearDuration = 0.12f;
+    [SerializeField] private float endpointSpawnStagger = 0.04f;
+    [SerializeField] private float endpointPopScale = 1.25f;
+    [SerializeField] private float endpointSettleDuration = 0.08f;
+    [SerializeField] private Color endpointFlashColor = Color.white;
     [SerializeField] private float lightningAppearDuration = 0.25f;
     [SerializeField] private bool appearFromStart = true;
     [SerializeField] private float lightningDisappearDuration = 0.2f;
     [SerializeField] private bool disappearFromStart = false;
+    [SerializeField] private float endpointDisablePunchScale = 0.25f;
+    [SerializeField] private float endpointDisablePunchDuration = 0.16f;
     [SerializeField] private float endpointDisappearDuration = 0.12f;
 
     private readonly List<Vector2Int> _cells = new List<Vector2Int>();
@@ -160,14 +166,34 @@ public class GridElectricWall : MonoBehaviour
 
         KillSequences();
         SetEndpointScale(0f);
+        SetEndpointColor(WithAlpha(wallColor, 0f));
 
         if (lightning != null) lightning.SetActive(false);
 
         _spawnSequence = DOTween.Sequence();
         if (startPoint != null)
-            _spawnSequence.Join(startPoint.DOScale(1f, endpointAppearDuration).SetEase(Ease.OutBack));
+        {
+            _spawnSequence.Join(startPoint.DOScale(endpointPopScale, endpointAppearDuration).SetEase(Ease.OutBack));
+            if (startRenderer != null)
+                _spawnSequence.Join(startRenderer.DOColor(endpointFlashColor, endpointAppearDuration * 0.65f).SetEase(Ease.OutQuad));
+        }
         if (endPoint != null)
-            _spawnSequence.Join(endPoint.DOScale(1f, endpointAppearDuration).SetEase(Ease.OutBack));
+        {
+            float delay = Mathf.Max(0f, endpointSpawnStagger);
+            _spawnSequence.Insert(delay, endPoint.DOScale(endpointPopScale, endpointAppearDuration).SetEase(Ease.OutBack));
+            if (endRenderer != null)
+                _spawnSequence.Insert(delay, endRenderer.DOColor(endpointFlashColor, endpointAppearDuration * 0.65f).SetEase(Ease.OutQuad));
+        }
+
+        float settleStart = Mathf.Max(endpointAppearDuration, endpointAppearDuration + endpointSpawnStagger);
+        if (startPoint != null)
+            _spawnSequence.Insert(settleStart, startPoint.DOScale(1f, endpointSettleDuration).SetEase(Ease.OutQuad));
+        if (endPoint != null)
+            _spawnSequence.Insert(settleStart, endPoint.DOScale(1f, endpointSettleDuration).SetEase(Ease.OutQuad));
+        if (startRenderer != null)
+            _spawnSequence.Insert(settleStart * 0.7f, startRenderer.DOColor(wallColor, endpointSettleDuration).SetEase(Ease.OutQuad));
+        if (endRenderer != null)
+            _spawnSequence.Insert(settleStart * 0.7f, endRenderer.DOColor(wallColor, endpointSettleDuration).SetEase(Ease.OutQuad));
 
         _spawnSequence.AppendCallback(() => {
             if (lightning != null)
@@ -304,6 +330,18 @@ public class GridElectricWall : MonoBehaviour
     {
         KillSequences();
 
+        _despawnSequence = DOTween.Sequence();
+        if (startPoint != null)
+            _despawnSequence.Join(startPoint.DOPunchScale(Vector3.one * endpointDisablePunchScale, endpointDisablePunchDuration, 8, 0.7f).SetEase(Ease.OutQuad));
+        if (endPoint != null)
+            _despawnSequence.Join(endPoint.DOPunchScale(Vector3.one * endpointDisablePunchScale, endpointDisablePunchDuration, 8, 0.7f).SetEase(Ease.OutQuad));
+        if (startRenderer != null)
+            _despawnSequence.Join(startRenderer.DOColor(endpointFlashColor, endpointDisablePunchDuration * 0.45f).SetLoops(2, LoopType.Yoyo));
+        if (endRenderer != null)
+            _despawnSequence.Join(endRenderer.DOColor(endpointFlashColor, endpointDisablePunchDuration * 0.45f).SetLoops(2, LoopType.Yoyo));
+
+        yield return _despawnSequence.WaitForCompletion();
+
         if (lightning != null)
         {
             lightning.PlayDisappear(lightningDisappearDuration, disappearFromStart);
@@ -316,8 +354,12 @@ public class GridElectricWall : MonoBehaviour
             _despawnSequence.Join(startPoint.DOScale(0f, endpointDisappearDuration).SetEase(Ease.InBack));
         if (endPoint != null)
             _despawnSequence.Join(endPoint.DOScale(0f, endpointDisappearDuration).SetEase(Ease.InBack));
+        if (startRenderer != null)
+            _despawnSequence.Join(startRenderer.DOColor(WithAlpha(wallColor, 0f), endpointDisappearDuration).SetEase(Ease.InQuad));
+        if (endRenderer != null)
+            _despawnSequence.Join(endRenderer.DOColor(WithAlpha(wallColor, 0f), endpointDisappearDuration).SetEase(Ease.InQuad));
 
-        yield return new WaitForSeconds(endpointDisappearDuration);
+        yield return _despawnSequence.WaitForCompletion();
         Destroy(gameObject);
     }
 
@@ -325,6 +367,12 @@ public class GridElectricWall : MonoBehaviour
     {
         if (startPoint != null) startPoint.localScale = Vector3.one * scale;
         if (endPoint != null) endPoint.localScale = Vector3.one * scale;
+    }
+
+    private void SetEndpointColor(Color color)
+    {
+        if (startRenderer != null) startRenderer.color = color;
+        if (endRenderer != null) endRenderer.color = color;
     }
 
     private void KillSequences()
@@ -343,5 +391,11 @@ public class GridElectricWall : MonoBehaviour
         return Mathf.Abs(a.r - b.r) < 0.1f
             && Mathf.Abs(a.g - b.g) < 0.1f
             && Mathf.Abs(a.b - b.b) < 0.1f;
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
     }
 }

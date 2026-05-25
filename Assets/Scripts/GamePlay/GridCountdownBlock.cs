@@ -23,6 +23,11 @@ public class GridCountdownBlock : MonoBehaviour
     [SerializeField] private float cameraShakeHitStop = 0.03f;
     [SerializeField] private Color cameraShakeFlashColor = new Color(1f, 1f, 1f, 0.22f);
 
+    [Header("Explosion Audio")]
+    [SerializeField] private AudioClip explosionSound;
+    [SerializeField, Range(0f, 1f)] private float explosionSoundVolume = 0.8f;
+    [SerializeField, Range(0.1f, 3f)] private float explosionSoundPitch = 1f;
+
     private void Start()
     {
         Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
@@ -148,6 +153,7 @@ public class GridCountdownBlock : MonoBehaviour
             explodeSequence.OnComplete(() => 
             {
                 PlayExplosionCameraShake();
+                PlayExplosionSound();
 
                 // Tắt hình ảnh ngay lập tức
                 if (sr != null) sr.enabled = false;
@@ -167,6 +173,12 @@ public class GridCountdownBlock : MonoBehaviour
                 Destroy(gameObject);
             });
         }
+    }
+
+    private void PlayExplosionSound()
+    {
+        if (explosionSound == null || AudioManager.Instance == null) return;
+        AudioManager.Instance.PlaySfx(explosionSound, explosionSoundVolume, explosionSoundPitch);
     }
 
     private void PlayExplosionCameraShake()

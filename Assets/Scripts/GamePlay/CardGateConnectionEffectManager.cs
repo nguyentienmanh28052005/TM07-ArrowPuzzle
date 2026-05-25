@@ -29,6 +29,11 @@ public class CardGateConnectionEffectManager : MonoBehaviour
     [SerializeField] private float cameraShakeHitStop = 0f;
     [SerializeField] private Color cameraShakeFlashColor = new Color(1f, 1f, 1f, 0.22f);
 
+    [Header("Gate Explosion Audio")]
+    [SerializeField] private AudioClip gateExplosionSound;
+    [SerializeField, Range(0f, 1f)] private float gateExplosionSoundVolume = 0.8f;
+    [SerializeField, Range(0.1f, 3f)] private float gateExplosionSoundPitch = 1f;
+
     [Header("Neon")]
     [SerializeField] private Gradient neonGradient;
     [SerializeField] private Color fallbackNeonColor = Color.white;
@@ -161,6 +166,7 @@ public class CardGateConnectionEffectManager : MonoBehaviour
         explodeSequence.OnComplete(() =>
         {
             PlayGateExplosionCameraShake();
+            PlayGateExplosionSound();
             SetSpriteRenderersEnabled(renderers, false);
             SpawnGateParticles(target.position, particleColor);
         });
@@ -325,6 +331,12 @@ public class CardGateConnectionEffectManager : MonoBehaviour
         {
             if (renderers[i] != null) renderers[i].enabled = isEnabled;
         }
+    }
+
+    private void PlayGateExplosionSound()
+    {
+        if (gateExplosionSound == null || AudioManager.Instance == null) return;
+        AudioManager.Instance.PlaySfx(gateExplosionSound, gateExplosionSoundVolume, gateExplosionSoundPitch);
     }
 
     private void PlayGateExplosionCameraShake()

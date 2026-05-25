@@ -51,10 +51,13 @@ MonoBehaviour:
   countText: {fileID: 6719623317575119425}
   explosionEffect: {fileID: 418646773151030302}
   shakeCameraOnExplosion: 1
-  cameraShakeDuration: 0.6
+  cameraShakeDuration: 0.2
   cameraShakeStrength: 1
   cameraShakeHitStop: 0
   cameraShakeFlashColor: {r: 1, g: 1, b: 1, a: 0}
+  explosionSound: {fileID: 8300000, guid: 8e8094128313cee4ca4c0248c6fa0071, type: 3}
+  explosionSoundVolume: 0.35
+  explosionSoundPitch: 1
 --- !u!1 &3950740665879112756
 GameObject:
   m_ObjectHideFlags: 0

@@ -89,9 +89,10 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
     private IEnumerator LoadRoutine()
     {
+        editorMode = PlaytestSession.IsPlaytesting;
+
         if (PlaytestSession.IsPlaytesting)
         {
-            editorMode = true;
             levelToPlay = PlaytestSession.LevelData;
             PlaytestExitListener.EnsureExists();
         }

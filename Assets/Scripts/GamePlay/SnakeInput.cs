@@ -51,15 +51,16 @@ public class SnakeInput : MonoBehaviour
         
         _levelEditor = FindObjectOfType<LevelEditor>();
 
-        if (GameManager.Instance != null && GameManager.Instance.GetCurrentLevelData() != null)
+        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
+        if (currentLevelData != null)
         {
-            _isMemoryMode = GameManager.Instance.GetCurrentLevelData().gameMode == GameMode.Memory;
+            _isMemoryMode = currentLevelData.gameMode == GameMode.Memory;
         }
     }
 
     private void Update()
     {
-        if (_levelEditor != null && _levelEditor.gameObject.activeInHierarchy) return;
+        if (!PlaytestSession.IsActive && _levelEditor != null && _levelEditor.gameObject.activeInHierarchy) return;
         if (Time.timeScale == 0f) return;
 
         if (CameraController.IsCameraGestureActive)

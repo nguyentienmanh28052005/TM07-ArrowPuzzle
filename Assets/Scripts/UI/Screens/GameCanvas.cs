@@ -204,7 +204,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     private void ResetHeartsState()
     {
-        LevelDataSO currentLevel = GameManager.Instance != null ? GameManager.Instance.GetCurrentLevelData() : null;
+        LevelDataSO currentLevel = PlaytestSession.GetActiveLevelData();
         if (currentLevel != null)
         {
             SetupModeUI(currentLevel.gameMode);
@@ -261,12 +261,18 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void SetupLevelInfo()
     {
-        if (currentLevelText != null) currentLevelText.text = $"Level {GameManager.Instance.level}";
-        if (currentDifficultyText != null) currentDifficultyText.text = $"{GameManager.Instance.GetCurrentLevelData().levelDifficulty} Level";
+        LevelDataSO currentLevel = PlaytestSession.GetActiveLevelData();
+        if (currentLevelText != null)
+        {
+            currentLevelText.text = PlaytestSession.IsPlaytesting ? "Playtest" : $"Level {GameManager.Instance.level}";
+        }
+
+        if (currentDifficultyText != null && currentLevel != null) currentDifficultyText.text = $"{currentLevel.levelDifficulty} Level";
         if (currentDifficultyTag != null)
         {
             Color tagColor = Color.white;
-            switch (GameManager.Instance.GetCurrentLevelData().levelDifficulty)
+            LevelDifficulty difficulty = currentLevel != null ? currentLevel.levelDifficulty : LevelDifficulty.Easy;
+            switch (difficulty)
             {
                 case LevelDifficulty.Easy: tagColor = new Color(0.4f, 0.8f, 1f); break; 
                 case LevelDifficulty.Medium: tagColor = new Color(1f, 0.8f, 0.4f); break; 
@@ -841,6 +847,13 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     public void OutLevel()
     {
         if (_isTransitioning) return;
+
+        if (PlaytestSession.IsActive)
+        {
+            PlaytestExitListener.ExitPlaytest();
+            return;
+        }
+
         RequestScreen(ScreenType.MainMenu);
     }
 
@@ -941,7 +954,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void DecreaseHeart(object data)
     {
-        LevelDataSO currentLevelData = GameManager.Instance != null ? GameManager.Instance.GetCurrentLevelData() : null;
+        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
         if (currentLevelData != null && currentLevelData.gameMode == GameMode.TimeAttack) return;
 
         if (countHeart <= 0 || _currentPopup != PopupState.None) return;
@@ -1042,7 +1055,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     private void OnReviveSuccess(int heartsToAdd, bool isFullTimeRevive)
     {
-        LevelDataSO currentLevelData = GameManager.Instance != null ? GameManager.Instance.GetCurrentLevelData() : null;
+        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
 
         ResetScreenJuice();
 

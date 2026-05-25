@@ -35,20 +35,22 @@ public class ScreenManager : Singleton<ScreenManager>
 
     private void Start()
     {
+        ScreenType startScreen = PlaytestSession.IsPlaytesting ? ScreenType.Gameplay : defaultScreen;
+
         if (TransitionManager.Instance != null)
         {
             if (playTransitionOnStart)
             {
-                TransitionManager.Instance.TransitionToScreen(defaultScreen, true);
+                TransitionManager.Instance.TransitionToScreen(startScreen, true);
             }
             else
             {
-                ShowScreen(defaultScreen, true);
+                ShowScreen(startScreen, true);
             }
             return;
         }
 
-        ShowScreen(defaultScreen);
+        ShowScreen(startScreen);
     }
 
     public void ShowScreen(ScreenType type)

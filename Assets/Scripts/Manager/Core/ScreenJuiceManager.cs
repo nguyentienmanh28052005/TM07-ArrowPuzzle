@@ -90,12 +90,16 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
                 .OnComplete(() => mainCamera.transform.localPosition = _preShakePos);
         }
 
-        if (flashOverlay != null)
-        {
-            flashOverlay.DOKill();
-            flashOverlay.color = flashColor;
-            flashOverlay.DOFade(0f, 0.15f).SetUpdate(true);
-        }
+        PlayFlashOverlay(flashColor);
+    }
+
+    public void PlayFlashOverlay(Color flashColor, float fadeDuration = 0.15f)
+    {
+        if (flashOverlay == null) return;
+
+        flashOverlay.DOKill();
+        flashOverlay.color = flashColor;
+        flashOverlay.DOFade(0f, Mathf.Max(0.01f, fadeDuration)).SetUpdate(true);
     }
 
     public void ClearJuiceImmediate(bool restoreTimeScale = false)

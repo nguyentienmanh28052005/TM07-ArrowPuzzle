@@ -138,6 +138,18 @@ MonoBehaviour:
   startRenderer: {fileID: 6695822096641458046}
   endRenderer: {fileID: 840518619469683864}
   lightning: {fileID: 5839382170543545871}
+  endpointAppearDuration: 0.12
+  endpointSpawnStagger: 0.04
+  endpointPopScale: 1.25
+  endpointSettleDuration: 0.08
+  endpointFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  lightningAppearDuration: 0.25
+  appearFromStart: 1
+  lightningDisappearDuration: 0.2
+  disappearFromStart: 0
+  endpointDisablePunchScale: 0.25
+  endpointDisablePunchDuration: 0.16
+  endpointDisappearDuration: 0.12
 --- !u!120 &1132607389465030734
 LineRenderer:
   serializedVersion: 2
@@ -254,8 +266,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5db3dac952465de44ac9c07a14acde07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startPoint: {fileID: 0}
-  endPoint: {fileID: 0}
+  startPoint: {fileID: 4709988160281910340}
+  endPoint: {fileID: 6827240894630773325}
   segments: 12
   useAutoSegments: 1
   segmentsPerUnit: 2
@@ -263,6 +275,18 @@ MonoBehaviour:
   maxSegments: 30
   jaggedness: 0.5
   updateRate: 0.05
+  retractMinimumPoints: 5
+  retractTipPull: 0.34
+  retractTipWave: 0.42
+  retractTipWaveFrequency: 4.2
+  retractTipInfluence: 0.52
+  retractShimmerSpeed: 52
+  retractJoltStrength: 0.28
+  retractFoldLength: 0.42
+  retractWidthPulse: 0.65
+  disappearSound: {fileID: 8300000, guid: 7c85bfae3fe9a44428760d146404efc5, type: 3}
+  disappearSoundVolume: 0.8
+  disappearSoundPitch: 1
 --- !u!1 &9176875029574555986
 GameObject:
   m_ObjectHideFlags: 0
