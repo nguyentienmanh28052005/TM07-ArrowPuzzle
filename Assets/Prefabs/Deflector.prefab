@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3589281990803446389}
   - component: {fileID: 3903501302532671734}
+  - component: {fileID: 4662847557010867703}
   m_Layer: 0
   m_Name: Deflector
   m_TagString: Untagged
@@ -48,6 +49,47 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   direction: 0
+--- !u!114 &4662847557010867703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2362271296126747096}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fac3c7a87a7150e4989d6786c91f5201, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnDuration: 1.5
+  spawnScaleEase: 27
+  spawnSpinTurns: 3
+  overshootPower: 1
+  endVanishDuration: 0.28
+  endVanishEase: 26
+  interactionDuration: 0.34
+  interactionNudgeDistance: 0.24
+  redirectEchoDistance: 0.4
+  redirectEchoDuration: 0.5
+  redirectEchoStartScale: 1.3
+  redirectEchoEndScale: 1
+  redirectEchoAlpha: 0.65
+  redirectEchoColor: {r: 0.1, g: 1, b: 1, a: 1}
+  redirectEchoMaterial: {fileID: 2100000, guid: 7c7c4856ca993704da78a902858c010e,
+    type: 2}
+  redirectLineMaterial: {fileID: 0}
+  shockwaveDuration: 0.32
+  shockwaveRadius: 1.75
+  shockwaveLineWidth: 0.09
+  shockwaveAlpha: 0.85
+  redirectStreakCount: 5
+  redirectStreakDuration: 0.3
+  redirectStreakLength: 0.75
+  redirectStreakTravel: 1.15
+  redirectStreakSpacing: 0.2
+  redirectStreakLineWidth: 0.09
+  redirectStreakAlpha: 0.95
+  targetRenderer: {fileID: 0}
 --- !u!1 &2827620742625026082
 GameObject:
   m_ObjectHideFlags: 0

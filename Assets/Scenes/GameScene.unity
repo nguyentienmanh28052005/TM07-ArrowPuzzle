@@ -5528,7 +5528,7 @@ MonoBehaviour:
     trigger: 0
     conditionProvider: {fileID: 216077565}
     instruction: 
-    handMode: 0
+    handMode: 1
     target: {fileID: 557396643}
     useCustomAnchoredPos: 0
     customAnchoredPos: {x: 0, y: 0}
@@ -5993,7 +5993,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 21, y: -99}
+  m_AnchoredPosition: {x: 21, y: -159}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &588815326
@@ -6360,7 +6360,7 @@ MonoBehaviour:
   timerText: {fileID: 1552173234}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   warningColor: {r: 1, g: 0, b: 0, a: 1}
-  bonusColor: {r: 0, g: 1, b: 0, a: 1}
+  bonusColor: {r: 0.9225224, g: 1, b: 0, a: 1}
   bonusTimePerCombo: 3
   bonusTimeFeedbackText: {fileID: 1381837676}
   bonusTimeFeedbackRect: {fileID: 1381837675}
@@ -9056,7 +9056,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -19, y: -16}
+  m_AnchoredPosition: {x: -106, y: -16}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &826959717
@@ -25766,7 +25766,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -19, y: 0}
+  m_AnchoredPosition: {x: -96, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1496888036
@@ -30723,7 +30723,7 @@ PrefabInstance:
     - target: {fileID: 7938384439400024402, guid: b6e54acc881a03c4a9719b161a25a3e3,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: -175.00002
+      value: -199
       objectReference: {fileID: 0}
     - target: {fileID: 7938384439400024402, guid: b6e54acc881a03c4a9719b161a25a3e3,
         type: 3}
@@ -42383,37 +42383,49 @@ PrefabInstance:
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.size
-      value: 31
+      value: 32
       objectReference: {fileID: 0}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
-      propertyPath: levelDataSOs.Array.data[14]
+      propertyPath: levelDataSOs.Array.data[25]
       value: 
-      objectReference: {fileID: 11400000, guid: d308c3011f81c4d4bb4c944f80f34337,
+      objectReference: {fileID: 11400000, guid: 2f919a8a9bddbf64a86fd323c9e17fdc,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
-      propertyPath: levelDataSOs.Array.data[15]
+      propertyPath: levelDataSOs.Array.data[26]
       value: 
-      objectReference: {fileID: 11400000, guid: c2c8cc4372d5c854186db843753aab8f,
+      objectReference: {fileID: 11400000, guid: e88bf139ab5d0aa459b8bc673d2de5b0,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
-      propertyPath: levelDataSOs.Array.data[16]
+      propertyPath: levelDataSOs.Array.data[27]
       value: 
-      objectReference: {fileID: 11400000, guid: 3460b83e32a083e41b863145fb01d53e,
+      objectReference: {fileID: 11400000, guid: b021b32a8c51a6b40a81cad6e2c4c0ea,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
-      propertyPath: levelDataSOs.Array.data[17]
+      propertyPath: levelDataSOs.Array.data[28]
       value: 
-      objectReference: {fileID: 11400000, guid: fbe0e391866d7a74b96e64f0d864d642,
+      objectReference: {fileID: 11400000, guid: 3aa8b996ca958d3439799cfc6c045dd4,
+        type: 2}
+    - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      propertyPath: levelDataSOs.Array.data[29]
+      value: 
+      objectReference: {fileID: 11400000, guid: d2ca418b4b693a44dbdec4a4fa17f01c,
         type: 2}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.data[30]
       value: 
-      objectReference: {fileID: 11400000, guid: a34aeebac6e83e74f91bef032539e0f9,
+      objectReference: {fileID: 11400000, guid: 27926e36d55106c41b092e9ccb6e2533,
+        type: 2}
+    - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      propertyPath: levelDataSOs.Array.data[31]
+      value: 
+      objectReference: {fileID: 11400000, guid: 4a71fa2f33b1c4a409cafddb1410ad5e,
         type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -42773,7 +42785,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -170, y: 12}
+  m_AnchoredPosition: {x: -190, y: 12}
   m_SizeDelta: {x: 247, y: 265.24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1675172299
@@ -43729,11 +43741,12 @@ MonoBehaviour:
   eraseStep2Text: Tap vao con ran de xoa.
   dashStep1Text: Tap DASH de chon huong.
   spinStepText: Tap SPIN de quay va giai phong nhieu mui ten.
+  delayAfterIntroFinished: 1.2
   delayBeforeShowingStep: 0.5
   hintTutorialLevelIndex: 4
   eraseTutorialLevelIndex: 7
   dashTutorialLevelIndex: 16
-  spinTutorialLevelIndex: 12
+  spinTutorialLevelIndex: 11
   disableInTutorialDifficulty: 1
   usePersistentProgress: 0
   ignoreSavedProgressInEditor: 1
@@ -44759,7 +44772,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -19, y: -16}
+  m_AnchoredPosition: {x: -105, y: 38}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1841479255 stripped
@@ -61353,7 +61366,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 7, y: -22.3}
+  m_AnchoredPosition: {x: -6, y: -22.3}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2009783670
@@ -72681,7 +72694,7 @@ PrefabInstance:
     - target: {fileID: 7811768878510048138, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 1487.6278
+      value: 1487.6273
       objectReference: {fileID: 0}
     - target: {fileID: 7899722527737228397, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
@@ -103176,7 +103189,7 @@ PrefabInstance:
     - target: {fileID: 1336944345158808724, guid: 11a393bf29d70e0499e97e9e5ff3f124,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 7
+      value: -6
       objectReference: {fileID: 0}
     - target: {fileID: 1336944345158808724, guid: 11a393bf29d70e0499e97e9e5ff3f124,
         type: 3}

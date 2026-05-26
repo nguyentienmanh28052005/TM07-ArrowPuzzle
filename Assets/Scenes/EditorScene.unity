@@ -2725,6 +2725,7 @@ MonoBehaviour:
   currentEraseToolText: {fileID: 0}
   currentHintToolText: {fileID: 0}
   currentDashToolText: {fileID: 0}
+  currentSpinToolText: {fileID: 0}
   dashToolPanel: {fileID: 0}
   cinematicIntroPanel: {fileID: 0}
   cinematicIntroIcon: {fileID: 0}
@@ -4973,7 +4974,7 @@ MonoBehaviour:
   zoomSpeedPC: 40
   zoomSpeedMobile: 0.01
   minZoom: 2
-  maxZoom: 50
+  maxZoom: 100
   zoomSmoothTime: 0.1
   useLimits: 0
   minPosition: {x: -50, y: -50}
@@ -13942,7 +13943,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1517592598
 Transform:
   m_ObjectHideFlags: 0

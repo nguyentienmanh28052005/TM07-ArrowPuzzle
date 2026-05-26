@@ -69,6 +69,12 @@ public class TimeAttackManager : MonoBehaviour
 
     public void InitializeTimer(float timeLimit)
     {
+        if (PlaytestSession.IsActive)
+        {
+            ResetTimer();
+            return;
+        }
+
         _isTimeAttackMode = true;
         _currentTime = Mathf.Max(0f, timeLimit);
         _isRunning = false;
@@ -213,6 +219,12 @@ public class TimeAttackManager : MonoBehaviour
 
     private void TriggerTimeOutLose()
     {
+        if (PlaytestSession.IsActive)
+        {
+            _isRunning = false;
+            return;
+        }
+
         _isRunning = false;
         CameraController.IsGameplayBlocking = true; 
         

@@ -78,6 +78,20 @@ public class GridManager : MonoBehaviour
         return null;
     }
 
+    public bool HasActiveCountdownBlockAt(Vector2Int pos)
+    {
+        if (CountdownBlockMap == null) return false;
+        if (!CountdownBlockMap.TryGetValue(pos, out GridCountdownBlock block)) return false;
+
+        if (block == null || block.IsDestroyed)
+        {
+            CountdownBlockMap.Remove(pos);
+            return false;
+        }
+
+        return true;
+    }
+
     public void ClearLevelState()
     {
         GridMap.Clear();

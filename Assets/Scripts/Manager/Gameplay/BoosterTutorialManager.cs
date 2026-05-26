@@ -34,6 +34,7 @@ public class BoosterTutorialManager : MonoBehaviour
     [TextArea] [SerializeField] private string spinStepText = "Tap SPIN de quay va giai phong nhieu mui ten.";
 
     [Header("Timing")]
+    [SerializeField, Min(0f)] private float delayAfterIntroFinished = 0.5f;
     [SerializeField, Min(0f)] private float delayBeforeShowingStep = 0.5f;
 
     [Header("Triggers")]
@@ -63,6 +64,7 @@ public class BoosterTutorialManager : MonoBehaviour
 
     private Sequence _handTapSequence;
     private Tween _overlayFadeTween;
+    private Coroutine _introFinishedDelayRoutine;
     private Coroutine _showDelayRoutine;
 
     public bool IsBlockingArrowInput => _blockArrowInput;
@@ -100,7 +102,7 @@ public class BoosterTutorialManager : MonoBehaviour
             return;
         }
 
-        StartBoosterTutorial(boosterToPlay);
+        ScheduleBoosterTutorialAfterIntroDelay(boosterToPlay);
     }
 
     private void HandleIntroFinished()
@@ -108,8 +110,44 @@ public class BoosterTutorialManager : MonoBehaviour
         if (!_isWaitingForIntro || _pendingBooster == BoosterType.None) return;
 
         _isWaitingForIntro = false;
-        StartBoosterTutorial(_pendingBooster);
+        ScheduleBoosterTutorialAfterIntroDelay(_pendingBooster);
+    }
+
+    private void ScheduleBoosterTutorialAfterIntroDelay(BoosterType booster)
+    {
+        if (booster == BoosterType.None) return;
+
+        _pendingBooster = booster;
+
+        if (_introFinishedDelayRoutine != null)
+        {
+            StopCoroutine(_introFinishedDelayRoutine);
+            _introFinishedDelayRoutine = null;
+        }
+
+        if (delayAfterIntroFinished > 0f)
+        {
+            _introFinishedDelayRoutine = StartCoroutine(StartPendingBoosterAfterIntroDelay());
+            return;
+        }
+
+        StartPendingBoosterTutorial();
+    }
+
+    private IEnumerator StartPendingBoosterAfterIntroDelay()
+    {
+        yield return new WaitForSecondsRealtime(delayAfterIntroFinished);
+        _introFinishedDelayRoutine = null;
+        StartPendingBoosterTutorial();
+    }
+
+    private void StartPendingBoosterTutorial()
+    {
+        if (_pendingBooster == BoosterType.None) return;
+
+        BoosterType booster = _pendingBooster;
         _pendingBooster = BoosterType.None;
+        StartBoosterTutorial(booster);
     }
 
     private BoosterType GetBoosterForLevel(LevelDataSO levelData)
@@ -353,6 +391,12 @@ public class BoosterTutorialManager : MonoBehaviour
 
     private void StopTutorialImmediate()
     {
+        if (_introFinishedDelayRoutine != null)
+        {
+            StopCoroutine(_introFinishedDelayRoutine);
+            _introFinishedDelayRoutine = null;
+        }
+
         if (_showDelayRoutine != null)
         {
             StopCoroutine(_showDelayRoutine);

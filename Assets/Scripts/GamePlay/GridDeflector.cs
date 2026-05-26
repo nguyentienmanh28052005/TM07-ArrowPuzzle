@@ -8,16 +8,21 @@ public class GridDeflector : MonoBehaviour
     private GridManager _registeredManager;
     private Coroutine _registerRoutine;
     private Vector2Int _registeredPos;
+    private GridDeflectorVisual _visual;
 
     private void Start()
     {
+        EnsureVisual();
         UpdateVisualRotation();
+        if (_visual != null) _visual.RefreshDirectionState();
         TryRegister();
     }
 
     private void OnEnable()
     {
+        EnsureVisual();
         UpdateVisualRotation();
+        if (_visual != null) _visual.RefreshDirectionState();
         TryRegister();
     }
 
@@ -34,8 +39,29 @@ public class GridDeflector : MonoBehaviour
 
     public void SetDirection(ArrowDir dir)
     {
+        EnsureVisual();
         direction = dir;
         UpdateVisualRotation();
+        if (_visual != null) _visual.RefreshDirectionState();
+    }
+
+    public void PlayInteractionFeedback()
+    {
+        EnsureVisual();
+        if (_visual != null)
+        {
+            _visual.PlayInteractionPulse();
+        }
+    }
+
+    private void EnsureVisual()
+    {
+        if (_visual != null) return;
+
+        _visual = GetComponent<GridDeflectorVisual>();
+        if (_visual == null) _visual = GetComponentInParent<GridDeflectorVisual>();
+        if (_visual == null) _visual = GetComponentInChildren<GridDeflectorVisual>();
+        if (_visual == null) _visual = gameObject.AddComponent<GridDeflectorVisual>();
     }
 
     private void UpdateVisualRotation()

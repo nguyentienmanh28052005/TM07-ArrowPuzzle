@@ -46,6 +46,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   buttonColor: {r: 1, g: 1, b: 1, a: 1}
+  spawnDuration: 0.18
+  spawnPopScale: 1.18
+  spawnSettleDuration: 0.08
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  pressAnticipationDuration: 0.08
+  pressPopScale: 1.25
+  pressDisappearDuration: 0.18
+  pressRotateAmount: 18
 --- !u!1 &6897412389001844817
 GameObject:
   m_ObjectHideFlags: 0

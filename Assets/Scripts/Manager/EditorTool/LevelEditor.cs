@@ -952,6 +952,14 @@ public class LevelEditor : MonoBehaviour
             SceneManager.GetActiveScene().path,
             "GameScene");
 
+#if UNITY_EDITOR
+        if (Application.isPlaying)
+        {
+            EditorSceneManager.LoadSceneInPlayMode(GameScenePath, new LoadSceneParameters(LoadSceneMode.Single));
+            return;
+        }
+#endif
+
         TransitionManager transition = FindObjectOfType<TransitionManager>();
         if (transition != null)
         {
@@ -965,14 +973,6 @@ public class LevelEditor : MonoBehaviour
             screenManager.ShowScreen(ScreenType.Gameplay);
             return;
         }
-
-#if UNITY_EDITOR
-        if (Application.isPlaying)
-        {
-            EditorSceneManager.LoadSceneInPlayMode(GameScenePath, new LoadSceneParameters(LoadSceneMode.Single));
-            return;
-        }
-#endif
 
         SceneManager.LoadScene("GameScene");
         return;

@@ -358,12 +358,8 @@ public class CameraController : MonoBehaviour
         // 2. Chờ người chơi nhìn bao quát (Lúc này UI đang rung nhè nhẹ)
         yield return new WaitForSeconds(overviewWaitTime);
 
-        // 3. UI bắt đầu biến mất, Camera đồng thời lao xuống bàn cờ
-        cam.DOOrthoSize(defaultGameplayZoom, 1.2f).SetEase(Ease.InOutQuad);
-        yield return new WaitForSeconds(1.2f);
-
-        targetZoom = defaultGameplayZoom;
-        cam.orthographicSize = defaultGameplayZoom; 
+        targetZoom = gameZoom;
+        cam.orthographicSize = gameZoom;
         zoomVelocity = 0f;
 
         IsGameplayBlocking = false;

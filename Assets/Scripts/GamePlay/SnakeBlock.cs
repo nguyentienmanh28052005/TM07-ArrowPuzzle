@@ -106,10 +106,12 @@ public class SnakeBlock : MonoBehaviour
         public Vector3 portalWorldPos;
         public Vector3 exitWorldPos;
         public bool isPortal;
+        public GridDeflector deflector;
     }
     private List<WarpEvent> _activeWarps = new List<WarpEvent>();
     private readonly HashSet<Vector3Int> _pathScanVisitedStates = new HashSet<Vector3Int>();
     private int _lastPassedPortalIndex = -1;
+    private int _lastPassedDeflectorIndex = -1;
     
     public List<Vector3> LogicNodes => _logicNodes;
     public Vector3 HeadPosition => (_isInitialized && _originalState != null && _originalState.Length > 0) ? GetPositionAtTrackIndex(-_accumulatedShift) : transform.position;
@@ -782,6 +784,7 @@ public class SnakeBlock : MonoBehaviour
 
         _activeWarps.Clear();
         _lastPassedPortalIndex = -1; 
+        _lastPassedDeflectorIndex = -1;
         _lastObstacleType = ObstacleType.None;
         _lastObstacleCell = new Vector2Int(int.MinValue, int.MinValue);
 
@@ -821,7 +824,7 @@ public class SnakeBlock : MonoBehaviour
                 return d - 1;
             }
 
-            if (GridManager.Instance.CountdownBlockMap.ContainsKey(checkPos))
+            if (GridManager.Instance.HasActiveCountdownBlockAt(checkPos))
             {
                 _lastObstacleType = ObstacleType.CountdownBlock;
                 _lastObstacleCell = checkPos;
@@ -837,7 +840,8 @@ public class SnakeBlock : MonoBehaviour
                     exitDir = link.exitDir,
                     portalWorldPos = new Vector3(checkPos.x, checkPos.y, 0f),
                     exitWorldPos = new Vector3(link.exit.x, link.exit.y, 0f),
-                    isPortal = true
+                    isPortal = true,
+                    deflector = null
                 });
 
                 currentPos = link.exit;
@@ -845,16 +849,17 @@ public class SnakeBlock : MonoBehaviour
                 step = new Vector2Int(Mathf.RoundToInt(newDir.x), Mathf.RoundToInt(newDir.y));
                 continue;
             }
-            if (GridManager.Instance.DeflectorMap != null && GridManager.Instance.DeflectorMap.TryGetValue(checkPos, out GridDeflector deflector))
+            if (GridManager.Instance.DeflectorMap != null && GridManager.Instance.DeflectorMap.TryGetValue(checkPos, out GridDeflector hitDeflector))
             {
-                ArrowDir newDir = deflector.direction;
+                ArrowDir newDir = hitDeflector.direction;
                 _activeWarps.Add(new WarpEvent {
                     rawDistFromHead0 = d,
                     teleportOffset = Vector3.zero,
                     exitDir = newDir,
                     portalWorldPos = new Vector3(checkPos.x, checkPos.y, 0f),
                     exitWorldPos = new Vector3(checkPos.x, checkPos.y, 0f),
-                    isPortal = false
+                    isPortal = false,
+                    deflector = hitDeflector
                 });
 
                 currentPos = checkPos;
@@ -1005,10 +1010,45 @@ public class SnakeBlock : MonoBehaviour
 
         float headDist = shift / _nodesPerUnit;
         int passedPortalIndex = -1;
+        int passedDeflectorIndex = -1;
         for (int i = 0; i < _activeWarps.Count; i++) {
-            if (!_activeWarps[i].isPortal) continue;
-            if (headDist >= _activeWarps[i].rawDistFromHead0) passedPortalIndex = i;
+            if (headDist < _activeWarps[i].rawDistFromHead0) continue;
+            if (_activeWarps[i].isPortal) passedPortalIndex = i;
+            else passedDeflectorIndex = i;
         }
+
+        if (passedDeflectorIndex > _lastPassedDeflectorIndex) {
+            bool playedDeflectorFeedback = false;
+            for (int i = _lastPassedDeflectorIndex + 1; i <= passedDeflectorIndex; i++)
+            {
+                if (i < 0 || i >= _activeWarps.Count) continue;
+                if (_activeWarps[i].isPortal) continue;
+
+                Vector2Int deflectorCell = new Vector2Int(
+                    Mathf.RoundToInt(_activeWarps[i].portalWorldPos.x),
+                    Mathf.RoundToInt(_activeWarps[i].portalWorldPos.y));
+
+                if (_activeWarps[i].deflector != null)
+                {
+                    _activeWarps[i].deflector.PlayInteractionFeedback();
+                }
+                else
+                {
+                    GridDeflectorVisual.PlayInteractionAtCell(deflectorCell);
+                }
+                playedDeflectorFeedback = true;
+            }
+
+            _lastPassedDeflectorIndex = passedDeflectorIndex;
+            if (playedDeflectorFeedback)
+            {
+                if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.35f, 1.35f);
+                if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.LightImpact);
+            }
+        } else if (passedDeflectorIndex < _lastPassedDeflectorIndex) {
+            _lastPassedDeflectorIndex = passedDeflectorIndex;
+        }
+
         if (passedPortalIndex > _lastPassedPortalIndex) {
             for (int i = _lastPassedPortalIndex + 1; i <= passedPortalIndex; i++)
             {
@@ -1022,8 +1062,8 @@ public class SnakeBlock : MonoBehaviour
                     Mathf.RoundToInt(_activeWarps[i].exitWorldPos.x),
                     Mathf.RoundToInt(_activeWarps[i].exitWorldPos.y));
 
-                GridPortalVisual.PlayPulseAtCell(entryCell);
-                GridPortalVisual.PlayPulseAtCell(exitCell);
+                GridPortalVisual.PlayEnterAtCell(entryCell);
+                GridPortalVisual.PlayExitAtCell(exitCell);
             }
 
             _lastPassedPortalIndex = passedPortalIndex;

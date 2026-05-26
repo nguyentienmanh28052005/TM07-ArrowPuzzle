@@ -15,7 +15,7 @@ MonoBehaviour:
   levelIndex: 30
   gameMode: 0
   levelDifficulty: 3
-  timeLimit: 60
+  timeLimit: 120
   rewardCoins: 300
   rewardDiamonds: 20
   snakes:
@@ -2327,5 +2327,8 @@ MonoBehaviour:
     - {x: -26, y: -24}
   keycards: []
   gates: []
+  electricButtons: []
+  electricWalls: []
   portals: []
   deflectors: []
+  countdownBlocks: []

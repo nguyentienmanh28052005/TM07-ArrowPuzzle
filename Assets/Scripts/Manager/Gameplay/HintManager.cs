@@ -97,7 +97,7 @@ public class HintManager : MonoBehaviour
                     break;
                 }
 
-                if (GridManager.Instance.CountdownBlockMap != null && GridManager.Instance.CountdownBlockMap.ContainsKey(checkPos))
+                if (GridManager.Instance.HasActiveCountdownBlockAt(checkPos))
                 {
                     isBlocked = true;
                     break;

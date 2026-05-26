@@ -199,7 +199,7 @@ public class ArrowGuideline : MonoBehaviour
                     break;
                 }
 
-                if (GridManager.Instance.CountdownBlockMap != null && GridManager.Instance.CountdownBlockMap.ContainsKey(nextCell))
+                if (GridManager.Instance.HasActiveCountdownBlockAt(nextCell))
                 {
                     break;
                 }

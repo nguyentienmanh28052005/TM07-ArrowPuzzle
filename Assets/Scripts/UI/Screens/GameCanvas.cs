@@ -954,6 +954,8 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void DecreaseHeart(object data)
     {
+        if (PlaytestSession.IsActive) return;
+
         LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
         if (currentLevelData != null && currentLevelData.gameMode == GameMode.TimeAttack) return;
 

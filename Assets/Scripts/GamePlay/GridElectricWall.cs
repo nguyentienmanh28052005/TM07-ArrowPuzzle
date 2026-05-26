@@ -38,6 +38,7 @@ public class GridElectricWall : MonoBehaviour
     private bool _spawnPlayed;
     private Sequence _spawnSequence;
     private Sequence _despawnSequence;
+    private bool _hasStarted;
 
     private bool _isSubscribed;
     private Coroutine _subscribeRoutine;
@@ -50,6 +51,7 @@ public class GridElectricWall : MonoBehaviour
 
     private void Start()
     {
+        _hasStarted = true;
         InitializeFromTransformsIfNeeded(true);
         TrySubscribe();
         if (Application.isPlaying && _allowGridRegistration) PlaySpawnEffect();
@@ -60,7 +62,7 @@ public class GridElectricWall : MonoBehaviour
         EnsureReferences();
         InitializeFromTransformsIfNeeded(true);
         TrySubscribe();
-        if (Application.isPlaying && _allowGridRegistration) PlaySpawnEffect();
+        if (_hasStarted && Application.isPlaying && _allowGridRegistration) PlaySpawnEffect();
     }
 
     private void OnDisable()
@@ -82,13 +84,23 @@ public class GridElectricWall : MonoBehaviour
         _endCell = endCell;
         _isInitialized = true;
         _allowGridRegistration = registerToGrid;
+        _spawnPlayed = false;
 
         EnsureReferences();
+        KillSequences();
         SetEndpointPositions();
         ApplyColor();
 
-        if (registerToGrid) RegisterCells();
-        else BuildCells();
+        if (registerToGrid)
+        {
+            RegisterCells();
+        }
+        else
+        {
+            UnregisterCells();
+            Unsubscribe();
+            BuildCells();
+        }
 
         if (registerToGrid) TrySubscribe();
         if (Application.isPlaying && registerToGrid) PlaySpawnEffect();
@@ -97,7 +109,14 @@ public class GridElectricWall : MonoBehaviour
     public void SetColor(Color color)
     {
         wallColor = color;
+        if (_spawnSequence != null && _spawnSequence.IsActive())
+        {
+            _spawnSequence.Kill();
+            _spawnSequence = null;
+            _spawnPlayed = false;
+        }
         ApplyColor();
+        if (_hasStarted && Application.isPlaying && _allowGridRegistration && !_isDisabled) PlaySpawnEffect();
     }
 
     public bool TryGetEndpoints(out Vector2Int startCell, out Vector2Int endCell)
@@ -218,6 +237,15 @@ public class GridElectricWall : MonoBehaviour
         if (startRenderer != null) startRenderer.color = wallColor;
         if (endRenderer != null) endRenderer.color = wallColor;
         if (lightning != null) lightning.SetColor(Color.white);
+    }
+
+    private void OnValidate()
+    {
+        if (lightning == null) lightning = GetComponent<LightningConnector>();
+        if (startRenderer == null && startPoint != null) startRenderer = startPoint.GetComponent<SpriteRenderer>();
+        if (endRenderer == null && endPoint != null) endRenderer = endPoint.GetComponent<SpriteRenderer>();
+        if (lightning != null) lightning.SetTargets(startPoint, endPoint);
+        ApplyColor();
     }
 
     private void RegisterCells()

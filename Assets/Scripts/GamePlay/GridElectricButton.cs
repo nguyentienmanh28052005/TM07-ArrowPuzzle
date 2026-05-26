@@ -20,10 +20,15 @@ public class GridElectricButton : MonoBehaviour
     private Coroutine _registerRoutine;
     private GridManager _registeredManager;
     private SpriteRenderer _spriteRenderer;
+    private SpriteRenderer[] _spriteRenderers;
     private Vector3 _baseScale = Vector3.one;
+    private bool _hasStarted;
+    private Sequence _spawnSequence;
+    private Sequence _pressSequence;
 
     private void Start()
     {
+        _hasStarted = true;
         CacheVisuals();
         TryRegister();
         ApplyColor();
@@ -35,13 +40,14 @@ public class GridElectricButton : MonoBehaviour
         CacheVisuals();
         TryRegister();
         ApplyColor();
-        if (Application.isPlaying) PlaySpawnEffect();
+        if (_hasStarted && Application.isPlaying) PlaySpawnEffect();
     }
 
     private void OnDisable()
     {
         transform.DOKill();
-        if (_spriteRenderer != null) _spriteRenderer.DOKill();
+        KillSequences();
+        KillRendererTweens();
 
         if (_registerRoutine != null)
         {
@@ -67,18 +73,31 @@ public class GridElectricButton : MonoBehaviour
     public void SetColor(Color color)
     {
         buttonColor = color;
+        if (_spawnSequence != null && _spawnSequence.IsActive())
+        {
+            _spawnSequence.Kill();
+            _spawnSequence = null;
+            _spawnPlayed = false;
+        }
         ApplyColor();
+        if (_hasStarted && Application.isPlaying && !_isPressed) PlaySpawnEffect();
     }
 
     private void ApplyColor()
     {
         CacheVisuals();
-        if (_spriteRenderer != null) _spriteRenderer.color = buttonColor;
+        if (_spriteRenderers == null) return;
+
+        for (int i = 0; i < _spriteRenderers.Length; i++)
+        {
+            if (_spriteRenderers[i] != null) _spriteRenderers[i].color = buttonColor;
+        }
     }
 
     private void CacheVisuals()
     {
         if (_spriteRenderer == null) _spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        _spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
         if (_baseScale == Vector3.one && transform.localScale != Vector3.zero)
             _baseScale = transform.localScale;
     }
@@ -90,40 +109,87 @@ public class GridElectricButton : MonoBehaviour
 
         CacheVisuals();
         transform.DOKill();
-        if (_spriteRenderer != null) _spriteRenderer.DOKill();
+        KillSequences();
+        KillRendererTweens();
 
         transform.localScale = Vector3.zero;
-        if (_spriteRenderer != null) _spriteRenderer.color = WithAlpha(buttonColor, 0f);
+        SetRendererColor(WithAlpha(buttonColor, 0f));
 
-        Sequence seq = DOTween.Sequence();
-        seq.Append(transform.DOScale(_baseScale * spawnPopScale, spawnDuration).SetEase(Ease.OutBack));
-        if (_spriteRenderer != null)
-            seq.Join(_spriteRenderer.DOColor(flashColor, spawnDuration * 0.65f).SetEase(Ease.OutQuad));
+        _spawnSequence = DOTween.Sequence();
+        _spawnSequence.Append(transform.DOScale(_baseScale * spawnPopScale, spawnDuration).SetEase(Ease.OutBack));
+        AppendRendererColorTween(_spawnSequence, flashColor, spawnDuration * 0.65f, true);
 
-        seq.Append(transform.DOScale(_baseScale, spawnSettleDuration).SetEase(Ease.OutQuad));
-        if (_spriteRenderer != null)
-            seq.Join(_spriteRenderer.DOColor(buttonColor, spawnSettleDuration).SetEase(Ease.OutQuad));
-        seq.SetLink(gameObject);
+        _spawnSequence.Append(transform.DOScale(_baseScale, spawnSettleDuration).SetEase(Ease.OutQuad));
+        AppendRendererColorTween(_spawnSequence, buttonColor, spawnSettleDuration, true);
+        _spawnSequence.SetLink(gameObject);
+        _spawnSequence.OnComplete(() => _spawnSequence = null);
     }
 
     private void PlayPressedEffect()
     {
         CacheVisuals();
         transform.DOKill();
-        if (_spriteRenderer != null) _spriteRenderer.DOKill();
+        KillSequences();
+        KillRendererTweens();
 
-        Sequence seq = DOTween.Sequence();
-        seq.Append(transform.DOScale(_baseScale * pressPopScale, pressAnticipationDuration).SetEase(Ease.OutQuad));
-        if (_spriteRenderer != null)
-            seq.Join(_spriteRenderer.DOColor(flashColor, pressAnticipationDuration).SetEase(Ease.OutQuad));
+        _pressSequence = DOTween.Sequence();
+        _pressSequence.Append(transform.DOScale(_baseScale * pressPopScale, pressAnticipationDuration).SetEase(Ease.OutQuad));
+        AppendRendererColorTween(_pressSequence, flashColor, pressAnticipationDuration, true);
 
-        seq.Append(transform.DOScale(Vector3.zero, pressDisappearDuration).SetEase(Ease.InBack));
-        seq.Join(transform.DORotate(new Vector3(0f, 0f, pressRotateAmount), pressDisappearDuration, RotateMode.LocalAxisAdd).SetEase(Ease.InQuad));
-        if (_spriteRenderer != null)
-            seq.Join(_spriteRenderer.DOColor(WithAlpha(buttonColor, 0f), pressDisappearDuration).SetEase(Ease.InQuad));
+        _pressSequence.Append(transform.DOScale(Vector3.zero, pressDisappearDuration).SetEase(Ease.InBack));
+        _pressSequence.Join(transform.DORotate(new Vector3(0f, 0f, pressRotateAmount), pressDisappearDuration, RotateMode.LocalAxisAdd).SetEase(Ease.InQuad));
+        AppendRendererColorTween(_pressSequence, WithAlpha(buttonColor, 0f), pressDisappearDuration, true);
 
-        seq.SetLink(gameObject);
-        seq.OnComplete(() => Destroy(gameObject));
+        _pressSequence.SetLink(gameObject);
+        _pressSequence.OnComplete(() => Destroy(gameObject));
+    }
+
+    private void SetRendererColor(Color color)
+    {
+        if (_spriteRenderers == null) return;
+
+        for (int i = 0; i < _spriteRenderers.Length; i++)
+        {
+            if (_spriteRenderers[i] != null) _spriteRenderers[i].color = color;
+        }
+    }
+
+    private void AppendRendererColorTween(Sequence sequence, Color color, float duration, bool join)
+    {
+        if (sequence == null || _spriteRenderers == null) return;
+
+        for (int i = 0; i < _spriteRenderers.Length; i++)
+        {
+            if (_spriteRenderers[i] == null) continue;
+
+            Tween tween = _spriteRenderers[i].DOColor(color, duration).SetEase(Ease.OutQuad);
+            if (join) sequence.Join(tween);
+            else sequence.Append(tween);
+        }
+    }
+
+    private void KillRendererTweens()
+    {
+        if (_spriteRenderers == null) return;
+
+        for (int i = 0; i < _spriteRenderers.Length; i++)
+        {
+            if (_spriteRenderers[i] != null) _spriteRenderers[i].DOKill();
+        }
+    }
+
+    private void KillSequences()
+    {
+        if (_spawnSequence != null && _spawnSequence.IsActive()) _spawnSequence.Kill();
+        if (_pressSequence != null && _pressSequence.IsActive()) _pressSequence.Kill();
+        _spawnSequence = null;
+        _pressSequence = null;
+    }
+
+    private void OnValidate()
+    {
+        CacheVisuals();
+        ApplyColor();
     }
 
     private void TryRegister()

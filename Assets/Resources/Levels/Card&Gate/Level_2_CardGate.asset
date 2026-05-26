@@ -16,8 +16,8 @@ MonoBehaviour:
   gameMode: 0
   levelDifficulty: 2
   timeLimit: 60
-  rewardCoins: 0
-  rewardDiamonds: 0
+  rewardCoins: 200
+  rewardDiamonds: 15
   snakes:
   - direction: 2
     arrowColor: {r: 1, g: 1, b: 1, a: 1}
@@ -669,5 +669,8 @@ MonoBehaviour:
     color: {r: 0, g: 1, b: 0.5784495, a: 1}
   - position: {x: 9, y: -19}
     color: {r: 1, g: 0, b: 0.57606554, a: 1}
+  electricButtons: []
+  electricWalls: []
   portals: []
   deflectors: []
+  countdownBlocks: []
