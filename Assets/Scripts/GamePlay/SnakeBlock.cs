@@ -8,6 +8,9 @@ using Solo.MOST_IN_ONE;
 [RequireComponent(typeof(LineRenderer))]
 public class SnakeBlock : MonoBehaviour
 {
+    private static readonly List<SnakeBlock> _activeSnakes = new List<SnakeBlock>();
+    public static IReadOnlyList<SnakeBlock> ActiveSnakes => _activeSnakes;
+
     [Header("Movement: BLOCKED")]
     public ArrowDir direction;
     [SerializeField] private float startMoveSpeed = 0f;  
@@ -119,6 +122,16 @@ public class SnakeBlock : MonoBehaviour
     private void Awake()
     {
         SetupLineRenderer();
+    }
+
+    private void OnEnable()
+    {
+        if (!_activeSnakes.Contains(this)) _activeSnakes.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        _activeSnakes.Remove(this);
     }
 
     private void Start() { levelController = FindObjectOfType<LevelController>(); }
@@ -371,6 +384,18 @@ public class SnakeBlock : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    public bool CanReleaseNow()
+    {
+        if (!_isInitialized || _isMoving || _isSpawning || _isBeingErased) return false;
+
+        Vector3 moveDir = GetDirVector(direction);
+        bool canRelease = CheckObstacleDistance(moveDir) == float.MaxValue;
+        _activeWarps.Clear();
+        _lastPassedPortalIndex = -1;
+        _lastPassedDeflectorIndex = -1;
+        return canRelease;
     }
 
     public void ForceDashRelease(bool keepCurrentVisual = true)

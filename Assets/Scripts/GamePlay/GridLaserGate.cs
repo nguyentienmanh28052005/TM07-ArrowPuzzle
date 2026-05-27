@@ -99,6 +99,7 @@ public class GridLaserGate : MonoBehaviour
     {
         if (_isOpen) return false;
         _isOpen = true;
+        RemoveFromGateMap();
         return true;
     }
 

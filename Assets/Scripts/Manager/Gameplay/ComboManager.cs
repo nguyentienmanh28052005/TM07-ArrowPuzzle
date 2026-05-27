@@ -10,7 +10,6 @@ public class ComboManager : Singleton<ComboManager>
     public struct ComboSettings
     {
         public int minComboThreshold;
-        public Material comboMaterial;
         public float fontSizeMultiplier;
     }
 
@@ -20,7 +19,6 @@ public class ComboManager : Singleton<ComboManager>
         public int comboThreshold;
         public List<string> words;
         public AudioClip feedbackSound;
-        public Material feedbackMaterial;
         public Color textColor;
         public float sizeMultiplier;
     }
@@ -39,6 +37,10 @@ public class ComboManager : Singleton<ComboManager>
     [SerializeField] private RectTransform feedbackTextRect;
     [SerializeField] private ParticleSystem comboParticle;
 
+    [Header("Shared Text Style")]
+    [SerializeField] private TMP_FontAsset sharedFont;
+    [SerializeField] private Material sharedMaterial;
+
     [Header("Juice Settings")]
     [SerializeField] private float maxRotationTilt = 15f;
     [SerializeField] private float maxAllowedSizeMultiplier = 2.8f;
@@ -48,6 +50,7 @@ public class ComboManager : Singleton<ComboManager>
     [Header("Rainbow (Full Combo)")]
     [SerializeField] private float rainbowSpeed = 3f;
     [SerializeField] private AudioClip fullComboSound;
+    [SerializeField] private RectTransform fullComboPositionTarget;
 
     [Header("Dot Feedback Effect (Inward Wave)")]
     [SerializeField] private bool enableDotFlashOnFeedback = true;
@@ -60,11 +63,18 @@ public class ComboManager : Singleton<ComboManager>
     private Vector2 _originalFeedbackPos;
     private Sequence _activeSequence;
     private Sequence _feedbackSequence;
+    private TMP_FontAsset _defaultFont;
     private Material _defaultMaterial;
     private SnakeBlock _lastComboSource;
     private int _maxComboForCurrentLevel = 999;
     private bool _hasShownFullCombo = false;
     private bool _hasInitializedVisuals = false;
+    private readonly List<GridDot> _dotWaveBuffer = new List<GridDot>();
+    private Coroutine _dotWaveCoroutine;
+    private WaitForSecondsRealtime _dotWaveWait;
+    private float _cachedDotWaveDelay = -1f;
+    private Vector3 _dotWaveSortCenter;
+    private System.Comparison<GridDot> _dotWaveDistanceComparer;
 
     private void Start()
     {
@@ -75,16 +85,22 @@ public class ComboManager : Singleton<ComboManager>
             comboText.gameObject.SetActive(false);
             comboTextRect.localScale = Vector3.zero;
             _originalTextPos = comboTextRect.anchoredPosition;
+            _defaultFont = comboText.font;
             _defaultMaterial = comboText.fontSharedMaterial;
+            ApplySharedTextStyle(comboText);
         }
 
         if (feedbackText != null)
         {
+            if (_defaultFont == null) _defaultFont = feedbackText.font;
+            if (_defaultMaterial == null) _defaultMaterial = feedbackText.fontSharedMaterial;
+
             feedbackText.raycastTarget = false;
             feedbackText.alpha = 0f;
             feedbackText.gameObject.SetActive(false);
             feedbackTextRect.localScale = Vector3.zero;
             _originalFeedbackPos = feedbackTextRect.anchoredPosition;
+            ApplySharedTextStyle(feedbackText);
         }
 
         _hasInitializedVisuals = true;
@@ -187,13 +203,14 @@ public class ComboManager : Singleton<ComboManager>
 
         _activeSequence?.Kill();
         _feedbackSequence?.Kill();
+        StopDotWaveRoutine();
 
         if (comboText != null)
         {
             comboText.DOKill();
             comboText.alpha = 0f;
             comboText.color = Color.white;
-            comboText.fontSharedMaterial = _defaultMaterial != null ? _defaultMaterial : comboText.fontSharedMaterial;
+            ApplySharedTextStyle(comboText);
             comboText.gameObject.SetActive(false);
         }
 
@@ -209,6 +226,7 @@ public class ComboManager : Singleton<ComboManager>
         {
             feedbackText.DOKill();
             feedbackText.alpha = 0f;
+            ApplySharedTextStyle(feedbackText);
             feedbackText.gameObject.SetActive(false);
         }
 
@@ -229,11 +247,10 @@ public class ComboManager : Singleton<ComboManager>
         _isFullComboActive = maxCombo > 0 && currentCombo == maxCombo;
 
         float sizeMult = 1.2f;
-        Material targetMat = null;
 
         if (_isFullComboActive)
         {
-            comboText.text = "FULL COMBO!";
+            comboText.text = "PERFECT COMBO!";
             sizeMult = maxAllowedSizeMultiplier;
             if (!_hasShownFullCombo)
             {
@@ -250,7 +267,6 @@ public class ComboManager : Singleton<ComboManager>
                 {
                     if (currentCombo >= setting.minComboThreshold)
                     {
-                        targetMat = setting.comboMaterial;
                         sizeMult = setting.fontSizeMultiplier;
                     }
                 }
@@ -258,7 +274,7 @@ public class ComboManager : Singleton<ComboManager>
             sizeMult += (currentCombo * 0.08f); 
         }
 
-        comboText.fontSharedMaterial = targetMat != null ? targetMat : _defaultMaterial;
+        ApplySharedTextStyle(comboText);
         sizeMult = Mathf.Min(sizeMult, maxAllowedSizeMultiplier);
 
         _activeSequence?.Kill();
@@ -268,7 +284,8 @@ public class ComboManager : Singleton<ComboManager>
         comboText.gameObject.SetActive(true);
         comboText.DOFade(1f, 0f); 
         comboText.color = Color.white; 
-        comboTextRect.anchoredPosition = _originalTextPos;
+        Vector2 startPos = GetComboTextStartPosition();
+        comboTextRect.anchoredPosition = startPos;
         comboTextRect.localScale = Vector3.one * 0.4f;
 
         CheckAndShowFeedback();
@@ -289,7 +306,7 @@ public class ComboManager : Singleton<ComboManager>
         _activeSequence.AppendInterval(0.15f);
         
         float floatDist = _isFullComboActive ? 180f : 100f;
-        _activeSequence.Append(comboTextRect.DOAnchorPosY(_originalTextPos.y + floatDist, 0.5f).SetEase(Ease.InSine));
+        _activeSequence.Append(comboTextRect.DOAnchorPosY(startPos.y + floatDist, 0.5f).SetEase(Ease.InSine));
         _activeSequence.Join(comboText.DOFade(0f, 0.4f));
         _activeSequence.OnComplete(() => comboText.gameObject.SetActive(false));
     }
@@ -304,7 +321,7 @@ public class ComboManager : Singleton<ComboManager>
             {
                 ScreenJuiceManager.Instance.PlayComboJuice(currentCombo);
                 string word = setting.words[Random.Range(0, setting.words.Count)];
-                TriggerFeedback(word, setting.feedbackMaterial, setting.sizeMultiplier, setting.textColor);
+                TriggerFeedback(word, setting.sizeMultiplier, setting.textColor);
                 PlayFeedbackSound(setting.feedbackSound);
                 if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.AddBonusTime();
                 TriggerDotFlashEffect();
@@ -324,60 +341,149 @@ public class ComboManager : Singleton<ComboManager>
         if (!enableDotFlashOnFeedback) return;
         if (GridDot.GridMap == null || GridDot.GridMap.Count == 0) return;
 
-        StartCoroutine(InwardWaveRoutine());
+        StopDotWaveRoutine();
+        _dotWaveCoroutine = StartCoroutine(InwardWaveRoutine());
     }
 
     private System.Collections.IEnumerator InwardWaveRoutine()
     {
-        List<GridDot> allDots = new List<GridDot>(GridDot.GridMap.Values);
-        
-        Vector3 center = Vector3.zero;
+        _dotWaveBuffer.Clear();
+        if (_dotWaveBuffer.Capacity < GridDot.GridMap.Count)
+        {
+            _dotWaveBuffer.Capacity = GridDot.GridMap.Count;
+        }
+
+        bool hasSourceCenter = _lastComboSource != null;
+        Vector3 center = hasSourceCenter ? _lastComboSource.HeadPosition : Vector3.zero;
         int validDotsCount = 0;
-        foreach (var dot in allDots)
+        foreach (var dot in GridDot.GridMap.Values)
         {
-            if (dot != null)
-            {
-                center += dot.transform.position;
-                validDotsCount++;
-            }
+            if (dot == null) continue;
+
+            _dotWaveBuffer.Add(dot);
+            if (!hasSourceCenter) center += dot.transform.position;
+            validDotsCount++;
         }
         
-        if (validDotsCount == 0) yield break;
-        center /= validDotsCount;
-
-        // Prefer the head of the snake that triggered this combo as the wave center.
-        if (_lastComboSource != null)
+        if (validDotsCount == 0)
         {
-            center = _lastComboSource.HeadPosition;
+            _dotWaveBuffer.Clear();
+            _dotWaveCoroutine = null;
+            yield break;
         }
 
-        allDots.Sort((a, b) =>
+        if (!hasSourceCenter) center /= validDotsCount;
+
+        _dotWaveSortCenter = center;
+        if (_dotWaveDistanceComparer == null)
         {
-            if (a == null || b == null) return 0;
-            float distA = Vector3.Distance(a.transform.position, center);
-            float distB = Vector3.Distance(b.transform.position, center);
-            return distA.CompareTo(distB); 
-        });
+            _dotWaveDistanceComparer = CompareDotsByDistanceToWaveCenter;
+        }
+        _dotWaveBuffer.Sort(_dotWaveDistanceComparer);
 
         int currentBatch = 0;
+        int batchSize = Mathf.Max(1, waveBatchSize);
 
-        foreach (var dot in allDots)
+        for (int i = 0; i < _dotWaveBuffer.Count; i++)
         {
-            if (dot != null)
-            {
-                dot.PlayLeaveEffect(dotFlashScaleAmount, dotFlashDuration);
-                currentBatch++;
+            GridDot dot = _dotWaveBuffer[i];
+            if (dot == null) continue;
 
-                if (currentBatch >= waveBatchSize)
-                {
-                    currentBatch = 0;
-                    yield return new WaitForSecondsRealtime(waveDelay);
-                }
+            dot.PlayLeaveEffect(dotFlashScaleAmount, dotFlashDuration);
+            currentBatch++;
+
+            if (currentBatch >= batchSize)
+            {
+                currentBatch = 0;
+                yield return GetDotWaveDelay();
             }
+        }
+
+        _dotWaveBuffer.Clear();
+        _dotWaveCoroutine = null;
+    }
+
+    private int CompareDotsByDistanceToWaveCenter(GridDot a, GridDot b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+
+        float distA = (a.transform.position - _dotWaveSortCenter).sqrMagnitude;
+        float distB = (b.transform.position - _dotWaveSortCenter).sqrMagnitude;
+        return distA.CompareTo(distB);
+    }
+
+    private WaitForSecondsRealtime GetDotWaveDelay()
+    {
+        float delay = Mathf.Max(0f, waveDelay);
+        if (_dotWaveWait == null || !Mathf.Approximately(_cachedDotWaveDelay, delay))
+        {
+            _cachedDotWaveDelay = delay;
+            _dotWaveWait = new WaitForSecondsRealtime(delay);
+        }
+
+        return _dotWaveWait;
+    }
+
+    private void StopDotWaveRoutine()
+    {
+        if (_dotWaveCoroutine != null)
+        {
+            StopCoroutine(_dotWaveCoroutine);
+            _dotWaveCoroutine = null;
+        }
+
+        _dotWaveBuffer.Clear();
+    }
+
+    private Vector2 GetComboTextStartPosition()
+    {
+        if (!_isFullComboActive || fullComboPositionTarget == null || comboTextRect == null)
+        {
+            return _originalTextPos;
+        }
+
+        RectTransform parentRect = comboTextRect.parent as RectTransform;
+        if (parentRect == null || fullComboPositionTarget.parent == parentRect)
+        {
+            return fullComboPositionTarget.anchoredPosition;
+        }
+
+        Vector2 localPoint = parentRect.InverseTransformPoint(fullComboPositionTarget.position);
+        Rect parentBounds = parentRect.rect;
+        Vector2 anchorCenter = (comboTextRect.anchorMin + comboTextRect.anchorMax) * 0.5f;
+        Vector2 anchorReference = new Vector2(
+            parentBounds.xMin + parentBounds.width * anchorCenter.x,
+            parentBounds.yMin + parentBounds.height * anchorCenter.y
+        );
+
+        return localPoint - anchorReference;
+    }
+
+    private void ApplySharedTextStyle(TextMeshProUGUI text)
+    {
+        if (text == null) return;
+
+        TMP_FontAsset fontToUse = sharedFont != null ? sharedFont : _defaultFont;
+        if (fontToUse != null)
+        {
+            text.font = fontToUse;
+        }
+
+        Material materialToUse = sharedMaterial;
+        if (materialToUse == null)
+        {
+            materialToUse = sharedFont != null && fontToUse != null ? fontToUse.material : _defaultMaterial;
+        }
+
+        if (materialToUse != null)
+        {
+            text.fontSharedMaterial = materialToUse;
         }
     }
 
-    public void TriggerFeedback(string message, Material customMat = null, float sizeMultiplier = 1f, Color? customColor = null)
+    public void TriggerFeedback(string message, float sizeMultiplier = 1f, Color? customColor = null)
     {
         if (feedbackText == null || feedbackTextRect == null) return;
 
@@ -387,7 +493,7 @@ public class ComboManager : Singleton<ComboManager>
 
         feedbackText.gameObject.SetActive(true);
         feedbackText.text = message;
-        feedbackText.fontSharedMaterial = customMat != null ? customMat : _defaultMaterial;
+        ApplySharedTextStyle(feedbackText);
         
         feedbackText.color = customColor ?? Color.white;
         feedbackText.alpha = 1f;
