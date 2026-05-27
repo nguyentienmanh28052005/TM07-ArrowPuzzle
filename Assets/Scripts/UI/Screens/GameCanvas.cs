@@ -39,6 +39,13 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     [SerializeField] private RectTransform rewardDiamondIcon;
     [SerializeField] private RectTransform[] starFills;
 
+    [Header("Complete Pop-up Win Streak")]
+    [SerializeField] private Slider completeWinStreakSlider;
+    [SerializeField] private TextMeshProUGUI completeWinStreakProgressText;
+    [SerializeField] private RectTransform completeWinStreakRewardIcon;
+    [SerializeField] private float completeWinStreakFillDuration = 0.35f;
+    [SerializeField] private float completeWinStreakRewardResetDelay = 0.25f;
+
     [Header("Game Over Pop-up")]
     [SerializeField] private CanvasGroup gameOverPanel;
     [SerializeField] private Transform gameOverContent;
@@ -90,6 +97,11 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     private Transform _flyingItemsRoot;
     private Coroutine _flyingCoinRoutine;
     private Coroutine _flyingDiamondRoutine;
+    private Coroutine _winRewardSequenceRoutine;
+    private Coroutine _winStreakCoinRoutine;
+    private bool _hasPendingWinStreakState;
+    private WinStreakManager.StreakState _pendingWinStreakBeforeState;
+    private WinStreakManager.StreakState _pendingWinStreakAfterState;
     #endregion
 
     #region [ INITIALIZATION & LIFECYCLE ]
@@ -112,6 +124,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         InitializeHearts();
         InitializePopups();
         InitializeTools();
+        ResolveCompleteWinStreakReferences();
     }
 
     public void OnScreenShow()
@@ -128,6 +141,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         _currentPopup = PopupState.None;
         _lastLoseReason = LoseReason.OutOfHearts;
         _isShowing = false;
+        _hasPendingWinStreakState = false;
         StopAllCoroutines();
         ResetScreenJuice();
         ClearFlyingItems();
@@ -340,6 +354,159 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
                 currentSpinToolText.text = CurrencyManager.Instance.SpinToolCount.ToString();
             }
         }
+    }
+
+    private void ResolveCompleteWinStreakReferences()
+    {
+        Transform searchRoot = completeContent != null ? completeContent : completePanel != null ? completePanel.transform : null;
+        if (searchRoot == null) return;
+
+        Transform streakRoot = FindDeepChild(searchRoot, "WinStreak");
+        if (streakRoot == null)
+        {
+            streakRoot = FindDeepChild(searchRoot, "WinSteak");
+        }
+
+        if (streakRoot == null) return;
+
+        if (completeWinStreakSlider == null)
+        {
+            completeWinStreakSlider = streakRoot.GetComponentInChildren<Slider>(true);
+        }
+
+        if (completeWinStreakProgressText == null)
+        {
+            Transform progressText = FindDeepChild(streakRoot, "ProgressText");
+            if (progressText != null)
+            {
+                completeWinStreakProgressText = progressText.GetComponent<TextMeshProUGUI>();
+            }
+        }
+
+        if (completeWinStreakRewardIcon == null)
+        {
+            Transform rewardIcon = FindDeepChild(streakRoot, "RewardIcon");
+            if (rewardIcon != null)
+            {
+                completeWinStreakRewardIcon = rewardIcon as RectTransform;
+            }
+        }
+    }
+
+    private void UpdateCompleteWinStreakUI(WinStreakManager.StreakState state, bool animate)
+    {
+        int goal = Mathf.Max(1, state.goal);
+        int progress = Mathf.Clamp(state.progress, 0, goal);
+        float normalized = (float)progress / goal;
+
+        if (completeWinStreakProgressText != null)
+        {
+            completeWinStreakProgressText.text = progress + "/" + goal;
+        }
+
+        if (completeWinStreakSlider != null)
+        {
+            completeWinStreakSlider.DOKill();
+            if (animate && gameObject.activeInHierarchy && completeWinStreakFillDuration > 0f)
+            {
+                DOTween.To(() => completeWinStreakSlider.value, value => completeWinStreakSlider.value = value, normalized, completeWinStreakFillDuration)
+                    .SetEase(Ease.OutQuad)
+                    .SetUpdate(true)
+                    .SetLink(completeWinStreakSlider.gameObject);
+            }
+            else
+            {
+                completeWinStreakSlider.value = normalized;
+            }
+        }
+    }
+
+    private void PreparePendingWinStreak()
+    {
+        ResolveCompleteWinStreakReferences();
+
+        _pendingWinStreakBeforeState = WinStreakManager.GetState();
+        UpdateCompleteWinStreakUI(_pendingWinStreakBeforeState, false);
+
+        if (PlaytestSession.IsActive)
+        {
+            _hasPendingWinStreakState = false;
+            _pendingWinStreakAfterState = _pendingWinStreakBeforeState;
+            return;
+        }
+
+        _pendingWinStreakAfterState = WinStreakManager.RegisterWin();
+        _hasPendingWinStreakState = true;
+    }
+
+    private IEnumerator AnimateCompleteWinStreakProgress(int fromProgress, int toProgress, int goal)
+    {
+        goal = Mathf.Max(1, goal);
+        fromProgress = Mathf.Clamp(fromProgress, 0, goal);
+        toProgress = Mathf.Clamp(toProgress, 0, goal);
+
+        float startValue = (float)fromProgress / goal;
+        float targetValue = (float)toProgress / goal;
+
+        if (completeWinStreakSlider == null || completeWinStreakFillDuration <= 0f)
+        {
+            SetCompleteWinStreakProgress(toProgress, goal);
+            yield break;
+        }
+
+        bool completed = false;
+        completeWinStreakSlider.DOKill();
+        completeWinStreakSlider.value = startValue;
+        SetCompleteWinStreakProgress(fromProgress, goal);
+
+        Tween tween = DOTween.To(
+                () => completeWinStreakSlider.value,
+                value =>
+                {
+                    completeWinStreakSlider.value = value;
+                    int displayProgress = Mathf.Clamp(Mathf.RoundToInt(value * goal), 0, goal);
+                    SetCompleteWinStreakProgress(displayProgress, goal);
+                },
+                targetValue,
+                completeWinStreakFillDuration)
+            .SetEase(Ease.OutQuad)
+            .SetUpdate(true)
+            .SetLink(completeWinStreakSlider.gameObject)
+            .OnComplete(() => completed = true);
+
+        while (!_isTransitioning && !completed && tween.IsActive())
+        {
+            yield return null;
+        }
+
+        SetCompleteWinStreakProgress(toProgress, goal);
+    }
+
+    private void SetCompleteWinStreakProgress(int progress, int goal)
+    {
+        goal = Mathf.Max(1, goal);
+        progress = Mathf.Clamp(progress, 0, goal);
+
+        if (completeWinStreakProgressText != null)
+        {
+            completeWinStreakProgressText.text = progress + "/" + goal;
+        }
+    }
+
+    private static Transform FindDeepChild(Transform root, string childName)
+    {
+        if (root == null || string.IsNullOrEmpty(childName)) return null;
+
+        if (root.name == childName) return root;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform child = root.GetChild(i);
+            Transform match = FindDeepChild(child, childName);
+            if (match != null) return match;
+        }
+
+        return null;
     }
 
     private void InitializePopups()
@@ -565,6 +732,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
         if (currentCoinText != null) currentCoinText.text = Mathf.RoundToInt(oldCoins).ToString();
         if (currentDiamondText != null) currentDiamondText.text = Mathf.RoundToInt(oldDiamonds).ToString();
+        PreparePendingWinStreak();
 
         _currentPopup = PopupState.Complete;
         AudioManager.Instance.PlaySfx(AudioManager.Instance.winSound);
@@ -584,6 +752,11 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     public void ShowLosePopup(object data)
     {
         if (_currentPopup != PopupState.None || _isTransitioning) return;
+
+        if (!PlaytestSession.IsActive)
+        {
+            WinStreakManager.ResetProgress();
+        }
 
         _currentPopup = PopupState.GameOver;
         _lastLoseReason = ResolveLoseReason(data);
@@ -668,20 +841,161 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.OnComplete(() => {
             if (_isTransitioning) return;
 
-            if (flyingCoinPrefab != null && rewardCoinIcon != null && currentCoinIcon != null && earnedCoins > 0)
-            {
-                _flyingCoinRoutine = StartCoroutine(SpawnFlyingItems(flyingCoinPrefab, rewardCoinIcon, currentCoinIcon, Mathf.Min(earnedCoins, maxFlyingItems), earnedCoins, oldCoins, currentCoinText));
-            }
-
-            if (flyingDiamondPrefab != null && rewardDiamondIcon != null && currentDiamondIcon != null && earnedDiamonds > 0)
-            {
-                _flyingDiamondRoutine = StartCoroutine(SpawnFlyingItems(flyingDiamondPrefab, rewardDiamondIcon, currentDiamondIcon, Mathf.Min(earnedDiamonds, maxFlyingItems), earnedDiamonds, oldDiamonds, currentDiamondText));
-            }
+            _winRewardSequenceRoutine = StartCoroutine(PlayRewardFlightsThenWinStreak(earnedCoins, earnedDiamonds, oldCoins, oldDiamonds));
         });
+    }
+
+    private IEnumerator PlayRewardFlightsThenWinStreak(int earnedCoins, int earnedDiamonds, float oldCoins, float oldDiamonds)
+    {
+        bool coinDone = earnedCoins <= 0 || flyingCoinPrefab == null || rewardCoinIcon == null || currentCoinIcon == null;
+        bool diamondDone = earnedDiamonds <= 0 || flyingDiamondPrefab == null || rewardDiamondIcon == null || currentDiamondIcon == null;
+
+        if (coinDone && currentCoinText != null && earnedCoins > 0)
+        {
+            currentCoinText.text = Mathf.RoundToInt(oldCoins + earnedCoins).ToString();
+        }
+
+        if (diamondDone && currentDiamondText != null && earnedDiamonds > 0)
+        {
+            currentDiamondText.text = Mathf.RoundToInt(oldDiamonds + earnedDiamonds).ToString();
+        }
+
+        if (!coinDone)
+        {
+            _flyingCoinRoutine = StartCoroutine(SpawnFlyingItemsAndNotify(
+                flyingCoinPrefab,
+                rewardCoinIcon,
+                currentCoinIcon,
+                Mathf.Min(earnedCoins, maxFlyingItems),
+                earnedCoins,
+                oldCoins,
+                currentCoinText,
+                () => coinDone = true));
+        }
+
+        if (!diamondDone)
+        {
+            _flyingDiamondRoutine = StartCoroutine(SpawnFlyingItemsAndNotify(
+                flyingDiamondPrefab,
+                rewardDiamondIcon,
+                currentDiamondIcon,
+                Mathf.Min(earnedDiamonds, maxFlyingItems),
+                earnedDiamonds,
+                oldDiamonds,
+                currentDiamondText,
+                () => diamondDone = true));
+        }
+
+        while (!_isTransitioning && (!coinDone || !diamondDone))
+        {
+            yield return null;
+        }
+
+        if (_isTransitioning) yield break;
+
+        _flyingCoinRoutine = null;
+        _flyingDiamondRoutine = null;
+
+        yield return StartCoroutine(PlayCompleteWinStreakSequence());
+        _winRewardSequenceRoutine = null;
+    }
+
+    private IEnumerator SpawnFlyingItemsAndNotify(
+        GameObject prefab,
+        RectTransform startIcon,
+        RectTransform targetIcon,
+        int spawnCount,
+        int totalEarned,
+        float oldValue,
+        TextMeshProUGUI textUI,
+        System.Action onComplete)
+    {
+        yield return StartCoroutine(SpawnFlyingItems(prefab, startIcon, targetIcon, spawnCount, totalEarned, oldValue, textUI));
+        onComplete?.Invoke();
+    }
+
+    private IEnumerator PlayCompleteWinStreakSequence()
+    {
+        if (!_hasPendingWinStreakState) yield break;
+
+        ResolveCompleteWinStreakReferences();
+
+        WinStreakManager.StreakState beforeState = _pendingWinStreakBeforeState;
+        WinStreakManager.StreakState afterState = _pendingWinStreakAfterState;
+        _hasPendingWinStreakState = false;
+
+        int goal = Mathf.Max(1, beforeState.goal);
+        int startProgress = Mathf.Clamp(beforeState.progress, 0, goal);
+
+        UpdateCompleteWinStreakUI(beforeState, false);
+        yield return new WaitForSecondsRealtime(0.15f);
+
+        int targetProgress = afterState.rewardClaimed ? goal : Mathf.Clamp(afterState.progress, 0, goal);
+        yield return StartCoroutine(AnimateCompleteWinStreakProgress(startProgress, targetProgress, goal));
+
+        if (!afterState.rewardClaimed)
+        {
+            UpdateCompleteWinStreakUI(afterState, false);
+            yield break;
+        }
+
+        if (completeWinStreakRewardIcon != null)
+        {
+            completeWinStreakRewardIcon.DOKill();
+            completeWinStreakRewardIcon.localScale = Vector3.one;
+            completeWinStreakRewardIcon
+                .DOPunchScale(Vector3.one * 0.18f, 0.35f, 6, 0.8f)
+                .SetUpdate(true)
+                .SetLink(completeWinStreakRewardIcon.gameObject);
+        }
+
+        float oldCoinsBeforeStreakReward = CurrencyManager.Instance.Coins - afterState.rewardCoins;
+        float oldDiamondsBeforeStreakReward = CurrencyManager.Instance.Diamonds - afterState.rewardDiamonds;
+
+        if (currentCoinText != null)
+        {
+            currentCoinText.text = Mathf.RoundToInt(oldCoinsBeforeStreakReward).ToString();
+        }
+
+        if (afterState.rewardCoins > 0 && flyingCoinPrefab != null && completeWinStreakRewardIcon != null && currentCoinIcon != null)
+        {
+            _winStreakCoinRoutine = StartCoroutine(SpawnFlyingItems(
+                flyingCoinPrefab,
+                completeWinStreakRewardIcon,
+                currentCoinIcon,
+                Mathf.Min(afterState.rewardCoins, maxFlyingItems),
+                afterState.rewardCoins,
+                oldCoinsBeforeStreakReward,
+                currentCoinText));
+
+            yield return _winStreakCoinRoutine;
+            _winStreakCoinRoutine = null;
+        }
+        else if (currentCoinText != null)
+        {
+            currentCoinText.text = Mathf.RoundToInt(CurrencyManager.Instance.Coins).ToString();
+        }
+
+        if (afterState.rewardDiamonds > 0 && currentDiamondText != null)
+        {
+            currentDiamondText.text = Mathf.RoundToInt(oldDiamondsBeforeStreakReward + afterState.rewardDiamonds).ToString();
+        }
+
+        yield return new WaitForSecondsRealtime(completeWinStreakRewardResetDelay);
+        UpdateCompleteWinStreakUI(afterState, false);
     }
 
     private IEnumerator SpawnFlyingItems(GameObject prefab, RectTransform startIcon, RectTransform targetIcon, int spawnCount, int totalEarned, float oldValue, TextMeshProUGUI textUI)
     {
+        if (spawnCount <= 0 || totalEarned <= 0)
+        {
+            if (textUI != null)
+            {
+                textUI.text = Mathf.RoundToInt(oldValue + totalEarned).ToString();
+            }
+            yield break;
+        }
+
         EnsureFlyingItemsRoot();
 
         Vector3 startPos = GetTrueWorldCenter(startIcon);
@@ -739,10 +1053,21 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
             yield return new WaitForSecondsRealtime(0.08f); 
         }
+
+        while (!_isTransitioning && itemsHit < spawnCount)
+        {
+            yield return null;
+        }
     }
 
     private void ClearFlyingItems()
     {
+        if (_winRewardSequenceRoutine != null)
+        {
+            StopCoroutine(_winRewardSequenceRoutine);
+            _winRewardSequenceRoutine = null;
+        }
+
         if (_flyingCoinRoutine != null)
         {
             StopCoroutine(_flyingCoinRoutine);
@@ -753,6 +1078,12 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         {
             StopCoroutine(_flyingDiamondRoutine);
             _flyingDiamondRoutine = null;
+        }
+
+        if (_winStreakCoinRoutine != null)
+        {
+            StopCoroutine(_winStreakCoinRoutine);
+            _winStreakCoinRoutine = null;
         }
 
         if (_flyingItemsRoot == null) return;

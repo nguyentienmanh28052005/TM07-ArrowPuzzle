@@ -115,6 +115,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
                         CurrencyManager.Instance.AddDiamonds(completedLevelData.rewardDiamonds);
                     }
                 }
+
             }
 
             if (GameManager.Instance != null && GameManager.Instance.level < GameManager.Instance.currentMaxLevel)

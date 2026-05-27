@@ -23,6 +23,7 @@ public enum ManhMessageType
     OnDashToolChanged,
     OnSpinToolChanged,
     OnSelectDashDirection,
+    OnWinStreakChanged,
     OnThemeChanged,
 }
 

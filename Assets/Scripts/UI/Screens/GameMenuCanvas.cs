@@ -35,6 +35,12 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
     [SerializeField] private TextMeshProUGUI textCoin;
     [SerializeField] private TextMeshProUGUI textDiamond;
 
+    [Header("Win Streak")]
+    [SerializeField] private Slider winStreakSlider;
+    [SerializeField] private TextMeshProUGUI winStreakProgressText;
+    [SerializeField] private GameObject winStreakRewardIcon;
+    [SerializeField] private float winStreakFillDuration = 0.25f;
+
     private bool _hasStarted = false;
     private CanvasGroup _currentPanel; 
 
@@ -50,6 +56,7 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
         SyncLevelFromSave();
         UpdateLevelUI(); 
         UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
+        UpdateWinStreakUI(false);
 
         HidePanelImmediate(panelShop);
         HidePanelImmediate(panelSetting);
@@ -74,10 +81,24 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
 
     public void OnEnable()
     {
+        if (MessageManager.Instance != null)
+        {
+            MessageManager.Instance.AddSubscriber(ManhMessageType.OnWinStreakChanged, HandleWinStreakChanged);
+        }
+
         if (_hasStarted)
         {
             UpdateLevelUI();
             UpdateCurrencyUI((int)CurrencyManager.Instance.Coins, (int)CurrencyManager.Instance.Diamonds);
+            UpdateWinStreakUI(false);
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (MessageManager.Instance != null)
+        {
+            MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnWinStreakChanged, HandleWinStreakChanged);
         }
     }
 
@@ -89,6 +110,7 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
         }
 
         UpdateLevelUI();
+        UpdateWinStreakUI(false);
     }
 
     public void OnScreenHide()
@@ -330,6 +352,61 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
     {
         if (textCoin != null) textCoin.text = coins.ToString();
         if (textDiamond != null) textDiamond.text = diamonds.ToString();
+    }
+
+    private void HandleWinStreakChanged(object data)
+    {
+        if (data is WinStreakManager.StreakState state)
+        {
+            UpdateWinStreakUI(state, true);
+            return;
+        }
+
+        UpdateWinStreakUI(true);
+    }
+
+    private void UpdateWinStreakUI(bool animate)
+    {
+        UpdateWinStreakUI(WinStreakManager.GetState(), animate);
+    }
+
+    private void UpdateWinStreakUI(WinStreakManager.StreakState state, bool animate)
+    {
+        int goal = Mathf.Max(1, state.goal);
+        int progress = Mathf.Clamp(state.progress, 0, goal);
+        float normalized = (float)progress / goal;
+
+        if (winStreakProgressText != null)
+        {
+            winStreakProgressText.text = progress + "/" + goal;
+        }
+
+        if (winStreakSlider != null)
+        {
+            winStreakSlider.DOKill();
+            if (animate && gameObject.activeInHierarchy && winStreakFillDuration > 0f)
+            {
+                DOTween.To(() => winStreakSlider.value, value => winStreakSlider.value = value, normalized, winStreakFillDuration)
+                    .SetEase(Ease.OutQuad)
+                    .SetLink(winStreakSlider.gameObject);
+            }
+            else
+            {
+                winStreakSlider.value = normalized;
+            }
+        }
+
+        if (winStreakRewardIcon != null)
+        {
+            winStreakRewardIcon.transform.DOKill();
+            if (state.rewardClaimed && animate)
+            {
+                winStreakRewardIcon.transform.localScale = Vector3.one;
+                winStreakRewardIcon.transform
+                    .DOPunchScale(Vector3.one * 0.18f, 0.35f, 6, 0.8f)
+                    .SetLink(winStreakRewardIcon);
+            }
+        }
     }
 
     private void UpdateLevelButtons()
