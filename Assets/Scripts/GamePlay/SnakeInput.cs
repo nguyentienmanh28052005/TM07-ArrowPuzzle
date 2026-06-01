@@ -14,6 +14,9 @@ public class SnakeInput : MonoBehaviour
     [Header("Input Settings")]
     public float clickRadius = 0.8f;
     public bool useHaptics = true;
+    [SerializeField] private bool boostMobileTouchArea = true;
+    [SerializeField, Min(1f)] private float mobileTouchRadiusMultiplier = 1.6f;
+    [SerializeField, Min(0f)] private float mobileMinimumTouchRadiusPixels = 120f;
 
     private bool isPressed = false;
     private bool isHolding = false;
@@ -135,12 +138,13 @@ public class SnakeInput : MonoBehaviour
         if (parentScript != null && parentScript.IsMoving) return;
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 mousePos = GetCurrentPointerWorldPosition();
+        float activeClickRadius = GetActiveClickRadius();
         
         // BẢN VÁ: Đo khoảng cách với toàn thân rắn thay vì chỉ Head
         float myDist = GetMinDistanceFromMouse(mousePos);
 
-        if (myDist > clickRadius) return;
+        if (myDist > activeClickRadius) return;
         if (!IsClosestToClick(mousePos, myDist)) return;
 
         if (EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive)
@@ -195,10 +199,11 @@ public class SnakeInput : MonoBehaviour
             _guidelineCache.SetLineActive(false);
         }
 
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 mousePos = GetCurrentPointerWorldPosition();
+        float activeClickRadius = GetActiveClickRadius();
         
         // BẢN VÁ: Đo lại khoảng cách lúc nhả chuột với toàn thân
-        if (!isCanceledByCamera && !CameraController.IsCameraGestureActive && GetMinDistanceFromMouse(mousePos) <= clickRadius)
+        if (!isCanceledByCamera && !CameraController.IsCameraGestureActive && GetMinDistanceFromMouse(mousePos) <= activeClickRadius)
         {
             if (parentScript != null)
             {
@@ -239,8 +244,8 @@ public class SnakeInput : MonoBehaviour
                 CameraController.IsGameplayBlocking = true;
             }
 
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            bool isInside = GetMinDistanceFromMouse(mousePos) <= clickRadius;
+            Vector2 mousePos = GetCurrentPointerWorldPosition();
+            bool isInside = GetMinDistanceFromMouse(mousePos) <= GetActiveClickRadius();
 
             if (!isInside)
             {
@@ -263,8 +268,9 @@ public class SnakeInput : MonoBehaviour
             {
                 // BẢN VÁ: Hỏi khoảng cách đến thân của các con rắn khác để tranh quyền click
                 float otherDist = other.GetMinDistanceFromMouse(mousePos);
+                float otherClickRadius = other.GetActiveClickRadius();
                 
-                if (otherDist <= other.clickRadius)
+                if (otherDist <= otherClickRadius)
                 {
                     if (otherDist < myDist) return false; 
                     
@@ -276,6 +282,67 @@ public class SnakeInput : MonoBehaviour
             }
         }
         return true;
+    }
+
+    private float GetActiveClickRadius()
+    {
+        float radius = clickRadius;
+        if (!boostMobileTouchArea || Input.touchCount <= 0) return radius;
+
+        radius *= Mathf.Max(1f, mobileTouchRadiusMultiplier);
+        if (mobileMinimumTouchRadiusPixels > 0f)
+        {
+            radius = Mathf.Max(radius, ScreenPixelsToWorldRadius(mobileMinimumTouchRadiusPixels));
+        }
+
+        return radius;
+    }
+
+    private Vector2 GetCurrentPointerWorldPosition()
+    {
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) return Vector2.zero;
+
+        Vector3 screenPos = GetCurrentPointerScreenPosition();
+        if (!mainCamera.orthographic)
+            screenPos.z = GetCameraDistanceToWorldZ(mainCamera, 0f);
+
+        return mainCamera.ScreenToWorldPoint(screenPos);
+    }
+
+    private Vector3 GetCurrentPointerScreenPosition()
+    {
+        if (Input.touchCount > 0)
+            return Input.GetTouch(0).position;
+
+        return Input.mousePosition;
+    }
+
+    private float ScreenPixelsToWorldRadius(float screenPixels)
+    {
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null || screenPixels <= 0f) return 0f;
+
+        if (mainCamera.orthographic)
+            return screenPixels * mainCamera.orthographicSize * 2f / Mathf.Max(1, Screen.height);
+
+        Vector3 screenPos = GetCurrentPointerScreenPosition();
+        screenPos.z = GetCameraDistanceToWorldZ(mainCamera, 0f);
+        Vector3 worldA = mainCamera.ScreenToWorldPoint(screenPos);
+        screenPos.x += screenPixels;
+        Vector3 worldB = mainCamera.ScreenToWorldPoint(screenPos);
+        return Vector2.Distance(worldA, worldB);
+    }
+
+    private float GetCameraDistanceToWorldZ(Camera camera, float worldZ)
+    {
+        if (camera == null) return 0f;
+
+        float forwardZ = camera.transform.forward.z;
+        if (Mathf.Abs(forwardZ) > 0.0001f)
+            return Mathf.Max(camera.nearClipPlane, (worldZ - camera.transform.position.z) / forwardZ);
+
+        return Mathf.Max(camera.nearClipPlane, Mathf.Abs(worldZ - camera.transform.position.z));
     }
 
     private System.Collections.IEnumerator WaitAndScale()

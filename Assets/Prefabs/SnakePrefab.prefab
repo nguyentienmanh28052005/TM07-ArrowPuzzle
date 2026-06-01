@@ -276,6 +276,8 @@ MonoBehaviour:
   exitStartSpeed: 5
   exitMaxSpeed: 300
   exitAcceleration: 160
+  exitTravelDistance: 150
+  maxPathScanCells: 180
   dashExitStartSpeed: 50
   dashExitMaxSpeed: 520
   dashExitAcceleration: 260
@@ -325,3 +327,6 @@ MonoBehaviour:
   holdThreshold: 2
   clickRadius: 4
   useHaptics: 1
+  boostMobileTouchArea: 1
+  mobileTouchRadiusMultiplier: 2
+  mobileMinimumTouchRadiusPixels: 120

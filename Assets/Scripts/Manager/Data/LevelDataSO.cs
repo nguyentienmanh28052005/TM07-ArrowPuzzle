@@ -81,6 +81,9 @@ public class LevelDataSO : ScriptableObject
     public GameMode gameMode;
     public LevelDifficulty levelDifficulty;
 
+    [Header("Camera Intro")]
+    public bool returnToDefaultZoomAfterIntro = true;
+
     public float timeLimit = 60f;
     
     public float rewardCoins;

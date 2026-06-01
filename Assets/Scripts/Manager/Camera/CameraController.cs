@@ -23,6 +23,7 @@ public class CameraController : MonoBehaviour
     public float autoFitPadding = 8f;
     public float defaultGameplayZoom = 40f; 
     public float overviewWaitTime = 1f;
+    [SerializeField, Min(0f)] private float returnToDefaultZoomDuration = 0.6f;
 
     [Header("Pan Settings")]
     public bool useLimits = true;
@@ -340,11 +341,12 @@ public class CameraController : MonoBehaviour
         // KÍCH HOẠT UI CINEMATIC ĐỒNG BỘ VỚI CAMERA
         // ==========================================
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
+        bool shouldReturnToDefaultZoom = loader.levelToPlay.returnToDefaultZoomAfterIntro;
         if (canvas != null)
         {
             // Tính toán thời gian UI nằm trên màn hình:
-            // = Thời gian Zoom Out (1f) + Thời gian dừng Overview (overviewWaitTime)
-            float totalHoldTime = 1f + overviewWaitTime; 
+            // = zoom to overview + hold overview + optional return to gameplay zoom.
+            float totalHoldTime = 1f + overviewWaitTime + (shouldReturnToDefaultZoom ? returnToDefaultZoomDuration : 0f);
             
             // Nếu chỉ muốn hiện cho level Hard:
             // if (loader.levelToPlay.levelDifficulty == LevelDifficulty.Hard)
@@ -352,14 +354,25 @@ public class CameraController : MonoBehaviour
         }
         
         // 1. Camera Zoom ra nhìn toàn cảnh
-        cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
-        yield return new WaitForSeconds(1f);
+        Tween overviewTween = cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
+        yield return overviewTween.WaitForCompletion();
 
         // 2. Chờ người chơi nhìn bao quát (Lúc này UI đang rung nhè nhẹ)
         yield return new WaitForSeconds(overviewWaitTime);
 
-        targetZoom = gameZoom;
-        cam.orthographicSize = gameZoom;
+        // 3. Quay lại zoom gameplay mặc định nếu level yêu cầu.
+        if (shouldReturnToDefaultZoom && returnToDefaultZoomDuration > 0f)
+        {
+            Tween defaultZoomTween = cam.DOOrthoSize(defaultGameplayZoom, returnToDefaultZoomDuration).SetEase(Ease.InOutSine);
+            yield return defaultZoomTween.WaitForCompletion();
+        }
+        else if (shouldReturnToDefaultZoom)
+        {
+            cam.orthographicSize = defaultGameplayZoom;
+        }
+
+        targetZoom = shouldReturnToDefaultZoom ? defaultGameplayZoom : gameZoom;
+        cam.orthographicSize = targetZoom;
         zoomVelocity = 0f;
 
         IsGameplayBlocking = false;
