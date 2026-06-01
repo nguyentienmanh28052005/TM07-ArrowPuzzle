@@ -4924,6 +4924,7 @@ MonoBehaviour:
   gameplayMusicVolume: 0.6
   loopGameplayMusic: 1
   fadeOutMusicOnEnd: 1
+  waitForTransitionBeforeMusic: 1
   countArrowInGame: 0
 --- !u!1 &510748643
 GameObject:
@@ -45176,13 +45177,13 @@ MonoBehaviour:
   delayBeforeShowingStep: 0.5
   hintTutorialLevelIndex: 4
   eraseTutorialLevelIndex: 7
-  dashTutorialLevelIndex: 11
-  spinTutorialLevelIndex: 16
+  dashTutorialLevelIndex: 16
+  spinTutorialLevelIndex: 11
   themeTutorialLevelIndex: 101
   disableInTutorialDifficulty: 1
   lockBoosterButtonsUntilTutorial: 1
   tutorialRewardAmount: 5
-  autoCreateRewardClaimPanel: 1
+  autoCreateRewardClaimPanel: 0
   rewardClaimPanel: {fileID: 100637231}
   rewardClaimContent: {fileID: 1106038472}
   rewardClaimTitleText: {fileID: 33339}
@@ -45200,7 +45201,7 @@ MonoBehaviour:
   dashRewardIcon: {fileID: 21300000, guid: 1eae803b0ef343e4a84b749b60ebad5e, type: 2}
   spinRewardIcon: {fileID: 21300000, guid: 2481bafb96e84e6498acd585aec7d53d, type: 3}
   usePersistentProgress: 0
-  ignoreSavedProgressInEditor: 1
+  ignoreSavedProgressInEditor: 0
 --- !u!1 &1737626181 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8617412596701876512, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
@@ -89013,7 +89014,7 @@ PrefabInstance:
     - target: {fileID: 7811768878510048138, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 1487.6272
+      value: 1487.6278
       objectReference: {fileID: 0}
     - target: {fileID: 7899722527737228397, guid: c9fdc9172645c2c4faf2c7a9ce041eeb,
         type: 3}

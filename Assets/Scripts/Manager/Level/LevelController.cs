@@ -9,14 +9,16 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
     [SerializeField, Range(0f, 1f)] private float gameplayMusicVolume = 1f;
     [SerializeField] private bool loopGameplayMusic = true;
     [SerializeField] private bool fadeOutMusicOnEnd = true;
+    [SerializeField] private bool waitForTransitionBeforeMusic = true;
 
     [SerializeField] private int countArrowInGame;
     private bool _isLevelComplete;
+    private Coroutine _gameplayMusicRoutine;
 
     public void OnScreenShow()
     {
         _isLevelComplete = false;
-        PlayGameplayMusic();
+        ScheduleGameplayMusic();
 
         if (PlaytestSession.IsPlaytesting)
         {
@@ -32,6 +34,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
 
     public void OnScreenHide()
     {
+        CancelGameplayMusicRoutine();
         StopGameplayMusic(fadeOutMusicOnEnd);
         countArrowInGame = 0;
         _isLevelComplete = false;
@@ -157,5 +160,49 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
         if (AudioManager.Instance == null) return;
         if (gameplayMusic != null && AudioManager.Instance.GetCurrentMusicClip() != gameplayMusic) return;
         AudioManager.Instance.StopMusic(fadeOut);
+    }
+
+    private void ScheduleGameplayMusic()
+    {
+        CancelGameplayMusicRoutine();
+
+        if (gameplayMusic == null || AudioManager.Instance == null) return;
+        _gameplayMusicRoutine = StartCoroutine(PlayGameplayMusicWhenReady());
+    }
+
+    private IEnumerator PlayGameplayMusicWhenReady()
+    {
+        if (gameplayMusic != null && gameplayMusic.loadState == AudioDataLoadState.Unloaded)
+            gameplayMusic.LoadAudioData();
+
+        yield return null;
+
+        if (waitForTransitionBeforeMusic)
+        {
+            while (TransitionManager.Instance != null &&
+                   (TransitionManager.Instance.IsTransitioning || TransitionManager.Instance.IsHeld))
+            {
+                yield return null;
+            }
+        }
+
+        while (gameplayMusic != null && gameplayMusic.loadState == AudioDataLoadState.Loading)
+            yield return null;
+
+        if (gameplayMusic == null || gameplayMusic.loadState == AudioDataLoadState.Failed)
+        {
+            _gameplayMusicRoutine = null;
+            yield break;
+        }
+
+        PlayGameplayMusic();
+        _gameplayMusicRoutine = null;
+    }
+
+    private void CancelGameplayMusicRoutine()
+    {
+        if (_gameplayMusicRoutine == null) return;
+        StopCoroutine(_gameplayMusicRoutine);
+        _gameplayMusicRoutine = null;
     }
 }
