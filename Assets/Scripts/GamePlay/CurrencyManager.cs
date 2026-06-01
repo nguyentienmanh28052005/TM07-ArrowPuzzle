@@ -114,12 +114,12 @@ public class CurrencyManager : Singleton<CurrencyManager>
         _dashToolCount = (int)SaveDataPlayer.Instance.Value(DASH_TOOL);
         _spinToolCount = (int)SaveDataPlayer.Instance.Value(SPIN_TOOL);
 
-        AddHintTool(30);
-        AddEraseTool(30);
-        AddDashTool(30);
-        AddSpinTool(30);
-        AddCoins(100000);
-        AddDiamonds(20000);
+        // AddHintTool(30);
+        // AddEraseTool(30);
+        // AddDashTool(30);
+        // AddSpinTool(30);
+        // AddCoins(100000);
+        // AddDiamonds(20000);
     }
 
     // ==========================================

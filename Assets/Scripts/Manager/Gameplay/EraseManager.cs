@@ -45,6 +45,8 @@ public class EraseManager : MonoBehaviour
     public void ToggleEraseMode()
     {
         if (Time.timeScale == 0f) return;
+        if (BoosterTutorialManager.Instance != null &&
+            (BoosterTutorialManager.Instance.IsWaitingForBoosterRewardClaim || !BoosterTutorialManager.Instance.IsEraseUnlocked)) return;
         
         if(CurrencyManager.Instance.SpendEraseTool(1))
         {
@@ -70,8 +72,7 @@ public class EraseManager : MonoBehaviour
         if (BoosterTutorialManager.Instance != null)
             BoosterTutorialManager.Instance.NotifyEraseExecuted();
 
-        Vector3 spawnWorldPos = Camera.main.ScreenToWorldPoint(uiButtonRect.position);
-        spawnWorldPos.z = 0f;
+        Vector3 spawnWorldPos = GetEraserSpawnWorldPosition();
 
         GameObject eraserObj = Instantiate(eraserPrefab, spawnWorldPos, Quaternion.identity);
         targetSnake.BeginEraseVisual();
@@ -117,5 +118,49 @@ public class EraseManager : MonoBehaviour
             erasePanel.gameObject.SetActive(false);
             CameraController.IsGameplayBlocking = false;
         });
+    }
+
+    private Vector3 GetEraserSpawnWorldPosition()
+    {
+        Camera gameplayCamera = Camera.main;
+        if (gameplayCamera == null)
+            return Vector3.zero;
+
+        if (uiButtonRect == null)
+        {
+            Vector3 fallbackPosition = gameplayCamera.ScreenToWorldPoint(new Vector3(
+                Screen.width * 0.5f,
+                Screen.height * 0.5f,
+                GetCameraDistanceToWorldZ(gameplayCamera, 0f)));
+            fallbackPosition.z = 0f;
+            return fallbackPosition;
+        }
+
+        Canvas canvas = uiButtonRect.GetComponentInParent<Canvas>();
+        Camera uiCamera = null;
+        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            uiCamera = canvas.worldCamera != null ? canvas.worldCamera : gameplayCamera;
+
+        Vector3 buttonCenterWorld = uiButtonRect.TransformPoint(uiButtonRect.rect.center);
+        Vector2 buttonScreenPos = RectTransformUtility.WorldToScreenPoint(uiCamera, buttonCenterWorld);
+        Vector3 spawnWorldPos = gameplayCamera.ScreenToWorldPoint(new Vector3(
+            buttonScreenPos.x,
+            buttonScreenPos.y,
+            GetCameraDistanceToWorldZ(gameplayCamera, 0f)));
+
+        spawnWorldPos.z = 0f;
+        return spawnWorldPos;
+    }
+
+    private float GetCameraDistanceToWorldZ(Camera camera, float worldZ)
+    {
+        if (camera == null)
+            return 0f;
+
+        float forwardZ = camera.transform.forward.z;
+        if (Mathf.Abs(forwardZ) > 0.0001f)
+            return Mathf.Max(camera.nearClipPlane, (worldZ - camera.transform.position.z) / forwardZ);
+
+        return Mathf.Max(camera.nearClipPlane, Mathf.Abs(worldZ - camera.transform.position.z));
     }
 }

@@ -36,6 +36,9 @@ public class ThemeMessageSender : MonoBehaviour, IPointerClickHandler
     public void SendTheme(GameThemeMode targetTheme)
     {
         ThemeChangeMessage.Broadcast(targetTheme, saveSelection);
+
+        if (BoosterTutorialManager.Instance != null)
+            BoosterTutorialManager.Instance.NotifyThemeTriggered();
     }
 
     private GameThemeMode GetOppositeTheme()

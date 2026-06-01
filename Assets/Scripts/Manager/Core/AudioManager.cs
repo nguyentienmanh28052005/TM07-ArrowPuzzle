@@ -20,10 +20,14 @@ public class AudioManager : Singleton<AudioManager>
     
     private List<AudioSource> _audioSourcePool;
     private AudioClip _currentMusicClip;
+    private Coroutine _musicFadeRoutine;
 
     private float _musicVolume = 1f;
+    private float _musicVolumeScale = 1f;
     private float _sfxVolume = 1f;
     private bool _isSfxMuted = false;
+
+    private float EffectiveMusicVolume => Mathf.Clamp01(_musicVolume * _musicVolumeScale);
 
     public bool IsMusicMuted
     {
@@ -49,8 +53,8 @@ public class AudioManager : Singleton<AudioManager>
         get => _musicVolume;
         set
         {
-            _musicVolume = value;
-            _musicSource.volume = value;
+            _musicVolume = Mathf.Max(0f, value);
+            if (_musicSource != null) _musicSource.volume = EffectiveMusicVolume;
         }
     }
 
@@ -75,7 +79,7 @@ public class AudioManager : Singleton<AudioManager>
     // 2. Hàm Start giờ chỉ còn dùng để gán Volume
     private void Start()
     {
-        if (_musicSource != null) _musicSource.volume = MusicVolume;
+        if (_musicSource != null) _musicSource.volume = EffectiveMusicVolume;
     }
 
     private void InitializeAudioSourcePool()
@@ -99,9 +103,51 @@ public class AudioManager : Singleton<AudioManager>
         source.PlayOneShot(clip);
     }
    
-    public void PlayMusic(AudioClip clip, bool isLoop = true)
+    public void PlayMusic(AudioClip clip, bool isLoop = true, float volumeScale = 1f)
     {
-        StartCoroutine(FadeOutAndIn(_musicSource, clip, isLoop));
+        if (_musicSource == null || clip == null) return;
+
+        float targetVolumeScale = Mathf.Clamp01(volumeScale);
+        if (_currentMusicClip == clip && _musicSource.isPlaying)
+        {
+            _musicVolumeScale = targetVolumeScale;
+            if (_musicFadeRoutine == null) _musicSource.volume = EffectiveMusicVolume;
+            return;
+        }
+
+        if (_musicFadeRoutine != null) StopCoroutine(_musicFadeRoutine);
+        _currentMusicClip = clip;
+        _musicVolumeScale = targetVolumeScale;
+        _musicFadeRoutine = StartCoroutine(FadeOutAndIn(_musicSource, clip, isLoop));
+    }
+
+    public void SetCurrentMusicVolumeScale(float volumeScale)
+    {
+        _musicVolumeScale = Mathf.Clamp01(volumeScale);
+        if (_musicSource != null) _musicSource.volume = EffectiveMusicVolume;
+    }
+
+    public void StopMusic(bool fadeOut = true)
+    {
+        if (_musicSource == null) return;
+
+        if (_musicFadeRoutine != null)
+        {
+            StopCoroutine(_musicFadeRoutine);
+            _musicFadeRoutine = null;
+        }
+
+        if (fadeOut && _musicSource.isPlaying)
+        {
+            _musicFadeRoutine = StartCoroutine(FadeOutMusic(_musicSource));
+            return;
+        }
+
+        _musicSource.Stop();
+        _musicSource.clip = null;
+        _currentMusicClip = null;
+        _musicVolumeScale = 1f;
+        _musicSource.volume = EffectiveMusicVolume;
     }
 
     private AudioSource GetAvailableAudioSource()
@@ -151,11 +197,32 @@ public class AudioManager : Singleton<AudioManager>
         while (currentTime < 1f)
         {
             currentTime += Time.deltaTime;
-            audioSource.volume = Mathf.Lerp(0, MusicVolume, currentTime / 1f);
+            audioSource.volume = Mathf.Lerp(0, EffectiveMusicVolume, currentTime / 1f);
             yield return null;
         }
 
         _currentMusicClip = newClip;
+        _musicFadeRoutine = null;
+    }
+
+    private IEnumerator FadeOutMusic(AudioSource audioSource)
+    {
+        float currentTime = 0f;
+        float startVolume = audioSource.volume;
+
+        while (currentTime < 1f)
+        {
+            currentTime += Time.deltaTime;
+            audioSource.volume = Mathf.Lerp(startVolume, 0f, currentTime / 1f);
+            yield return null;
+        }
+
+        audioSource.Stop();
+        audioSource.clip = null;
+        _currentMusicClip = null;
+        _musicVolumeScale = 1f;
+        audioSource.volume = EffectiveMusicVolume;
+        _musicFadeRoutine = null;
     }
 
     public AudioClip GetCurrentMusicClip()

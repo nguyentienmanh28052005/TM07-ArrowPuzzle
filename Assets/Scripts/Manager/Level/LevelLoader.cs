@@ -32,6 +32,10 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     [Header("Transition Sync")]
     [SerializeField] private float snakeSpawnLeadBeforeTransitionRelease = 0.12f;
 
+    [Header("Portal Visual")]
+    [Tooltip("Optional material override for the temporary hole ripple effect spawned by GridPortalVisual.")]
+    [SerializeField] private Material holeEffectMaterialOverride;
+
     public bool editorMode = false;
 
     private List<SnakeBlock> _preloadedSnakes = new List<SnakeBlock>();
@@ -336,17 +340,32 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 if (portalPrefab != null)
                 {
                     GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), _obstaclesContainer.transform);
-                    if (inObj.GetComponent<GridPortalVisual>() == null) inObj.AddComponent<GridPortalVisual>();
-                    SpriteRenderer inSr = inObj.GetComponent<SpriteRenderer>();
-                    if (inSr != null) inSr.color = p.portalColor;
+                    ConfigurePortalVisual(inObj, p.portalColor);
 
                     GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), _obstaclesContainer.transform);
-                    if (outObj.GetComponent<GridPortalVisual>() == null) outObj.AddComponent<GridPortalVisual>();
-                    SpriteRenderer outSr = outObj.GetComponent<SpriteRenderer>();
-                    if (outSr != null) outSr.color = p.portalColor;
+                    ConfigurePortalVisual(outObj, p.portalColor);
                 }
             }
         }
+    }
+
+    private void ConfigurePortalVisual(GameObject portalObject, Color portalColor)
+    {
+        if (portalObject == null) return;
+
+        GridPortalVisual portalVisual = portalObject.GetComponent<GridPortalVisual>();
+        if (portalVisual == null)
+        {
+            portalVisual = portalObject.AddComponent<GridPortalVisual>();
+        }
+
+        if (holeEffectMaterialOverride != null)
+        {
+            portalVisual.SetHoleEffectMaterial(holeEffectMaterialOverride);
+        }
+
+        SpriteRenderer spriteRenderer = portalObject.GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null) spriteRenderer.color = portalColor;
     }
 
     private IEnumerator PreSpawnDotsCoroutine()

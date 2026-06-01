@@ -21,6 +21,7 @@ public class GridPortalVisual : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float enterRippleAlpha = 0.5f;
     [SerializeField] private float enterHoleScale = 0.84f;
     [SerializeField] private Color enterEffectColor = new Color(0.35f, 0.75f, 1f, 1f);
+    [Tooltip("Material used by the temporary ripple sprite when a snake enters/exits this hole. Leave empty to reuse the hole sprite material.")]
     [SerializeField] private Material holeEffectMaterial;
 
     [Header("Hole Exit Effect")]
@@ -136,6 +137,11 @@ public class GridPortalVisual : MonoBehaviour
         portalSequence.Join(transform.DOPunchScale(Vector3.one * Mathf.Max(0.01f, exitHolePunchScale), exitEffectDuration, 8, 0.8f));
 
         SpawnHoleSpriteRipple(exitRippleStartScale, exitRippleEndScale, exitEffectDuration, exitRippleAlpha, exitEffectColor, Ease.OutCubic);
+    }
+
+    public void SetHoleEffectMaterial(Material material)
+    {
+        holeEffectMaterial = material;
     }
 
     private void ResetVisualForInteraction()

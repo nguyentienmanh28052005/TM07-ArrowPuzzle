@@ -33,6 +33,8 @@ public class HintManager : MonoBehaviour
     public void TriggerHint()
     {
         if (_isHinting || Time.timeScale == 0f) return; 
+        if (BoosterTutorialManager.Instance != null &&
+            (BoosterTutorialManager.Instance.IsWaitingForBoosterRewardClaim || !BoosterTutorialManager.Instance.IsHintUnlocked)) return;
         
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
 

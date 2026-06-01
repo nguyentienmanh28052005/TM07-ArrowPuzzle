@@ -4,12 +4,20 @@ using UnityEngine;
 
 public class LevelController : MonoBehaviour, IScreenLifecycle
 {
+    [Header("Music")]
+    [SerializeField] private AudioClip gameplayMusic;
+    [SerializeField, Range(0f, 1f)] private float gameplayMusicVolume = 1f;
+    [SerializeField] private bool loopGameplayMusic = true;
+    [SerializeField] private bool fadeOutMusicOnEnd = true;
+
     [SerializeField] private int countArrowInGame;
     private bool _isLevelComplete;
 
     public void OnScreenShow()
     {
         _isLevelComplete = false;
+        PlayGameplayMusic();
+
         if (PlaytestSession.IsPlaytesting)
         {
             countArrowInGame = PlaytestSession.LevelData.snakes != null ? PlaytestSession.LevelData.snakes.Count : 0;
@@ -24,6 +32,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
 
     public void OnScreenHide()
     {
+        StopGameplayMusic(fadeOutMusicOnEnd);
         countArrowInGame = 0;
         _isLevelComplete = false;
     }
@@ -36,6 +45,8 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
         if (countArrowInGame <= 0)
         {
             _isLevelComplete = true;
+            StopGameplayMusic(fadeOutMusicOnEnd);
+
             if (TimeAttackManager.Instance != null)
             {
                 TimeAttackManager.Instance.StopTimer();
@@ -133,5 +144,18 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
         }
 
 
+    }
+
+    private void PlayGameplayMusic()
+    {
+        if (gameplayMusic == null || AudioManager.Instance == null) return;
+        AudioManager.Instance.PlayMusic(gameplayMusic, loopGameplayMusic, gameplayMusicVolume);
+    }
+
+    private void StopGameplayMusic(bool fadeOut)
+    {
+        if (AudioManager.Instance == null) return;
+        if (gameplayMusic != null && AudioManager.Instance.GetCurrentMusicClip() != gameplayMusic) return;
+        AudioManager.Instance.StopMusic(fadeOut);
     }
 }

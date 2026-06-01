@@ -50,6 +50,8 @@ public class DashManager : MonoBehaviour
     public void TriggerDash()
     {
         if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+        if (BoosterTutorialManager.Instance != null &&
+            (BoosterTutorialManager.Instance.IsWaitingForBoosterRewardClaim || !BoosterTutorialManager.Instance.IsDashUnlocked)) return;
 
         if (CurrencyManager.Instance.SpendDashTool(1))
         {

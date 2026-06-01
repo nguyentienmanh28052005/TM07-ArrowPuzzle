@@ -37,6 +37,11 @@ public class SpinManager : MonoBehaviour
     public GameObject explosionPrefab;
     public float explosionParticleLifetime = 1.5f;
 
+    [Header("Explosion Audio")]
+    public AudioClip finalExplosionSound;
+    [Range(0f, 1f)] public float finalExplosionSoundVolume = 0.35f;
+    public float finalExplosionSoundPitch = 1f;
+
     [Header("Explosion Camera Shake")]
     public bool shakeCameraOnExplosion = true;
     public float cameraShakeDuration = 0.28f;
@@ -46,6 +51,8 @@ public class SpinManager : MonoBehaviour
 
     [Header("Visual Effects")]
     public GameObject dashSparkPrefab;
+    [Tooltip("UI RectTransform of the Spin booster icon/button. Used as the visual launch origin.")]
+    public RectTransform spinButtonRect;
     public Transform sparkOrigin;
 
     [Header("Release Highlight")]
@@ -63,6 +70,9 @@ public class SpinManager : MonoBehaviour
 
     public void TriggerSpin()
     {
+        if (BoosterTutorialManager.Instance != null &&
+            (BoosterTutorialManager.Instance.IsWaitingForBoosterRewardClaim || !BoosterTutorialManager.Instance.IsSpinUnlocked)) return;
+
         bool shouldCompleteSpinTutorialOnPress = BoosterTutorialManager.Instance != null
             && BoosterTutorialManager.Instance.IsWaitingForSpinButtonPress;
 
@@ -119,7 +129,7 @@ public class SpinManager : MonoBehaviour
         if (SettingManager.Instance != null)
             SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.RigidImpact);
 
-        Vector3 startPos = sparkOrigin != null ? sparkOrigin.position : Vector3.zero;
+        Vector3 startPos = GetSparkStartPosition();
         GameObject spark = null;
         TrailRenderer[] sparkTrails = null;
 
@@ -259,6 +269,49 @@ public class SpinManager : MonoBehaviour
             && snake.LogicNodes.Count > 0;
     }
 
+    private Vector3 GetSparkStartPosition()
+    {
+        RectTransform originRect = spinButtonRect != null ? spinButtonRect : sparkOrigin as RectTransform;
+        if (originRect != null)
+            return GetRectTransformWorldPosition(originRect);
+
+        return sparkOrigin != null ? sparkOrigin.position : Vector3.zero;
+    }
+
+    private Vector3 GetRectTransformWorldPosition(RectTransform rectTransform)
+    {
+        Camera gameplayCamera = Camera.main;
+        if (gameplayCamera == null || rectTransform == null)
+            return Vector3.zero;
+
+        Canvas canvas = rectTransform.GetComponentInParent<Canvas>();
+        Camera uiCamera = null;
+        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            uiCamera = canvas.worldCamera != null ? canvas.worldCamera : gameplayCamera;
+
+        Vector3 rectCenterWorld = rectTransform.TransformPoint(rectTransform.rect.center);
+        Vector2 screenPosition = RectTransformUtility.WorldToScreenPoint(uiCamera, rectCenterWorld);
+        Vector3 worldPosition = gameplayCamera.ScreenToWorldPoint(new Vector3(
+            screenPosition.x,
+            screenPosition.y,
+            GetCameraDistanceToWorldZ(gameplayCamera, 0f)));
+
+        worldPosition.z = 0f;
+        return worldPosition;
+    }
+
+    private float GetCameraDistanceToWorldZ(Camera camera, float worldZ)
+    {
+        if (camera == null)
+            return 0f;
+
+        float forwardZ = camera.transform.forward.z;
+        if (Mathf.Abs(forwardZ) > 0.0001f)
+            return Mathf.Max(camera.nearClipPlane, (worldZ - camera.transform.position.z) / forwardZ);
+
+        return Mathf.Max(camera.nearClipPlane, Mathf.Abs(worldZ - camera.transform.position.z));
+    }
+
     private void StartSpinLoop(GameObject spark)
     {
         spark.transform.DORotate(new Vector3(0f, 0f, -360f), spinSpeed, RotateMode.FastBeyond360)
@@ -344,11 +397,19 @@ public class SpinManager : MonoBehaviour
     private IEnumerator ExplodeAndDestroy(GameObject spark)
     {
         spark.transform.DOKill();
+        PlayFinalExplosionSound();
         PlayExplosionCameraShake();
         HideSparkVisuals(spark);
         PlayExplosionParticles(spark.transform.position);
         Destroy(spark, 0.05f);
         yield break;
+    }
+
+    private void PlayFinalExplosionSound()
+    {
+        if (finalExplosionSound == null || AudioManager.Instance == null) return;
+
+        AudioManager.Instance.PlaySfx(finalExplosionSound, finalExplosionSoundVolume, finalExplosionSoundPitch);
     }
 
     private void HideSparkVisuals(GameObject spark)
