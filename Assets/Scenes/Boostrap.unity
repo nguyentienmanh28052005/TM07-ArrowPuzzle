@@ -130,6 +130,27 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2048208732951168355}
     m_Modifications:
+    - target: {fileID: 702529865378189663, guid: aa4d6511788cb0b4d82d51e0b718601b,
+        type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 319b17ad916c7624fac7e3e55c2d008f,
+        type: 3}
+    - target: {fileID: 702529865378189663, guid: aa4d6511788cb0b4d82d51e0b718601b,
+        type: 3}
+      propertyPath: m_Color.b
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 702529865378189663, guid: aa4d6511788cb0b4d82d51e0b718601b,
+        type: 3}
+      propertyPath: m_Color.g
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 702529865378189663, guid: aa4d6511788cb0b4d82d51e0b718601b,
+        type: 3}
+      propertyPath: m_Color.r
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4591721882421569971, guid: aa4d6511788cb0b4d82d51e0b718601b,
         type: 3}
       propertyPath: m_Pivot.x
@@ -240,6 +261,11 @@ PrefabInstance:
       propertyPath: m_Camera
       value: 
       objectReference: {fileID: 1475427486}
+    - target: {fileID: 5544299865250261418, guid: aa4d6511788cb0b4d82d51e0b718601b,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5961244090889037536, guid: aa4d6511788cb0b4d82d51e0b718601b,
         type: 3}
       propertyPath: m_AnchorMax.y
@@ -255,10 +281,15 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8300917384487570929, guid: aa4d6511788cb0b4d82d51e0b718601b,
+        type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -2276
+      objectReference: {fileID: 0}
     - target: {fileID: 8978913099745030510, guid: aa4d6511788cb0b4d82d51e0b718601b,
         type: 3}
       propertyPath: m_Alpha
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -490,6 +521,7 @@ MonoBehaviour:
   loadingText: {fileID: 0}
   baseLoadingText: Loading
   fadeDuration: 0
+  fastStartupToGameScene: 1
   currentSceneName: Bootstrap
   sceneLoadingHistory: []
 --- !u!1660057539 &9223372036854775807

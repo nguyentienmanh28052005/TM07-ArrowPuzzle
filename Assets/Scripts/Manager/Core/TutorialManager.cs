@@ -27,6 +27,12 @@ public enum TutorialHandMode
     Hold
 }
 
+public enum TutorialPositionSource
+{
+    ManualWorldPosition = 0,
+    FirstSnake = 1
+}
+
 [System.Serializable]
 public class TutorialStepConfig
 {
@@ -37,24 +43,26 @@ public class TutorialStepConfig
     public TutorialHandMode handMode = TutorialHandMode.Tap;
     
     [Header("Targeting / Position")]
-    public RectTransform target;
-    public bool useCustomAnchoredPos = false;
-    public Vector2 customAnchoredPos = Vector2.zero;
-    
-    [Header("Fallbacks")]
-    public bool fallbackToFirstSnake = false;
-    public Vector2 fallbackAnchoredPos = Vector2.zero;
+    public TutorialPositionSource positionSource = TutorialPositionSource.ManualWorldPosition;
+    public Vector2 customWorldPosition = Vector2.zero;
 }
 
 public class TutorialManager : Singleton<TutorialManager>
 {
     [Header("UI References")]
     public CanvasGroup tutorialCanvasGroup;
-    public RectTransform handPointer;
+    public Transform handPointer;
     public TextMeshProUGUI instructionText;
 
     [Header("Tutorial Timing")]
     [Min(0f)] public float delayBeforeShowingStep = 0f;
+
+    [Header("World Hand Animation")]
+    [SerializeField] private Vector3 tapPressOffset = new Vector3(0f, -0.2f, 0f);
+    [SerializeField] private Vector3 holdPressOffset = new Vector3(0f, -0.14f, 0f);
+    [SerializeField] private Vector3 holdDragOffset = new Vector3(0.75f, 0f, 0f);
+    [SerializeField, Min(0f)] private float handDisappearDuration = 0.25f;
+    [SerializeField, Min(0f)] private float handDisappearScaleMultiplier = 0.65f;
 
     [Header("Tutorial Steps List")]
     public List<TutorialStepConfig> tutorialSteps = new List<TutorialStepConfig>();
@@ -67,7 +75,10 @@ public class TutorialManager : Singleton<TutorialManager>
     private Coroutine _tutorialRoutine;
     private Sequence _handTapSequence;
     private Sequence _handHoldSequence;
+    private Sequence _handDisappearSequence;
     private DG.Tweening.Tween _overlayFadeTween;
+    private Vector3 _handBaseScale = Vector3.one;
+    private bool _hasHandBaseScale;
 
     private void OnEnable()
     {
@@ -243,6 +254,8 @@ public class TutorialManager : Singleton<TutorialManager>
                 return levelData.keycards != null && levelData.keycards.Count > 0;
             case TutorialTrigger.HasSnakes:
                 return levelData.snakes != null && levelData.snakes.Count > 0;
+            case TutorialTrigger.HasDeflectors:
+                return levelData.deflectors != null && levelData.deflectors.Count > 0;
             default:
                 return false;
         }
@@ -252,40 +265,48 @@ public class TutorialManager : Singleton<TutorialManager>
     {
         if (instructionText != null) instructionText.text = step.instruction;
 
-        if (step.useCustomAnchoredPos)
+        switch (step.positionSource)
         {
-            ShowOverlayForStep(step, step.customAnchoredPos);
-            return;
-        }
+            case TutorialPositionSource.FirstSnake:
+                if (TryGetWorldPosFromFirstSnake(out Vector3 worldPosFromSnake))
+                {
+                    ShowOverlayForStep(step, worldPosFromSnake);
+                    return;
+                }
+                ShowStepAtWorldPosition(step, step.customWorldPosition);
+                return;
 
-        if (TryGetHandAnchoredPosFromTargetRect(step.target, out Vector2 anchoredPosFromTarget))
-        {
-            ShowOverlayForStep(step, anchoredPosFromTarget);
-            return;
+            case TutorialPositionSource.ManualWorldPosition:
+            default:
+                ShowStepAtWorldPosition(step, step.customWorldPosition);
+                return;
         }
-
-        if (step.fallbackToFirstSnake && TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPosFromSnake))
-        {
-            ShowOverlayForStep(step, anchoredPosFromSnake);
-            return;
-        }
-
-        ShowOverlayForStep(step, step.fallbackAnchoredPos);
     }
 
-    private void ShowOverlayForStep(TutorialStepConfig step, Vector2 anchoredPos)
+    private void ShowStepAtWorldPosition(TutorialStepConfig step, Vector2 worldPosition)
+    {
+        ShowOverlayForStep(step, GetHandWorldPosition(worldPosition));
+    }
+
+    private Vector3 GetHandWorldPosition(Vector2 worldPosition)
+    {
+        float z = handPointer != null ? handPointer.position.z : 0f;
+        return new Vector3(worldPosition.x, worldPosition.y, z);
+    }
+
+    private void ShowOverlayForStep(TutorialStepConfig step, Vector3 worldPosition)
     {
         if (step.handMode == TutorialHandMode.Hold)
         {
-            ShowOverlayWithHandHold(anchoredPos);
+            ShowOverlayWithHandHold(worldPosition);
         }
         else
         {
-            ShowOverlayWithHandTap(anchoredPos);
+            ShowOverlayWithHandTap(worldPosition);
         }
     }
 
-    private void ShowOverlayWithHandTap(Vector2 anchoredPos)
+    private void ShowOverlayWithHandTap(Vector3 worldPosition)
     {
         if (tutorialCanvasGroup != null)
         {
@@ -300,15 +321,16 @@ public class TutorialManager : Singleton<TutorialManager>
 
         KillHandTweens();
         handPointer.gameObject.SetActive(true);
-        handPointer.anchoredPosition = anchoredPos;
-        handPointer.localScale = Vector3.one;
+        handPointer.position = worldPosition;
+        handPointer.localScale = GetHandBaseScale();
+        SetHandAlpha(1f);
 
-        Vector2 pressOffset = new Vector2(0f, -20f);
+        Vector3 pressedPosition = worldPosition + tapPressOffset;
         _handTapSequence = DOTween.Sequence();
         _handTapSequence.Append(handPointer.DOScale(0.88f, 0.12f).SetEase(Ease.OutQuad));
-        _handTapSequence.Join(handPointer.DOAnchorPos(anchoredPos + pressOffset, 0.12f).SetEase(Ease.OutQuad));
+        _handTapSequence.Join(handPointer.DOMove(pressedPosition, 0.12f).SetEase(Ease.OutQuad));
         _handTapSequence.Append(handPointer.DOScale(1f, 0.14f).SetEase(Ease.OutQuad));
-        _handTapSequence.Join(handPointer.DOAnchorPos(anchoredPos, 0.14f).SetEase(Ease.OutQuad));
+        _handTapSequence.Join(handPointer.DOMove(worldPosition, 0.14f).SetEase(Ease.OutQuad));
         _handTapSequence.AppendInterval(0.35f);
         _handTapSequence.SetLoops(-1, LoopType.Restart);
         _handTapSequence.SetUpdate(true);
@@ -316,7 +338,7 @@ public class TutorialManager : Singleton<TutorialManager>
         _handTapSequence.SetLink(handPointer.gameObject);
     }
 
-    private void ShowOverlayWithHandHold(Vector2 anchoredPos)
+    private void ShowOverlayWithHandHold(Vector3 worldPosition)
     {
         if (tutorialCanvasGroup != null)
         {
@@ -331,11 +353,9 @@ public class TutorialManager : Singleton<TutorialManager>
 
         KillHandTweens();
         handPointer.gameObject.SetActive(true);
-        handPointer.anchoredPosition = anchoredPos;
-        handPointer.localScale = Vector3.one;
-
-        Vector2 pressOffset = new Vector2(0f, -14f);
-        Vector2 dragOffset = new Vector2(75f, 0f);
+        handPointer.position = worldPosition;
+        handPointer.localScale = GetHandBaseScale();
+        SetHandAlpha(1f);
 
         float pressDuration = 0.18f;
         float holdDuration = 2f;
@@ -344,17 +364,17 @@ public class TutorialManager : Singleton<TutorialManager>
         float releaseDuration = 0.18f;
         float restDuration = 0.25f;
 
-        Vector2 pressedPos = anchoredPos + pressOffset;
-        Vector2 draggedPos = pressedPos + dragOffset;
+        Vector3 pressedPos = worldPosition + holdPressOffset;
+        Vector3 draggedPos = pressedPos + holdDragOffset;
 
         _handHoldSequence = DOTween.Sequence();
         _handHoldSequence.Append(handPointer.DOScale(0.88f, pressDuration).SetEase(Ease.OutQuad));
-        _handHoldSequence.Join(handPointer.DOAnchorPos(pressedPos, pressDuration).SetEase(Ease.OutQuad));
+        _handHoldSequence.Join(handPointer.DOMove(pressedPos, pressDuration).SetEase(Ease.OutQuad));
         _handHoldSequence.AppendInterval(holdDuration);
-        _handHoldSequence.Append(handPointer.DOAnchorPos(draggedPos, dragDuration).SetEase(Ease.InOutSine));
+        _handHoldSequence.Append(handPointer.DOMove(draggedPos, dragDuration).SetEase(Ease.InOutSine));
         _handHoldSequence.AppendInterval(holdAfterDragDuration);
         _handHoldSequence.Append(handPointer.DOScale(1f, releaseDuration).SetEase(Ease.OutQuad));
-        _handHoldSequence.Join(handPointer.DOAnchorPos(anchoredPos, releaseDuration).SetEase(Ease.OutQuad));
+        _handHoldSequence.Join(handPointer.DOMove(worldPosition, releaseDuration).SetEase(Ease.OutQuad));
         _handHoldSequence.AppendInterval(restDuration);
         _handHoldSequence.SetLoops(-1, LoopType.Restart);
         _handHoldSequence.SetUpdate(true);
@@ -362,54 +382,16 @@ public class TutorialManager : Singleton<TutorialManager>
         _handHoldSequence.SetLink(handPointer.gameObject);
     }
 
-    private bool TryGetHandAnchoredPosFromScreenPoint(Vector2 screenPos, out Vector2 anchoredPos)
+    private bool TryGetWorldPosFromFirstSnake(out Vector3 worldPos)
     {
-        anchoredPos = Vector2.zero;
-
-        RectTransform parentRect = handPointer != null ? handPointer.parent as RectTransform : null;
-        if (parentRect == null) return false;
-
-        Canvas canvas = tutorialCanvasGroup != null ? tutorialCanvasGroup.GetComponentInParent<Canvas>() : null;
-        Camera uiCamera = null;
-        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
-        {
-            uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
-        }
-
-        return RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPos, uiCamera, out anchoredPos);
-    }
-
-    private bool TryGetHandAnchoredPosFromTargetRect(RectTransform target, out Vector2 anchoredPos)
-    {
-        anchoredPos = Vector2.zero;
-        if (target == null) return false;
-
-        Canvas canvas = tutorialCanvasGroup != null ? tutorialCanvasGroup.GetComponentInParent<Canvas>() : null;
-        Camera uiCamera = null;
-        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
-        {
-            uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
-        }
-
-        Vector2 targetScreenPos = RectTransformUtility.WorldToScreenPoint(uiCamera, target.position);
-        return TryGetHandAnchoredPosFromScreenPoint(targetScreenPos, out anchoredPos);
-    }
-
-    private bool TryGetAnchoredPosFromFirstSnake(out Vector2 anchoredPos)
-    {
-        anchoredPos = Vector2.zero;
+        worldPos = Vector3.zero;
 
         SnakeBlock firstSnake = FindObjectOfType<SnakeBlock>();
-        CameraController camController = FindObjectOfType<CameraController>();
+        if (firstSnake == null) return false;
 
-        if (firstSnake == null || camController == null) return false;
-
-        Camera playCam = camController.GetComponent<Camera>();
-        if (playCam == null) playCam = Camera.main;
-        if (playCam == null) return false;
-
-        Vector2 screenPos = playCam.WorldToScreenPoint(firstSnake.transform.position);
-        return TryGetHandAnchoredPosFromScreenPoint(screenPos, out anchoredPos);
+        worldPos = firstSnake.transform.position;
+        if (handPointer != null) worldPos.z = handPointer.position.z;
+        return true;
     }
 
     public void CompleteTutorial()
@@ -421,16 +403,96 @@ public class TutorialManager : Singleton<TutorialManager>
         _pendingLevelData = null;
         _tutorialRoutine = null;
         CameraController.IsCameraInputBlocked = false;
-        KillOverlayTweens();
-        
-        if (tutorialCanvasGroup == null) return;
+        KillHandTweens();
+        KillOverlayFadeTween();
+        PlayHandDisappear();
 
-        tutorialCanvasGroup.DOFade(0f, 0.5f).OnComplete(() =>
+        if (tutorialCanvasGroup != null)
         {
-            tutorialCanvasGroup.blocksRaycasts = false;
-            if (handPointer != null) handPointer.gameObject.SetActive(false);
-            if (instructionText != null) instructionText.gameObject.SetActive(false);
-        });
+            tutorialCanvasGroup.DOKill();
+            _overlayFadeTween = tutorialCanvasGroup.DOFade(0f, 0.5f).OnComplete(() =>
+            {
+                tutorialCanvasGroup.blocksRaycasts = false;
+                if (instructionText != null) instructionText.gameObject.SetActive(false);
+            });
+        }
+        else if (instructionText != null)
+        {
+            instructionText.gameObject.SetActive(false);
+        }
+    }
+
+    private void PlayHandDisappear()
+    {
+        if (handPointer == null) return;
+
+        float duration = Mathf.Max(0f, handDisappearDuration);
+        if (duration <= 0f)
+        {
+            handPointer.gameObject.SetActive(false);
+            return;
+        }
+
+        handPointer.DOKill();
+        Vector3 baseScale = GetHandBaseScale();
+        _handDisappearSequence = DOTween.Sequence();
+        _handDisappearSequence.Join(handPointer.DOScale(baseScale * handDisappearScaleMultiplier, duration).SetEase(Ease.InBack));
+
+        SpriteRenderer[] spriteRenderers = handPointer.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < spriteRenderers.Length; i++)
+        {
+            if (spriteRenderers[i] == null) continue;
+            _handDisappearSequence.Join(spriteRenderers[i].DOFade(0f, duration).SetEase(Ease.InQuad));
+        }
+
+        Graphic[] graphics = handPointer.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            if (graphics[i] == null) continue;
+            _handDisappearSequence.Join(graphics[i].DOFade(0f, duration).SetEase(Ease.InQuad));
+        }
+
+        _handDisappearSequence
+            .SetUpdate(true)
+            .SetTarget(handPointer)
+            .SetLink(handPointer.gameObject)
+            .OnComplete(() => handPointer.gameObject.SetActive(false));
+    }
+
+    private void SetHandAlpha(float alpha)
+    {
+        if (handPointer == null) return;
+
+        SpriteRenderer[] spriteRenderers = handPointer.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < spriteRenderers.Length; i++)
+        {
+            if (spriteRenderers[i] == null) continue;
+            Color color = spriteRenderers[i].color;
+            color.a = alpha;
+            spriteRenderers[i].color = color;
+        }
+
+        Graphic[] graphics = handPointer.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            if (graphics[i] == null) continue;
+            Color color = graphics[i].color;
+            color.a = alpha;
+            graphics[i].color = color;
+        }
+    }
+
+    private Vector3 GetHandBaseScale()
+    {
+        if (handPointer == null) return Vector3.one;
+
+        if (!_hasHandBaseScale)
+        {
+            _handBaseScale = handPointer.localScale;
+            _hasHandBaseScale = true;
+        }
+
+        return _handBaseScale;
     }
 
     private void KillHandTweens()
@@ -447,6 +509,12 @@ public class TutorialManager : Singleton<TutorialManager>
         }
         _handHoldSequence = null;
 
+        if (_handDisappearSequence != null && _handDisappearSequence.IsActive())
+        {
+            _handDisappearSequence.Kill();
+        }
+        _handDisappearSequence = null;
+
         if (handPointer != null)
         {
             handPointer.DOKill();
@@ -456,7 +524,11 @@ public class TutorialManager : Singleton<TutorialManager>
     private void KillOverlayTweens()
     {
         KillHandTweens();
+        KillOverlayFadeTween();
+    }
 
+    private void KillOverlayFadeTween()
+    {
         if (_overlayFadeTween != null && _overlayFadeTween.IsActive())
         {
             _overlayFadeTween.Kill();

@@ -47,6 +47,13 @@ public class BoosterTutorialManager : MonoBehaviour
     [SerializeField, Min(0f)] private float delayAfterIntroFinished = 0.5f;
     [SerializeField, Min(0f)] private float delayBeforeShowingStep = 0.5f;
 
+    [Header("Instruction Text Effect")]
+    [SerializeField] private bool enableInstructionTextEffect = true;
+    [SerializeField, Min(0.01f)] private float instructionTextIntroDuration = 0.28f;
+    [SerializeField, Range(0.5f, 1f)] private float instructionTextStartScale = 0.86f;
+    [SerializeField, Range(1f, 1.2f)] private float instructionTextPulseScale = 1.04f;
+    [SerializeField, Min(0.1f)] private float instructionTextPulseHalfDuration = 0.55f;
+
     [Header("Triggers")]
     [SerializeField] private int hintTutorialLevelIndex = 2;
     [SerializeField] private int eraseTutorialLevelIndex = 3;
@@ -107,9 +114,12 @@ public class BoosterTutorialManager : MonoBehaviour
     private Tween _overlayFadeTween;
     private Tween _rewardClaimPanelTween;
     private Tween _rewardClaimContentTween;
+    private Sequence _instructionTextSequence;
     private Coroutine _introFinishedDelayRoutine;
     private Coroutine _showDelayRoutine;
     private Quaternion _handBaseRotation = Quaternion.identity;
+    private Vector3 _instructionTextBaseScale = Vector3.one;
+    private Color _instructionTextBaseColor = Color.white;
     private Vector3 _rewardClaimContentBaseScale = Vector3.one;
     private readonly HashSet<BoosterType> _sessionRewardGranted = new HashSet<BoosterType>();
     private int _currentLevelIndex = -1;
@@ -134,6 +144,12 @@ public class BoosterTutorialManager : MonoBehaviour
 
         if (handPointer != null)
             _handBaseRotation = handPointer.localRotation;
+
+        if (instructionText != null)
+        {
+            _instructionTextBaseScale = instructionText.rectTransform.localScale;
+            _instructionTextBaseColor = instructionText.color;
+        }
 
         if (rewardClaimContent == null && rewardClaimPanel != null)
             rewardClaimContent = rewardClaimPanel.transform;
@@ -809,11 +825,7 @@ public class BoosterTutorialManager : MonoBehaviour
 
     private void ShowStepOnTarget(RectTransform target, Vector2 fallbackAnchoredPos, string text, float handRotationZ, Vector2 pressOffset)
     {
-        if (instructionText != null)
-        {
-            instructionText.text = text;
-            instructionText.gameObject.SetActive(true);
-        }
+        ShowInstructionText(text);
 
         Vector2 anchoredPos;
         if (!TryGetHandAnchoredPosFromTargetRect(target, out anchoredPos))
@@ -827,11 +839,7 @@ public class BoosterTutorialManager : MonoBehaviour
     private void ShowStepOnFirstSnake(Vector2 fallbackAnchoredPos, string text)
     {
         //overlayPanel.gameObject.SetActive(false);
-        if (instructionText != null)
-        {
-            instructionText.text = text;
-            instructionText.gameObject.SetActive(true);
-        }
+        ShowInstructionText(text);
 
         Vector2 anchoredPos;
         if (!TryGetHandAnchoredPosFromTargetRect(eraseStep2Target, out anchoredPos) &&
@@ -841,6 +849,50 @@ public class BoosterTutorialManager : MonoBehaviour
         }
 
         ShowOverlayWithHandTap(anchoredPos);
+    }
+
+    private void ShowInstructionText(string text)
+    {
+        if (instructionText == null)
+        {
+            return;
+        }
+
+        KillInstructionTextTweens();
+
+        instructionText.text = text;
+        instructionText.gameObject.SetActive(true);
+
+        RectTransform rect = instructionText.rectTransform;
+        rect.localScale = _instructionTextBaseScale;
+        instructionText.color = _instructionTextBaseColor;
+
+        if (!enableInstructionTextEffect)
+        {
+            return;
+        }
+
+        rect.localScale = _instructionTextBaseScale * instructionTextStartScale;
+        Color hiddenColor = _instructionTextBaseColor;
+        hiddenColor.a = 0f;
+        instructionText.color = hiddenColor;
+
+        float introDuration = Mathf.Max(0.01f, instructionTextIntroDuration);
+        _instructionTextSequence = DOTween.Sequence()
+            .SetUpdate(true)
+            .SetLink(instructionText.gameObject);
+
+        _instructionTextSequence
+            .Append(instructionText.DOFade(_instructionTextBaseColor.a, introDuration).SetEase(Ease.OutQuad))
+            .Join(rect.DOScale(_instructionTextBaseScale, introDuration).SetEase(Ease.OutBack, 1.5f));
+
+        if (instructionTextPulseScale > 1f)
+        {
+            _instructionTextSequence.Append(
+                rect.DOScale(_instructionTextBaseScale * instructionTextPulseScale, instructionTextPulseHalfDuration)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo));
+        }
     }
 
     private void ShowOverlayWithHandTap(Vector2 anchoredPos)
@@ -965,6 +1017,25 @@ public class BoosterTutorialManager : MonoBehaviour
         _overlayFadeTween = null;
     }
 
+    private void KillInstructionTextTweens()
+    {
+        if (_instructionTextSequence != null && _instructionTextSequence.IsActive())
+        {
+            _instructionTextSequence.Kill();
+        }
+        _instructionTextSequence = null;
+
+        if (instructionText == null)
+        {
+            return;
+        }
+
+        instructionText.DOKill();
+        instructionText.rectTransform.DOKill();
+        instructionText.rectTransform.localScale = _instructionTextBaseScale;
+        instructionText.color = _instructionTextBaseColor;
+    }
+
     private void StopTutorialImmediate()
     {
         if (_introFinishedDelayRoutine != null)
@@ -990,6 +1061,7 @@ public class BoosterTutorialManager : MonoBehaviour
         CameraController.IsCameraInputBlocked = false;
         overlayPanel.gameObject.SetActive(false);
         KillOverlayTweens();
+        KillInstructionTextTweens();
         HideRewardClaimPanelImmediate();
 
         if (tutorialCanvasGroup != null)

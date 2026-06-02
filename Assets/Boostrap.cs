@@ -28,6 +28,7 @@ public class Boostrap : Singleton<Boostrap>
     [Header("Settings")]
     [SerializeField] private string baseLoadingText = "Đang vạch đường";
     [SerializeField] private float fadeDuration = 0.3f;
+    [SerializeField] private bool fastStartupToGameScene = true;
 
     public SceneInstance currentScene;
     public string currentSceneName = "Bootstrap";
@@ -125,6 +126,7 @@ public class Boostrap : Singleton<Boostrap>
     private IEnumerator LoadSceneProgress(string sceneName, bool currentIsAddressable = true, bool nextIsAddressable = true)
     {
         Scene sceneToUnload = SceneManager.GetActiveScene();
+        bool fastStartup = ShouldUseFastStartup(sceneName, currentIsAddressable, nextIsAddressable);
 
         // Transitions must not depend on gameplay time scale.
         Time.timeScale = 1f;
@@ -138,8 +140,14 @@ public class Boostrap : Singleton<Boostrap>
 
         yield return new WaitForSecondsRealtime(fadeDuration);
 
-        var loadLoadingSceneTask = Addressables.LoadSceneAsync("Buffer", LoadSceneMode.Additive);
-        yield return loadLoadingSceneTask;
+        AsyncOperationHandle<SceneInstance> loadLoadingSceneTask = default;
+        bool loadedBufferScene = !fastStartup;
+
+        if (loadedBufferScene)
+        {
+            loadLoadingSceneTask = Addressables.LoadSceneAsync("Buffer", LoadSceneMode.Additive);
+            yield return loadLoadingSceneTask;
+        }
 
         // Ensure we keep a stable reference to what we intend to unload.
         // Some projects accidentally change active scene during additive loads.
@@ -148,12 +156,12 @@ public class Boostrap : Singleton<Boostrap>
             sceneToUnload = SceneManager.GetActiveScene();
         }
 
-        if (currentIsAddressable)
+        if (loadedBufferScene && currentIsAddressable)
         {
             var unloadCurrentSceneTask = Addressables.UnloadSceneAsync(currentScene);
             yield return unloadCurrentSceneTask;
         }
-        else
+        else if (loadedBufferScene)
         {
             string unloadName = sceneToUnload.IsValid() ? sceneToUnload.name : SceneManager.GetActiveScene().name;
             // Never try to unload the buffer scene as the "current" scene.
@@ -163,7 +171,10 @@ public class Boostrap : Singleton<Boostrap>
             if (unloadCurrentSceneTask != null) yield return unloadCurrentSceneTask;
         }
 
-        yield return new WaitForSecondsRealtime(0.05f);
+        if (!fastStartup)
+        {
+            yield return new WaitForSecondsRealtime(0.05f);
+        }
 
         // ==========================================
         // BẢN VÁ: KHÓA TỐC ĐỘ PROGRESS BAR
@@ -176,13 +187,15 @@ public class Boostrap : Singleton<Boostrap>
             var asyncNextSceneTask = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
 
             // Thay đổi cốt lõi: Chờ Data tải xong (IsDone) VÀ thanh UI chạy đủ (value >= 0.99)
-            while (!asyncNextSceneTask.IsDone || progressBar.value < 0.99f)
+            while (!asyncNextSceneTask.IsDone || (!fastStartup && progressBar.value < 0.99f))
             {
                 // Nếu Data tải xong tức thì, ép mục tiêu về 1.0. Nếu chưa, lấy phần trăm thật.
                 float targetProgress = asyncNextSceneTask.IsDone ? 1f : asyncNextSceneTask.PercentComplete;
                 
                 // Dùng MoveTowards để thanh trượt đều đặn, không bị nhảy cóc hay đứng khựng
-                progressBar.value = Mathf.MoveTowards(progressBar.value, targetProgress, Time.unscaledDeltaTime * fillSpeed);
+                progressBar.value = fastStartup
+                    ? targetProgress
+                    : Mathf.MoveTowards(progressBar.value, targetProgress, Time.unscaledDeltaTime * fillSpeed);
                 yield return null;
             }
 
@@ -217,15 +230,20 @@ public class Boostrap : Singleton<Boostrap>
             asyncNextSceneTask.allowSceneActivation = false;
 
             // Tương tự với SceneManager thường (chỉ số progress dừng ở mức 0.9)
-            while (asyncNextSceneTask.progress < 0.9f || progressBar.value < 0.99f)
+            while (asyncNextSceneTask.progress < 0.9f || (!fastStartup && progressBar.value < 0.99f))
             {
                 float targetProgress = asyncNextSceneTask.progress / 0.9f; // Chuẩn hóa về 0 -> 1
-                progressBar.value = Mathf.MoveTowards(progressBar.value, targetProgress, Time.unscaledDeltaTime * fillSpeed);
+                progressBar.value = fastStartup
+                    ? targetProgress
+                    : Mathf.MoveTowards(progressBar.value, targetProgress, Time.unscaledDeltaTime * fillSpeed);
                 yield return null;
             }
 
             progressBar.value = 1f;
-            yield return new WaitForSecondsRealtime(0.1f);
+            if (!fastStartup)
+            {
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
 
             asyncNextSceneTask.allowSceneActivation = true;
             while (!asyncNextSceneTask.isDone) yield return null;
@@ -243,10 +261,19 @@ public class Boostrap : Singleton<Boostrap>
         }
         // ==========================================
 
-        var unloadBufferTask = Addressables.UnloadSceneAsync(loadLoadingSceneTask.Result);
-        if (unloadBufferTask.IsValid())
+        if (!loadedBufferScene && !currentIsAddressable && sceneToUnload.IsValid() && sceneToUnload.isLoaded)
         {
-            yield return unloadBufferTask;
+            var unloadCurrentSceneTask = SceneManager.UnloadSceneAsync(sceneToUnload);
+            if (unloadCurrentSceneTask != null) yield return unloadCurrentSceneTask;
+        }
+
+        if (loadedBufferScene && loadLoadingSceneTask.IsValid())
+        {
+            var unloadBufferTask = Addressables.UnloadSceneAsync(loadLoadingSceneTask.Result);
+            if (unloadBufferTask.IsValid())
+            {
+                yield return unloadBufferTask;
+            }
         }
 
         if (textAnimationCoroutine != null) StopCoroutine(textAnimationCoroutine);
@@ -256,6 +283,15 @@ public class Boostrap : Singleton<Boostrap>
             loadCanvasGroup.gameObject.SetActive(false);
             isLoading = false;
         });
+    }
+
+    private bool ShouldUseFastStartup(string sceneName, bool currentIsAddressable, bool nextIsAddressable)
+    {
+        return fastStartupToGameScene
+            && currentSceneName == "Bootstrap"
+            && sceneName == "GameScene"
+            && !currentIsAddressable
+            && !nextIsAddressable;
     }
     
     private IEnumerator AnimateLoadingText()
