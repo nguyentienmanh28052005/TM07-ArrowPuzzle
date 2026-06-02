@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class ArrowLevelGeneratorWindow : EditorWindow
 {
-    private const string DefaultOutputFolder = "Assets/ScriptableObjects/Levels";
+    private const string DefaultOutputFolder = "Assets/Resources/Levels/Generated";
 
     private int levelIndex = 1000;
     private GameMode gameMode = GameMode.Classic;

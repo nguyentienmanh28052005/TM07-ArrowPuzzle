@@ -88,6 +88,8 @@ public static class LevelGeneratorCore
         result.placementAreaCellCount = settings.width * settings.height;
 
         byte[] occupied = new byte[settings.width * settings.height];
+        bool[] horizontalLineLanes = new bool[settings.height];
+        bool[] verticalLineLanes = new bool[settings.width];
         int[] candidateCells = new int[settings.maxSnakeLength];
         System.Random random = new System.Random(settings.seed);
 
@@ -96,9 +98,9 @@ public static class LevelGeneratorCore
         {
             Candidate candidate;
             int[] selectedCells = candidateCells;
-            if (!TryFindRandomCandidate(settings, occupied, random, candidateCells, out candidate))
+            if (!TryFindRandomCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, out candidate))
             {
-                if (!TryFindAnyCandidate(settings, occupied, random, candidateCells, out candidate))
+                if (!TryFindAnyCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, out candidate))
                 {
                     failedAttempts++;
                     break;
@@ -107,6 +109,7 @@ public static class LevelGeneratorCore
 
             SnakeSaveData snake = BuildSnake(candidate, settings, random, selectedCells);
             MarkSnake(occupied, selectedCells, candidate.length);
+            MarkParallelLineLanes(settings, selectedCells, candidate.length, horizontalLineLanes, verticalLineLanes);
             result.snakes.Add(snake);
             result.placedArrowCount++;
             bool hasBentPath = HasBentPath(settings.width, selectedCells, candidate.length);
@@ -198,11 +201,12 @@ public static class LevelGeneratorCore
         for (int attempt = 0; attempt < settings.fillLayoutAttempts; attempt++)
         {
             int seed = settings.seed + attempt * 7919;
-            Result current = GenerateDfsFillResult(settings, seed);
-            if (bestResult == null || IsBetterFillResult(current, bestResult))
-            {
-                bestResult = current;
-            }
+            Settings attemptSettings = settings;
+            attemptSettings.seed = seed;
+
+            ConsiderFillResult(ref bestResult, GenerateDfsFillResult(attemptSettings, seed));
+            ConsiderFillResult(ref bestResult, GenerateMixedTemplateFillResult(attemptSettings, seed + 104729));
+            ConsiderFillResult(ref bestResult, GenerateSingleFillResult(attemptSettings, seed + 262147));
 
             if (bestResult.occupiedCellCount >= settings.width * settings.height)
             {
@@ -224,6 +228,19 @@ public static class LevelGeneratorCore
         return bestResult;
     }
 
+    private static void ConsiderFillResult(ref Result bestResult, Result current)
+    {
+        if (current == null)
+        {
+            return;
+        }
+
+        if (bestResult == null || IsBetterFillResult(current, bestResult))
+        {
+            bestResult = current;
+        }
+    }
+
     private static Result GenerateDfsFillResult(Settings settings, int seed)
     {
         Result result = new Result();
@@ -231,6 +248,8 @@ public static class LevelGeneratorCore
 
         int totalCells = settings.width * settings.height;
         bool[] occupied = new bool[totalCells];
+        bool[] horizontalLineLanes = new bool[settings.height];
+        bool[] verticalLineLanes = new bool[settings.width];
         List<int> zoneCells = new List<int>(totalCells);
         for (int i = 0; i < totalCells; i++)
         {
@@ -266,7 +285,7 @@ public static class LevelGeneratorCore
 
                     for (int attempt = 0; attempt < attempts; attempt++)
                     {
-                        List<int> path = TryCreateDfsSnakePath(settings, startCell, targetLength, occupied, random);
+                        List<int> path = TryCreateDfsSnakePath(settings, startCell, targetLength, occupied, horizontalLineLanes, verticalLineLanes, random);
                         if (path == null)
                         {
                             continue;
@@ -288,6 +307,7 @@ public static class LevelGeneratorCore
 
                     SnakeSaveData snake = BuildDfsSnake(settings, random, bestPath);
                     MarkDfsSnake(occupied, bestPath);
+                    MarkParallelLineLanes(settings, bestPath, horizontalLineLanes, verticalLineLanes);
                     AddGeneratedSnake(result, snake, IsBentDfsPath(settings.width, bestPath), IsBentDfsPath(settings.width, bestPath) ? ShapeKind.RandomBent : ShapeKind.Straight);
                     addedInPass = true;
                     break;
@@ -319,7 +339,7 @@ public static class LevelGeneratorCore
         return freeCells;
     }
 
-    private static List<int> TryCreateDfsSnakePath(Settings settings, int startCell, int targetLength, bool[] occupied, System.Random random)
+    private static List<int> TryCreateDfsSnakePath(Settings settings, int startCell, int targetLength, bool[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random)
     {
         if (!CanUseDfsCell(settings, occupied, null, startCell))
         {
@@ -335,7 +355,11 @@ public static class LevelGeneratorCore
         }
 
         path.Reverse();
-        return HasValidDfsSelfSpacing(settings, path) && HasValidDfsStraightRuns(settings, path) ? path : null;
+        return HasValidDfsSelfSpacing(settings, path)
+            && HasValidDfsStraightRuns(settings, path)
+            && HasValidParallelLineLaneParity(settings, path, horizontalLineLanes, verticalLineLanes)
+                ? path
+                : null;
     }
 
     private static bool DfsSnake(Settings settings, int currentCell, int targetLength, bool[] occupied, bool[] pathVisited, List<int> path, System.Random random)
@@ -568,6 +592,193 @@ public static class LevelGeneratorCore
         return true;
     }
 
+    private static bool HasValidParallelLineLaneParity(Settings settings, List<int> path, bool[] horizontalLineLanes, bool[] verticalLineLanes)
+    {
+        if (path == null || path.Count < 2)
+        {
+            return false;
+        }
+
+        bool[] localHorizontal = new bool[settings.height];
+        bool[] localVertical = new bool[settings.width];
+
+        int prevDx = GetDfsCellX(settings.width, path[1]) - GetDfsCellX(settings.width, path[0]);
+        int prevDy = GetDfsCellY(settings.width, path[1]) - GetDfsCellY(settings.width, path[0]);
+        int runStartCell = path[0];
+
+        for (int i = 2; i < path.Count; i++)
+        {
+            int dx = GetDfsCellX(settings.width, path[i]) - GetDfsCellX(settings.width, path[i - 1]);
+            int dy = GetDfsCellY(settings.width, path[i]) - GetDfsCellY(settings.width, path[i - 1]);
+            if (dx == prevDx && dy == prevDy)
+            {
+                continue;
+            }
+
+            if (!CanUseParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes, localHorizontal, localVertical))
+            {
+                return false;
+            }
+
+            MarkParallelLineLane(settings, runStartCell, prevDy == 0, localHorizontal, localVertical);
+            runStartCell = path[i - 1];
+            prevDx = dx;
+            prevDy = dy;
+        }
+
+        return CanUseParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes, localHorizontal, localVertical);
+    }
+
+    private static bool HasValidParallelLineLaneParity(Settings settings, int[] cells, int length, bool[] horizontalLineLanes, bool[] verticalLineLanes)
+    {
+        if (cells == null || length < 2)
+        {
+            return false;
+        }
+
+        bool[] localHorizontal = new bool[settings.height];
+        bool[] localVertical = new bool[settings.width];
+
+        int prevDx = GetDfsCellX(settings.width, cells[1]) - GetDfsCellX(settings.width, cells[0]);
+        int prevDy = GetDfsCellY(settings.width, cells[1]) - GetDfsCellY(settings.width, cells[0]);
+        int runStartCell = cells[0];
+
+        for (int i = 2; i < length; i++)
+        {
+            int dx = GetDfsCellX(settings.width, cells[i]) - GetDfsCellX(settings.width, cells[i - 1]);
+            int dy = GetDfsCellY(settings.width, cells[i]) - GetDfsCellY(settings.width, cells[i - 1]);
+            if (dx == prevDx && dy == prevDy)
+            {
+                continue;
+            }
+
+            if (!CanUseParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes, localHorizontal, localVertical))
+            {
+                return false;
+            }
+
+            MarkParallelLineLane(settings, runStartCell, prevDy == 0, localHorizontal, localVertical);
+            runStartCell = cells[i - 1];
+            prevDx = dx;
+            prevDy = dy;
+        }
+
+        return CanUseParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes, localHorizontal, localVertical);
+    }
+
+    private static bool CanUseParallelLineLane(Settings settings, int runStartCell, bool horizontal, bool[] horizontalLineLanes, bool[] verticalLineLanes, bool[] localHorizontal, bool[] localVertical)
+    {
+        int lane = horizontal
+            ? GetDfsCellY(settings.width, runStartCell)
+            : GetDfsCellX(settings.width, runStartCell);
+
+        bool[] globalLanes = horizontal ? horizontalLineLanes : verticalLineLanes;
+        bool[] localLanes = horizontal ? localHorizontal : localVertical;
+        return HasCompatibleParallelLineLane(globalLanes, lane)
+            && HasCompatibleParallelLineLane(localLanes, lane);
+    }
+
+    private static bool HasCompatibleParallelLineLane(bool[] lanes, int lane)
+    {
+        if (lanes == null)
+        {
+            return true;
+        }
+
+        for (int i = 0; i < lanes.Length; i++)
+        {
+            if (!lanes[i])
+            {
+                continue;
+            }
+
+            int laneDistance = Mathf.Abs(i - lane);
+            if ((laneDistance & 1) != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static void MarkParallelLineLanes(Settings settings, List<int> path, bool[] horizontalLineLanes, bool[] verticalLineLanes)
+    {
+        if (path == null || path.Count < 2)
+        {
+            return;
+        }
+
+        int prevDx = GetDfsCellX(settings.width, path[1]) - GetDfsCellX(settings.width, path[0]);
+        int prevDy = GetDfsCellY(settings.width, path[1]) - GetDfsCellY(settings.width, path[0]);
+        int runStartCell = path[0];
+
+        for (int i = 2; i < path.Count; i++)
+        {
+            int dx = GetDfsCellX(settings.width, path[i]) - GetDfsCellX(settings.width, path[i - 1]);
+            int dy = GetDfsCellY(settings.width, path[i]) - GetDfsCellY(settings.width, path[i - 1]);
+            if (dx == prevDx && dy == prevDy)
+            {
+                continue;
+            }
+
+            MarkParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes);
+            runStartCell = path[i - 1];
+            prevDx = dx;
+            prevDy = dy;
+        }
+
+        MarkParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes);
+    }
+
+    private static void MarkParallelLineLanes(Settings settings, int[] cells, int length, bool[] horizontalLineLanes, bool[] verticalLineLanes)
+    {
+        if (cells == null || length < 2)
+        {
+            return;
+        }
+
+        int prevDx = GetDfsCellX(settings.width, cells[1]) - GetDfsCellX(settings.width, cells[0]);
+        int prevDy = GetDfsCellY(settings.width, cells[1]) - GetDfsCellY(settings.width, cells[0]);
+        int runStartCell = cells[0];
+
+        for (int i = 2; i < length; i++)
+        {
+            int dx = GetDfsCellX(settings.width, cells[i]) - GetDfsCellX(settings.width, cells[i - 1]);
+            int dy = GetDfsCellY(settings.width, cells[i]) - GetDfsCellY(settings.width, cells[i - 1]);
+            if (dx == prevDx && dy == prevDy)
+            {
+                continue;
+            }
+
+            MarkParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes);
+            runStartCell = cells[i - 1];
+            prevDx = dx;
+            prevDy = dy;
+        }
+
+        MarkParallelLineLane(settings, runStartCell, prevDy == 0, horizontalLineLanes, verticalLineLanes);
+    }
+
+    private static void MarkParallelLineLane(Settings settings, int runStartCell, bool horizontal, bool[] horizontalLineLanes, bool[] verticalLineLanes)
+    {
+        int lane = horizontal
+            ? GetDfsCellY(settings.width, runStartCell)
+            : GetDfsCellX(settings.width, runStartCell);
+
+        if (horizontal)
+        {
+            if (horizontalLineLanes != null && lane >= 0 && lane < horizontalLineLanes.Length)
+            {
+                horizontalLineLanes[lane] = true;
+            }
+        }
+        else if (verticalLineLanes != null && lane >= 0 && lane < verticalLineLanes.Length)
+        {
+            verticalLineLanes[lane] = true;
+        }
+    }
+
     private static int GetDfsCellX(int width, int cell)
     {
         return cell % width;
@@ -775,6 +986,8 @@ public static class LevelGeneratorCore
         result.placementAreaCellCount = settings.width * settings.height;
 
         byte[] occupied = new byte[settings.width * settings.height];
+        bool[] horizontalLineLanes = new bool[settings.height];
+        bool[] verticalLineLanes = new bool[settings.width];
         int[] candidateCells = new int[settings.maxSnakeLength];
         int[] bestCells = new int[settings.maxSnakeLength];
         System.Random random = new System.Random(seed);
@@ -797,7 +1010,7 @@ public static class LevelGeneratorCore
 
                 int length;
                 ShapeKind actualShape;
-                if (!TryBuildTemplatePath(settings, occupied, random, shape, x, y, dir, candidateCells, out length, out actualShape))
+                if (!TryBuildTemplatePath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, shape, x, y, dir, candidateCells, out length, out actualShape))
                 {
                     continue;
                 }
@@ -821,10 +1034,11 @@ public static class LevelGeneratorCore
 
             SnakeSaveData snake = BuildSnake(bestDirection, settings, random, bestCells, bestLength);
             MarkSnake(occupied, bestCells, bestLength);
+            MarkParallelLineLanes(settings, bestCells, bestLength, horizontalLineLanes, verticalLineLanes);
             AddGeneratedSnake(result, snake, bestShape != ShapeKind.Straight, bestShape);
         }
 
-        FillRemainderWithBestCandidates(settings, occupied, random, candidateCells, bestCells, result);
+        FillRemainderWithBestCandidates(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCells, result);
         Reverse(result.snakes);
         return result;
     }
@@ -881,7 +1095,7 @@ public static class LevelGeneratorCore
         return score;
     }
 
-    private static bool TryBuildTemplatePath(Settings settings, byte[] occupied, System.Random random, ShapeKind requestedShape, int headX, int headY, ArrowDir dir, int[] candidateCells, out int length, out ShapeKind actualShape)
+    private static bool TryBuildTemplatePath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, ShapeKind requestedShape, int headX, int headY, ArrowDir dir, int[] candidateCells, out int length, out ShapeKind actualShape)
     {
         length = 0;
         actualShape = requestedShape;
@@ -916,7 +1130,7 @@ public static class LevelGeneratorCore
 
         if (requestedShape == ShapeKind.Straight)
         {
-            int runLength = GetRandomOddInRange(minRun, maxLength, random);
+            int runLength = GetWeightedOddInRange(minRun, maxLength, random);
             if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, runLength))
             {
                 return false;
@@ -929,9 +1143,9 @@ public static class LevelGeneratorCore
                 return false;
             }
 
-            int firstRun = GetRandomOddInRange(minRun, maxLength - minRun + 1, random);
+            int firstRun = GetWeightedOddInRange(minRun, maxLength - minRun + 1, random);
             int secondMax = maxLength - firstRun + 1;
-            int secondRun = GetRandomOddInRange(minRun, secondMax, random);
+            int secondRun = GetWeightedOddInRange(minRun, secondMax, random);
             int turnDir = random.Next(0, 2) == 0
                 ? GetLeftTurnDirectionIndex(bodyDx, bodyDy)
                 : GetRightTurnDirectionIndex(bodyDx, bodyDy);
@@ -957,11 +1171,11 @@ public static class LevelGeneratorCore
                 return false;
             }
 
-            int firstRun = GetRandomOddInRange(minRun, maxLength - (minRun * 2 - 2), random);
+            int firstRun = GetWeightedOddInRange(minRun, maxLength - (minRun * 2 - 2), random);
             int remainingAfterFirst = maxLength - firstRun + 1;
-            int secondRun = GetRandomOddInRange(minRun, remainingAfterFirst - minRun + 1, random);
+            int secondRun = GetWeightedOddInRange(minRun, remainingAfterFirst - minRun + 1, random);
             int thirdMax = maxLength - firstRun - secondRun + 2;
-            int thirdRun = GetRandomOddInRange(minRun, thirdMax, random);
+            int thirdRun = GetWeightedOddInRange(minRun, thirdMax, random);
 
             int turnDir = random.Next(0, 2) == 0
                 ? GetLeftTurnDirectionIndex(bodyDx, bodyDy)
@@ -990,6 +1204,11 @@ public static class LevelGeneratorCore
         }
 
         if (!HasValidStraightRuns(settings, candidateCells, used))
+        {
+            return false;
+        }
+
+        if (!HasValidParallelLineLaneParity(settings, candidateCells, used, horizontalLineLanes, verticalLineLanes))
         {
             return false;
         }
@@ -1032,19 +1251,20 @@ public static class LevelGeneratorCore
         return true;
     }
 
-    private static void FillRemainderWithBestCandidates(Settings settings, byte[] occupied, System.Random random, int[] candidateCells, int[] bestCells, Result result)
+    private static void FillRemainderWithBestCandidates(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, int[] bestCells, Result result)
     {
         int maxPlacements = settings.width * settings.height;
         for (int i = 0; i < maxPlacements; i++)
         {
             Candidate candidate;
-            if (!TryFindBestFillCandidate(settings, occupied, random, candidateCells, bestCells, out candidate))
+            if (!TryFindBestFillCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCells, out candidate))
             {
                 break;
             }
 
             SnakeSaveData snake = BuildSnake(candidate, settings, random, bestCells);
             MarkSnake(occupied, bestCells, candidate.length);
+            MarkParallelLineLanes(settings, bestCells, candidate.length, horizontalLineLanes, verticalLineLanes);
 
             bool hasBentPath = HasBentPath(settings.width, bestCells, candidate.length);
             AddGeneratedSnake(result, snake, hasBentPath, hasBentPath ? ShapeKind.RandomBent : ShapeKind.Straight);
@@ -1571,6 +1791,8 @@ public static class LevelGeneratorCore
         result.placementAreaCellCount = settings.width * settings.height;
 
         byte[] occupied = new byte[settings.width * settings.height];
+        bool[] horizontalLineLanes = new bool[settings.height];
+        bool[] verticalLineLanes = new bool[settings.width];
         int[] candidateCells = new int[settings.maxSnakeLength];
         int[] bestCandidateCells = new int[settings.maxSnakeLength];
         System.Random random = new System.Random(seed);
@@ -1579,13 +1801,14 @@ public static class LevelGeneratorCore
         for (int i = 0; i < maxPlacements; i++)
         {
             Candidate candidate;
-            if (!TryFindBestFillCandidate(settings, occupied, random, candidateCells, bestCandidateCells, out candidate))
+            if (!TryFindBestFillCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCandidateCells, out candidate))
             {
                 break;
             }
 
             SnakeSaveData snake = BuildSnake(candidate, settings, random, bestCandidateCells);
             MarkSnake(occupied, bestCandidateCells, candidate.length);
+            MarkParallelLineLanes(settings, bestCandidateCells, candidate.length, horizontalLineLanes, verticalLineLanes);
             result.snakes.Add(snake);
             result.placedArrowCount++;
             bool hasBentPath = HasBentPath(settings.width, bestCandidateCells, candidate.length);
@@ -1671,7 +1894,7 @@ public static class LevelGeneratorCore
             - dominantPenalty * 120;
     }
 
-    private static bool TryFindBestFillCandidate(Settings settings, byte[] occupied, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
+    private static bool TryFindBestFillCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
     {
         bool hasBest = false;
         int bestScore = int.MinValue;
@@ -1685,7 +1908,7 @@ public static class LevelGeneratorCore
             candidate.dir = (ArrowDir)random.Next(0, 4);
             candidate.length = GetRandomOddLength(settings, random);
 
-            if (!TryBuildPath(settings, occupied, random, candidate, candidateCells))
+            if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
             {
                 continue;
             }
@@ -1706,10 +1929,10 @@ public static class LevelGeneratorCore
             return true;
         }
 
-        return TryFindAnyBestFillCandidate(settings, occupied, random, candidateCells, bestCandidateCells, out bestCandidate);
+        return TryFindAnyBestFillCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCandidateCells, out bestCandidate);
     }
 
-    private static bool TryFindAnyBestFillCandidate(Settings settings, byte[] occupied, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
+    private static bool TryFindAnyBestFillCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
     {
         bool hasBest = false;
         int bestScore = int.MinValue;
@@ -1734,7 +1957,7 @@ public static class LevelGeneratorCore
                     candidate.length = length;
                     candidate.dir = (ArrowDir)((dirOffset + dirPass) & 3);
 
-                    if (!TryBuildPath(settings, occupied, random, candidate, candidateCells))
+                    if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
                     {
                         continue;
                     }
@@ -1851,7 +2074,7 @@ public static class LevelGeneratorCore
         }
     }
 
-    private static bool TryFindRandomCandidate(Settings settings, byte[] occupied, System.Random random, int[] candidateCells, out Candidate candidate)
+    private static bool TryFindRandomCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, out Candidate candidate)
     {
         for (int i = 0; i < settings.maxAttemptsPerArrow; i++)
         {
@@ -1860,7 +2083,7 @@ public static class LevelGeneratorCore
             candidate.dir = (ArrowDir)random.Next(0, 4);
             candidate.length = GetRandomOddLength(settings, random);
 
-            if (TryBuildPath(settings, occupied, random, candidate, candidateCells))
+            if (TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
             {
                 return true;
             }
@@ -1870,7 +2093,7 @@ public static class LevelGeneratorCore
         return false;
     }
 
-    private static bool TryFindAnyCandidate(Settings settings, byte[] occupied, System.Random random, int[] candidateCells, out Candidate candidate)
+    private static bool TryFindAnyCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, out Candidate candidate)
     {
         int dirOffset = random.Next(0, 4);
         int lengthRange = GetOddLengthCount(settings);
@@ -1894,7 +2117,7 @@ public static class LevelGeneratorCore
                     candidate.length = length;
                     candidate.dir = (ArrowDir)((dirOffset + dirPass) & 3);
 
-                    if (TryBuildPath(settings, occupied, random, candidate, candidateCells))
+                    if (TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
                     {
                         return true;
                     }
@@ -1907,6 +2130,11 @@ public static class LevelGeneratorCore
     }
 
     private static bool TryBuildPath(Settings settings, byte[] occupied, System.Random random, Candidate candidate, int[] candidateCells)
+    {
+        return TryBuildPath(settings, occupied, null, null, random, candidate, candidateCells);
+    }
+
+    private static bool TryBuildPath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, Candidate candidate, int[] candidateCells)
     {
         int exitDx;
         int exitDy;
@@ -1937,7 +2165,10 @@ public static class LevelGeneratorCore
         {
             if (TryBuildPathOnce(settings, occupied, random, candidate, exitDx, exitDy, candidateCells))
             {
-                return true;
+                if (HasValidParallelLineLaneParity(settings, candidateCells, candidate.length, horizontalLineLanes, verticalLineLanes))
+                {
+                    return true;
+                }
             }
         }
 
@@ -2322,8 +2553,7 @@ public static class LevelGeneratorCore
 
     private static int GetRandomOddLength(Settings settings, System.Random random)
     {
-        int oddLengthCount = GetOddLengthCount(settings);
-        return GetOddLengthByOffset(settings, random.Next(0, oddLengthCount));
+        return GetWeightedOddInRange(settings.minSnakeLength, settings.maxSnakeLength, random);
     }
 
     private static int GetRandomOddInRange(int minimum, int maximum, System.Random random)
@@ -2337,6 +2567,33 @@ public static class LevelGeneratorCore
 
         int count = ((last - first) / 2) + 1;
         return first + random.Next(0, count) * 2;
+    }
+
+    private static int GetWeightedOddInRange(int minimum, int maximum, System.Random random)
+    {
+        int first = GetFirstOddAtLeast(minimum);
+        int last = GetLastOddAtMost(maximum);
+        if (last < first)
+        {
+            return first;
+        }
+
+        int roll = random.Next(0, 100);
+        int cappedLast = last;
+        if (roll < 58)
+        {
+            cappedLast = Mathf.Min(last, GetLastOddAtMost(first + 12));
+        }
+        else if (roll < 86)
+        {
+            cappedLast = Mathf.Min(last, GetLastOddAtMost(first + 28));
+        }
+        else if (roll < 97)
+        {
+            cappedLast = Mathf.Min(last, GetLastOddAtMost(first + 56));
+        }
+
+        return GetRandomOddInRange(first, cappedLast, random);
     }
 
     private static int GetOddLengthCount(Settings settings)
