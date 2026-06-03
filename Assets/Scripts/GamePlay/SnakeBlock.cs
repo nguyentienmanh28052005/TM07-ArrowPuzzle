@@ -818,14 +818,13 @@ public class SnakeBlock : MonoBehaviour
         if (step == Vector2Int.zero) return float.MaxValue;
 
         _pathScanVisitedStates.Clear();
-        int scanLimit = Mathf.Max(50, maxPathScanCells, Mathf.CeilToInt(exitTravelDistance) + 5);
+        int scanLimit = Mathf.Max(50, maxPathScanCells, Mathf.CeilToInt(exitTravelDistance) + 5, 512);
         for (int d = 1; d <= scanLimit; d++)
         {
             Vector3Int scanState = new Vector3Int(currentPos.x, currentPos.y, GetStepKey(step));
             if (!_pathScanVisitedStates.Add(scanState)) return float.MaxValue;
 
             Vector2Int checkPos = currentPos + step;
-            if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100) return float.MaxValue;
 
             SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(checkPos);
             if (obstacle != null && obstacle != this)

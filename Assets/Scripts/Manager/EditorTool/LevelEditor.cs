@@ -50,6 +50,11 @@ public class LevelEditor : MonoBehaviour
     [Header("Validation Settings")]
     public int minDistanceBetweenSnakes = 2;
 
+    [Header("Camera Framing")]
+    [SerializeField] private bool frameLevelOnLoad = true;
+    [SerializeField] private float levelFramePadding = 2f;
+    [SerializeField] private float minimumEditorCameraSize = 8f;
+
     [Header("Metadata UI")]
     public TMP_InputField inputTimeLimit;
     public TMP_InputField inputRewardCoins;
@@ -1099,5 +1104,137 @@ public class LevelEditor : MonoBehaviour
             }
         }
         RefreshElectricWallVisuals();
+        FrameLevelInEditorCamera();
+    }
+
+    private void FrameLevelInEditorCamera()
+    {
+        if (!frameLevelOnLoad || currentData == null)
+        {
+            return;
+        }
+
+        Camera camera = GetCameraInMyScene();
+        if (camera == null)
+        {
+            return;
+        }
+
+        if (!TryGetCurrentLevelBounds(out Vector2 min, out Vector2 max))
+        {
+            return;
+        }
+
+        Vector2 center = (min + max) * 0.5f;
+        Vector3 cameraPosition = camera.transform.position;
+        camera.transform.position = new Vector3(center.x, center.y, cameraPosition.z);
+
+        if (camera.orthographic)
+        {
+            float paddedWidth = Mathf.Max(1f, max.x - min.x + 1f + levelFramePadding * 2f);
+            float paddedHeight = Mathf.Max(1f, max.y - min.y + 1f + levelFramePadding * 2f);
+            float aspect = Mathf.Max(0.1f, camera.aspect);
+            camera.orthographicSize = Mathf.Max(minimumEditorCameraSize, paddedHeight * 0.5f, paddedWidth * 0.5f / aspect);
+        }
+
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private bool TryGetCurrentLevelBounds(out Vector2 min, out Vector2 max)
+    {
+        min = Vector2.zero;
+        max = Vector2.zero;
+        bool hasPosition = false;
+
+        if (currentData.snakes != null)
+        {
+            for (int i = 0; i < currentData.snakes.Count; i++)
+            {
+                SnakeSaveData snake = currentData.snakes[i];
+                if (snake.segmentPositions == null)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < snake.segmentPositions.Count; j++)
+                {
+                    AddBoundsPoint(snake.segmentPositions[j], ref min, ref max, ref hasPosition);
+                }
+            }
+        }
+
+        if (currentData.keycards != null)
+        {
+            for (int i = 0; i < currentData.keycards.Count; i++)
+            {
+                AddBoundsPoint(currentData.keycards[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.gates != null)
+        {
+            for (int i = 0; i < currentData.gates.Count; i++)
+            {
+                AddBoundsPoint(currentData.gates[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.electricButtons != null)
+        {
+            for (int i = 0; i < currentData.electricButtons.Count; i++)
+            {
+                AddBoundsPoint(currentData.electricButtons[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.deflectors != null)
+        {
+            for (int i = 0; i < currentData.deflectors.Count; i++)
+            {
+                AddBoundsPoint(currentData.deflectors[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.countdownBlocks != null)
+        {
+            for (int i = 0; i < currentData.countdownBlocks.Count; i++)
+            {
+                AddBoundsPoint(currentData.countdownBlocks[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.portals != null)
+        {
+            for (int i = 0; i < currentData.portals.Count; i++)
+            {
+                AddBoundsPoint(currentData.portals[i].entrance, ref min, ref max, ref hasPosition);
+                AddBoundsPoint(currentData.portals[i].exit, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.electricWalls != null)
+        {
+            for (int i = 0; i < currentData.electricWalls.Count; i++)
+            {
+                AddBoundsPoint(currentData.electricWalls[i].start, ref min, ref max, ref hasPosition);
+                AddBoundsPoint(currentData.electricWalls[i].end, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        return hasPosition;
+    }
+
+    private static void AddBoundsPoint(Vector2Int point, ref Vector2 min, ref Vector2 max, ref bool hasPosition)
+    {
+        if (!hasPosition)
+        {
+            min = point;
+            max = point;
+            hasPosition = true;
+            return;
+        }
+
+        min = Vector2.Min(min, point);
+        max = Vector2.Max(max, point);
     }
 }

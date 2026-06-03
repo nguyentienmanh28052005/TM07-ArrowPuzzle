@@ -1,10 +1,16 @@
 using System.IO;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 public class ArrowLevelGeneratorWindow : EditorWindow
 {
     private const string DefaultOutputFolder = "Assets/Resources/Levels/Generated";
+    private const int MaxGridDimension = 300;
+    private static readonly Color32 PlacementMaskEnabledColor = new Color32(51, 217, 89, 255);
+    private static readonly Color32 PlacementMaskDisabledColor = new Color32(64, 64, 64, 255);
+    private static readonly Color PlacementMaskBackgroundColor = new Color(0.08f, 0.08f, 0.08f, 1f);
+    private static readonly Color PlacementMaskGridLineColor = new Color(0.08f, 0.08f, 0.08f, 0.85f);
 
     private int levelIndex = 1000;
     private GameMode gameMode = GameMode.Classic;
@@ -17,12 +23,35 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private int width = 9;
     private int height = 9;
     private bool centerGridOnOrigin = true;
+    private bool centerGeneratedBounds = true;
     private int originX = -4;
     private int originY = -4;
+    private bool usePaintedPlacementArea = false;
+    private bool[] placementMask;
+    private int placementMaskWidth;
+    private int placementMaskHeight;
+    private Vector2 windowScroll;
+    private Vector2 placementMaskScroll;
+    private float placementMaskZoom = 1f;
+    private int placementMaskViewportWidth = 760;
+    private int placementMaskViewportHeight = 720;
+    private Texture2D placementMaskTexture;
+    private Color32[] placementMaskTexturePixels;
+    private bool placementMaskTextureDirty = true;
+    private int cachedEnabledPlacementCells;
+    private bool placementEnabledCountDirty = true;
+    private int placementBrushSize = 1;
+    private bool useSquarePlacementBrush;
+    private int squarePlacementSide = 5;
+    private bool isPaintingPlacementMask;
+    private bool placementPaintValue;
+    private int lastPaintedPlacementIndex = -1;
+    private int lastPaintedPlacementX = -1;
+    private int lastPaintedPlacementY = -1;
 
     private int targetArrowCount = 24;
     private int minSnakeLength = 3;
-    private int maxSnakeLength = 5;
+    private int maxSnakeLength = 30;
     private int maxAttemptsPerArrow = 512;
     private int bodyAttemptsPerCandidate = 8;
     private int minDistanceBetweenSnakes = 2;
@@ -36,10 +65,20 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private int seed = 12345;
 
     private string outputFolder = DefaultOutputFolder;
-    private string filePrefix = "GeneratedLevel";
+    private string filePrefix = "A";
 
     private LevelGeneratorCore.Result lastResult;
     private string lastAssetPath;
+
+    private void OnEnable()
+    {
+        EnsurePlacementMaskSize();
+    }
+
+    private void OnDisable()
+    {
+        ReleasePlacementMaskTexture();
+    }
 
     [MenuItem("Tools/Arrow Escape/Procedural Level Generator")]
     public static void Open()
@@ -51,6 +90,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
 
     private void OnGUI()
     {
+        windowScroll = EditorGUILayout.BeginScrollView(windowScroll);
         DrawLevelDataSection();
         EditorGUILayout.Space(8f);
         DrawGridSection();
@@ -62,6 +102,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
         DrawActions();
         EditorGUILayout.Space(8f);
         DrawResult();
+        EditorGUILayout.EndScrollView();
     }
 
     private void DrawLevelDataSection()
@@ -79,8 +120,9 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private void DrawGridSection()
     {
         EditorGUILayout.LabelField("Grid", EditorStyles.boldLabel);
-        width = Mathf.Max(1, EditorGUILayout.IntField("Width", width));
-        height = Mathf.Max(1, EditorGUILayout.IntField("Height", height));
+        width = Mathf.Clamp(EditorGUILayout.IntField("Width", width), 1, MaxGridDimension);
+        height = Mathf.Clamp(EditorGUILayout.IntField("Height", height), 1, MaxGridDimension);
+        EnsurePlacementMaskSize();
         centerGridOnOrigin = EditorGUILayout.Toggle("Center Grid On Origin", centerGridOnOrigin);
 
         if (centerGridOnOrigin)
@@ -98,6 +140,319 @@ public class ArrowLevelGeneratorWindow : EditorWindow
             originX = EditorGUILayout.IntField("Origin X", originX);
             originY = EditorGUILayout.IntField("Origin Y", originY);
         }
+
+        centerGeneratedBounds = EditorGUILayout.Toggle("Center Generated Bounds", centerGeneratedBounds);
+        EditorGUILayout.Space(4f);
+        DrawPlacementMaskEditor();
+    }
+
+    private void DrawPlacementMaskEditor()
+    {
+        usePaintedPlacementArea = EditorGUILayout.Toggle("Use Painted Area", usePaintedPlacementArea);
+        if (!usePaintedPlacementArea)
+        {
+            EditorGUILayout.HelpBox("When disabled, the generator uses the full rectangle.", MessageType.None);
+            return;
+        }
+
+        int enabledCells = CountEnabledPlacementCells();
+        EditorGUILayout.LabelField("Painted Cells", enabledCells.ToString());
+        placementMaskZoom = EditorGUILayout.Slider("Paint Zoom", placementMaskZoom, 0.1f, 8f);
+        placementMaskViewportWidth = Mathf.Clamp(EditorGUILayout.IntField("Paint View Width", placementMaskViewportWidth), 160, 3000);
+        placementMaskViewportHeight = Mathf.Clamp(EditorGUILayout.IntField("Paint View Height", placementMaskViewportHeight), 160, 3000);
+        using (new EditorGUI.DisabledScope(useSquarePlacementBrush))
+        {
+            placementBrushSize = Mathf.Clamp(EditorGUILayout.IntField("Brush Size", placementBrushSize), 1, 9);
+        }
+
+        useSquarePlacementBrush = EditorGUILayout.Toggle("Square Brush", useSquarePlacementBrush);
+        using (new EditorGUI.DisabledScope(!useSquarePlacementBrush))
+        {
+            squarePlacementSide = Mathf.Clamp(EditorGUILayout.IntField("Square Side", squarePlacementSide), 1, Mathf.Max(width, height));
+        }
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("Fill All"))
+            {
+                SetAllPlacementCells(true);
+            }
+
+            if (GUILayout.Button("Clear"))
+            {
+                SetAllPlacementCells(false);
+            }
+
+            if (GUILayout.Button("Invert"))
+            {
+                InvertPlacementCells();
+            }
+        }
+
+        EditorGUILayout.HelpBox(useSquarePlacementBrush
+            ? "Click a start cell to paint/erase a square using Square Side. The clicked cell is the lower-left corner."
+            : "Click and drag to paint. Start on an enabled cell to erase, or a disabled cell to fill. Larger Brush Size paints thicker strokes.",
+            MessageType.None);
+
+        float cellSize = Mathf.Max(2f, Mathf.Round(22f * placementMaskZoom));
+        const float gridPadding = 4f;
+        float gridWidth = width * cellSize;
+        float gridHeight = height * cellSize;
+        Rect viewportRect = GUILayoutUtility.GetRect(
+            placementMaskViewportWidth,
+            placementMaskViewportHeight,
+            GUILayout.Width(placementMaskViewportWidth),
+            GUILayout.Height(placementMaskViewportHeight));
+        Rect contentRect = new Rect(0f, 0f, gridWidth + gridPadding * 2f, gridHeight + gridPadding * 2f);
+        Rect gridRect = new Rect(gridPadding, gridPadding, gridWidth, gridHeight);
+
+        placementMaskScroll = GUI.BeginScrollView(viewportRect, placementMaskScroll, contentRect);
+        EditorGUI.DrawRect(contentRect, PlacementMaskBackgroundColor);
+        DrawPlacementMaskTexture(gridRect, cellSize);
+        HandlePlacementMaskInput(gridRect, cellSize);
+        GUI.EndScrollView();
+
+        Event currentEvent = Event.current;
+        if (currentEvent.type == EventType.MouseUp || currentEvent.rawType == EventType.MouseUp)
+        {
+            isPaintingPlacementMask = false;
+            lastPaintedPlacementIndex = -1;
+            lastPaintedPlacementX = -1;
+            lastPaintedPlacementY = -1;
+        }
+    }
+
+    private void DrawPlacementMaskTexture(Rect gridRect, float cellSize)
+    {
+        EnsurePlacementMaskTexture();
+
+        if (placementMaskTexture != null)
+        {
+            GUI.DrawTexture(gridRect, placementMaskTexture, ScaleMode.StretchToFill, false);
+        }
+
+        if (cellSize >= 6f)
+        {
+            DrawPlacementMaskGridLines(gridRect, cellSize);
+        }
+    }
+
+    private void DrawPlacementMaskGridLines(Rect gridRect, float cellSize)
+    {
+        for (int x = 0; x <= width; x++)
+        {
+            float lineX = gridRect.x + x * cellSize;
+            EditorGUI.DrawRect(new Rect(lineX, gridRect.y, 1f, gridRect.height), PlacementMaskGridLineColor);
+        }
+
+        for (int y = 0; y <= height; y++)
+        {
+            float lineY = gridRect.y + y * cellSize;
+            EditorGUI.DrawRect(new Rect(gridRect.x, lineY, gridRect.width, 1f), PlacementMaskGridLineColor);
+        }
+    }
+
+    private void HandlePlacementMaskInput(Rect gridRect, float cellSize)
+    {
+        Event currentEvent = Event.current;
+        if (!TryGetPlacementMaskCellAtPosition(gridRect, cellSize, currentEvent.mousePosition, out int x, out int y))
+        {
+            return;
+        }
+
+        int index = y * width + x;
+        if (currentEvent.type == EventType.MouseDown && currentEvent.button == 0)
+        {
+            placementPaintValue = !placementMask[index];
+            if (useSquarePlacementBrush)
+            {
+                PaintPlacementSquare(x, y, placementPaintValue);
+                currentEvent.Use();
+                return;
+            }
+
+            isPaintingPlacementMask = true;
+            PaintPlacementMaskStroke(x, y);
+            currentEvent.Use();
+            return;
+        }
+
+        if (!useSquarePlacementBrush && isPaintingPlacementMask && currentEvent.type == EventType.MouseDrag)
+        {
+            PaintPlacementMaskStroke(x, y);
+            currentEvent.Use();
+        }
+    }
+
+    private bool TryGetPlacementMaskCellAtPosition(Rect gridRect, float cellSize, Vector2 mousePosition, out int x, out int y)
+    {
+        x = -1;
+        y = -1;
+        if (cellSize <= 0f || !gridRect.Contains(mousePosition))
+        {
+            return false;
+        }
+
+        int localX = Mathf.FloorToInt((mousePosition.x - gridRect.x) / cellSize);
+        int topRow = Mathf.FloorToInt((mousePosition.y - gridRect.y) / cellSize);
+        if (localX < 0 || localX >= width || topRow < 0 || topRow >= height)
+        {
+            return false;
+        }
+
+        x = localX;
+        y = height - 1 - topRow;
+        return true;
+    }
+
+    private void EnsurePlacementMaskTexture()
+    {
+        EnsurePlacementMaskSize();
+        int requiredSize = width * height;
+        bool textureMissing = placementMaskTexture == null
+            || placementMaskTexture.width != width
+            || placementMaskTexture.height != height;
+
+        if (textureMissing)
+        {
+            ReleasePlacementMaskTexture();
+            placementMaskTexture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            placementMaskTexturePixels = new Color32[requiredSize];
+            placementMaskTextureDirty = true;
+        }
+        else if (placementMaskTexturePixels == null || placementMaskTexturePixels.Length != requiredSize)
+        {
+            placementMaskTexturePixels = new Color32[requiredSize];
+            placementMaskTextureDirty = true;
+        }
+
+        if (!placementMaskTextureDirty)
+        {
+            return;
+        }
+
+        for (int i = 0; i < requiredSize; i++)
+        {
+            placementMaskTexturePixels[i] = placementMask[i]
+                ? PlacementMaskEnabledColor
+                : PlacementMaskDisabledColor;
+        }
+
+        placementMaskTexture.SetPixels32(placementMaskTexturePixels);
+        placementMaskTexture.Apply(false, false);
+        placementMaskTextureDirty = false;
+    }
+
+    private void ReleasePlacementMaskTexture()
+    {
+        if (placementMaskTexture != null)
+        {
+            DestroyImmediate(placementMaskTexture);
+            placementMaskTexture = null;
+        }
+
+        placementMaskTexturePixels = null;
+        placementMaskTextureDirty = true;
+    }
+
+    private void PaintPlacementMaskStroke(int x, int y)
+    {
+        if (lastPaintedPlacementX >= 0 && lastPaintedPlacementY >= 0)
+        {
+            PaintPlacementLine(lastPaintedPlacementX, lastPaintedPlacementY, x, y);
+        }
+        else
+        {
+            PaintPlacementBrush(x, y);
+        }
+
+        lastPaintedPlacementX = x;
+        lastPaintedPlacementY = y;
+    }
+
+    private void PaintPlacementLine(int fromX, int fromY, int toX, int toY)
+    {
+        int dx = Mathf.Abs(toX - fromX);
+        int dy = Mathf.Abs(toY - fromY);
+        int steps = Mathf.Max(dx, dy);
+        if (steps <= 0)
+        {
+            PaintPlacementBrush(toX, toY);
+            return;
+        }
+
+        for (int i = 0; i <= steps; i++)
+        {
+            float t = (float)i / steps;
+            int x = Mathf.RoundToInt(Mathf.Lerp(fromX, toX, t));
+            int y = Mathf.RoundToInt(Mathf.Lerp(fromY, toY, t));
+            PaintPlacementBrush(x, y);
+        }
+    }
+
+    private void PaintPlacementBrush(int centerX, int centerY)
+    {
+        int radius = Mathf.Max(0, placementBrushSize / 2);
+        for (int y = centerY - radius; y <= centerY + radius; y++)
+        {
+            for (int x = centerX - radius; x <= centerX + radius; x++)
+            {
+                PaintPlacementMaskCell(x, y);
+            }
+        }
+    }
+
+    private void PaintPlacementSquare(int startX, int startY, bool value)
+    {
+        for (int y = startY; y < startY + squarePlacementSide; y++)
+        {
+            for (int x = startX; x < startX + squarePlacementSide; x++)
+            {
+                PaintPlacementMaskCell(x, y, value);
+            }
+        }
+
+        Repaint();
+    }
+
+    private void PaintPlacementMaskCell(int x, int y)
+    {
+        PaintPlacementMaskCell(x, y, placementPaintValue);
+    }
+
+    private void PaintPlacementMaskCell(int x, int y, bool value)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+        {
+            return;
+        }
+
+        int index = y * width + x;
+        if (index == lastPaintedPlacementIndex)
+        {
+            return;
+        }
+
+        if (placementMask[index] == value)
+        {
+            lastPaintedPlacementIndex = index;
+            return;
+        }
+
+        placementMask[index] = value;
+        lastPaintedPlacementIndex = index;
+        if (!placementEnabledCountDirty)
+        {
+            cachedEnabledPlacementCells += value ? 1 : -1;
+        }
+
+        placementMaskTextureDirty = true;
+        Repaint();
     }
 
     private void DrawGenerationSection()
@@ -186,6 +541,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
             && targetArrowCount > 0
             && minSnakeLength > 0
             && maxSnakeLength >= minSnakeLength
+            && (!usePaintedPlacementArea || CountEnabledPlacementCells() > 0)
             && !string.IsNullOrWhiteSpace(outputFolder)
             && !string.IsNullOrWhiteSpace(filePrefix);
     }
@@ -212,11 +568,16 @@ public class ArrowLevelGeneratorWindow : EditorWindow
             turnChancePercent = turnChancePercent,
             seed = effectiveSeed,
             originX = originX,
-            originY = originY
+            originY = originY,
+            placementMask = usePaintedPlacementArea ? (bool[])placementMask.Clone() : null
         };
 
         lastResult = LevelGeneratorCore.Generate(settings);
         seed = effectiveSeed;
+        if (centerGeneratedBounds && lastResult != null)
+        {
+            CenterSnakesOnOrigin(lastResult.snakes);
+        }
 
         LevelDataSO level = CreateInstance<LevelDataSO>();
         level.levelIndex = levelIndex;
@@ -250,6 +611,170 @@ public class ArrowLevelGeneratorWindow : EditorWindow
         Selection.activeObject = level;
         EditorGUIUtility.PingObject(level);
         lastAssetPath = assetPath;
+    }
+
+    private static void CenterSnakesOnOrigin(List<SnakeSaveData> snakes)
+    {
+        if (snakes == null || snakes.Count == 0)
+        {
+            return;
+        }
+
+        bool hasPosition = false;
+        int minX = 0;
+        int maxX = 0;
+        int minY = 0;
+        int maxY = 0;
+
+        for (int i = 0; i < snakes.Count; i++)
+        {
+            List<Vector2Int> positions = snakes[i].segmentPositions;
+            if (positions == null)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < positions.Count; j++)
+            {
+                Vector2Int position = positions[j];
+                if (!hasPosition)
+                {
+                    minX = maxX = position.x;
+                    minY = maxY = position.y;
+                    hasPosition = true;
+                    continue;
+                }
+
+                minX = Mathf.Min(minX, position.x);
+                maxX = Mathf.Max(maxX, position.x);
+                minY = Mathf.Min(minY, position.y);
+                maxY = Mathf.Max(maxY, position.y);
+            }
+        }
+
+        if (!hasPosition)
+        {
+            return;
+        }
+
+        int centerX = Mathf.FloorToInt((minX + maxX) * 0.5f);
+        int centerY = Mathf.FloorToInt((minY + maxY) * 0.5f);
+        Vector2Int offset = new Vector2Int(-centerX, -centerY);
+        if (offset == Vector2Int.zero)
+        {
+            return;
+        }
+
+        for (int i = 0; i < snakes.Count; i++)
+        {
+            List<Vector2Int> positions = snakes[i].segmentPositions;
+            if (positions == null)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < positions.Count; j++)
+            {
+                positions[j] += offset;
+            }
+        }
+    }
+
+    private void EnsurePlacementMaskSize()
+    {
+        width = Mathf.Clamp(width, 1, MaxGridDimension);
+        height = Mathf.Clamp(height, 1, MaxGridDimension);
+
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        int requiredSize = width * height;
+        if (placementMask != null
+            && placementMask.Length == requiredSize
+            && placementMaskWidth == width
+            && placementMaskHeight == height)
+        {
+            return;
+        }
+
+        bool[] oldMask = placementMask;
+        int oldWidth = placementMaskWidth;
+        int oldHeight = placementMaskHeight;
+        placementMask = new bool[requiredSize];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                bool value = true;
+                if (oldMask != null && x < oldWidth && y < oldHeight)
+                {
+                    value = oldMask[y * oldWidth + x];
+                }
+
+                placementMask[y * width + x] = value;
+            }
+        }
+
+        placementMaskWidth = width;
+        placementMaskHeight = height;
+        placementMaskTextureDirty = true;
+        placementEnabledCountDirty = true;
+    }
+
+    private int CountEnabledPlacementCells()
+    {
+        EnsurePlacementMaskSize();
+        if (!placementEnabledCountDirty)
+        {
+            return cachedEnabledPlacementCells;
+        }
+
+        int count = 0;
+        for (int i = 0; i < placementMask.Length; i++)
+        {
+            if (placementMask[i])
+            {
+                count++;
+            }
+        }
+
+        cachedEnabledPlacementCells = count;
+        placementEnabledCountDirty = false;
+        return count;
+    }
+
+    private void SetAllPlacementCells(bool value)
+    {
+        EnsurePlacementMaskSize();
+        for (int i = 0; i < placementMask.Length; i++)
+        {
+            placementMask[i] = value;
+        }
+
+        cachedEnabledPlacementCells = value ? placementMask.Length : 0;
+        placementEnabledCountDirty = false;
+        placementMaskTextureDirty = true;
+    }
+
+    private void InvertPlacementCells()
+    {
+        EnsurePlacementMaskSize();
+        int enabledCount = 0;
+        for (int i = 0; i < placementMask.Length; i++)
+        {
+            placementMask[i] = !placementMask[i];
+            if (placementMask[i])
+            {
+                enabledCount++;
+            }
+        }
+
+        cachedEnabledPlacementCells = enabledCount;
+        placementEnabledCountDirty = false;
+        placementMaskTextureDirty = true;
     }
 
     private static string NormalizeAssetFolder(string folder)

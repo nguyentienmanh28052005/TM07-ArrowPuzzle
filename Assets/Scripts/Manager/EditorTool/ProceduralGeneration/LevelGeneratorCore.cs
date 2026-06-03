@@ -22,6 +22,7 @@ public static class LevelGeneratorCore
         public bool fillAvailableArea;
         public int originX;
         public int originY;
+        public bool[] placementMask;
         public Color[] colorPalette;
     }
 
@@ -62,6 +63,20 @@ public static class LevelGeneratorCore
         RandomBent
     }
 
+    private struct CellOffset
+    {
+        public int x;
+        public int y;
+
+        public CellOffset(int x, int y)
+        {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    private static readonly Dictionary<int, CellOffset[]> SpacingOffsetCache = new Dictionary<int, CellOffset[]>();
+
     private static readonly Color[] DefaultPalette =
     {
         new Color(1f, 0f, 0f, 1f),
@@ -78,6 +93,15 @@ public static class LevelGeneratorCore
     public static Result Generate(Settings settings)
     {
         NormalizeSettings(ref settings);
+        int placementAreaCellCount = GetPlacementAreaCellCount(settings);
+        if (placementAreaCellCount <= 0)
+        {
+            Result emptyResult = new Result();
+            emptyResult.placementAreaCellCount = 0;
+            emptyResult.success = false;
+            emptyResult.message = "No placement cells are enabled for the generator.";
+            return emptyResult;
+        }
 
         if (settings.fillAvailableArea)
         {
@@ -85,12 +109,14 @@ public static class LevelGeneratorCore
         }
 
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = placementAreaCellCount;
 
         byte[] occupied = new byte[settings.width * settings.height];
         bool[] horizontalLineLanes = new bool[settings.height];
         bool[] verticalLineLanes = new bool[settings.width];
         int[] candidateCells = new int[settings.maxSnakeLength];
+        int[] pathVisited = new int[settings.width * settings.height];
+        int pathVisitGeneration = 1;
         System.Random random = new System.Random(settings.seed);
 
         int failedAttempts = 0;
@@ -98,9 +124,9 @@ public static class LevelGeneratorCore
         {
             Candidate candidate;
             int[] selectedCells = candidateCells;
-            if (!TryFindRandomCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, out candidate))
+            if (!TryFindRandomCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidateCells, out candidate))
             {
-                if (!TryFindAnyCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, out candidate))
+                if (!TryFindAnyCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidateCells, out candidate))
                 {
                     failedAttempts++;
                     break;
@@ -149,8 +175,19 @@ public static class LevelGeneratorCore
         settings.minStraightCellsPerSegment = MakeOddAtLeast(settings.minStraightCellsPerSegment, 3);
         settings.fillSearchAttempts = Mathf.Max(settings.maxAttemptsPerArrow, settings.fillSearchAttempts);
         settings.fillLayoutAttempts = Mathf.Clamp(settings.fillLayoutAttempts, 1, 64);
+        if (settings.placementMask != null && settings.placementMask.Length != settings.width * settings.height)
+        {
+            settings.placementMask = null;
+        }
 
-        int maxCells = settings.width * settings.height;
+        if (settings.fillAvailableArea)
+        {
+            settings.fillSearchAttempts = Mathf.Clamp(settings.fillSearchAttempts, 64, 1024);
+            settings.fillLayoutAttempts = Mathf.Clamp(settings.fillLayoutAttempts, 1, 12);
+            settings.bodyAttemptsPerCandidate = Mathf.Clamp(settings.bodyAttemptsPerCandidate, 1, 8);
+        }
+
+        int maxCells = Mathf.Max(1, GetPlacementAreaCellCount(settings));
         settings.maxSnakeLength = Mathf.Min(settings.maxSnakeLength, maxCells);
         settings.minSnakeLength = Mathf.Min(settings.minSnakeLength, settings.maxSnakeLength);
 
@@ -197,6 +234,7 @@ public static class LevelGeneratorCore
     private static Result GenerateBestFillResult(Settings settings)
     {
         Result bestResult = null;
+        Result bestBentResult = null;
 
         for (int attempt = 0; attempt < settings.fillLayoutAttempts; attempt++)
         {
@@ -204,20 +242,53 @@ public static class LevelGeneratorCore
             Settings attemptSettings = settings;
             attemptSettings.seed = seed;
 
-            ConsiderFillResult(ref bestResult, GenerateDfsFillResult(attemptSettings, seed));
-            ConsiderFillResult(ref bestResult, GenerateMixedTemplateFillResult(attemptSettings, seed + 104729));
-            ConsiderFillResult(ref bestResult, GenerateSingleFillResult(attemptSettings, seed + 262147));
+            if (attempt == 0 && ShouldUseDfsFill(settings))
+            {
+                Result dfsResult = GenerateDfsFillResult(attemptSettings, seed);
+                ConsiderGeneratedFillResult(settings, ref bestResult, ref bestBentResult, dfsResult);
+            }
 
-            if (bestResult.occupiedCellCount >= settings.width * settings.height)
+            Result mixedResult = GenerateMixedTemplateFillResult(attemptSettings, seed + 104729);
+            ConsiderGeneratedFillResult(settings, ref bestResult, ref bestBentResult, mixedResult);
+
+            if (attempt < 2)
+            {
+                Result singleResult = GenerateSingleFillResult(attemptSettings, seed + 262147);
+                ConsiderGeneratedFillResult(settings, ref bestResult, ref bestBentResult, singleResult);
+            }
+
+            if (bestResult.occupiedCellCount >= GetPlacementAreaCellCount(settings) && bestResult.bentArrowCount > 0)
             {
                 break;
             }
         }
 
+        Result laneFillResult = GenerateBestStripedFillResult(settings);
+        ConsiderGeneratedFillResult(settings, ref bestResult, ref bestBentResult, laneFillResult);
+
+        if (bestResult != null
+            && bestResult.bentArrowCount <= 0
+            && bestBentResult != null
+            && IsBentFillAcceptable(bestBentResult, bestResult, settings))
+        {
+            bestResult = bestBentResult;
+        }
+        else if (bestResult != null
+            && bestBentResult != null
+            && bestBentResult != bestResult
+            && IsBentFillAcceptable(bestBentResult, bestResult, settings)
+            && GetShapeDiversityScore(bestBentResult) > GetShapeDiversityScore(bestResult))
+        {
+            bestResult = bestBentResult;
+        }
+
+        bestResult = FillSolvableRemainder(settings, bestResult);
+        bestResult = RepairSparseGaps(settings, bestResult);
+
         if (bestResult == null)
         {
             bestResult = new Result();
-            bestResult.placementAreaCellCount = settings.width * settings.height;
+            bestResult.placementAreaCellCount = GetPlacementAreaCellCount(settings);
         }
 
         bestResult.success = bestResult.placedArrowCount > 0;
@@ -226,6 +297,619 @@ public static class LevelGeneratorCore
             : "No valid candidate could be placed with the current fill settings.";
 
         return bestResult;
+    }
+
+    private static void ConsiderGeneratedFillResult(Settings settings, ref Result bestResult, ref Result bestBentResult, Result current)
+    {
+        current = EnsureSolvableResult(settings, current);
+        ConsiderFillResult(ref bestResult, current);
+        ConsiderBentFillResult(ref bestBentResult, current);
+    }
+
+    private static Result EnsureSolvableResult(Settings settings, Result result)
+    {
+        if (result == null || result.snakes.Count == 0)
+        {
+            return result;
+        }
+
+        return TryOrderSnakesForSolvability(settings, result.snakes) ? result : null;
+    }
+
+    private static bool TryOrderSnakesForSolvability(Settings settings, List<SnakeSaveData> snakes)
+    {
+        int snakeCount = snakes.Count;
+        int[] occupied = new int[settings.width * settings.height];
+
+        for (int i = 0; i < snakeCount; i++)
+        {
+            SnakeSaveData snake = snakes[i];
+            if (snake.segmentPositions == null || snake.segmentPositions.Count == 0)
+            {
+                return false;
+            }
+
+            for (int j = 0; j < snake.segmentPositions.Count; j++)
+            {
+                int index;
+                if (!TryGetLocalCellIndex(settings, snake.segmentPositions[j], out index))
+                {
+                    return false;
+                }
+
+                if (occupied[index] != 0)
+                {
+                    return false;
+                }
+
+                occupied[index] = 1;
+            }
+        }
+
+        bool[] remaining = new bool[snakeCount];
+        for (int i = 0; i < remaining.Length; i++)
+        {
+            remaining[i] = true;
+        }
+
+        List<SnakeSaveData> orderedSnakes = new List<SnakeSaveData>(snakeCount);
+        int remainingCount = snakeCount;
+        while (remainingCount > 0)
+        {
+            bool foundMovableSnake = false;
+
+            for (int i = 0; i < snakeCount; i++)
+            {
+                if (!remaining[i])
+                {
+                    continue;
+                }
+
+                SnakeSaveData snake = snakes[i];
+                RemoveSnakeCells(settings, occupied, snake);
+                if (IsSnakeExitRayClear(settings, occupied, snake))
+                {
+                    remaining[i] = false;
+                    orderedSnakes.Add(snake);
+                    remainingCount--;
+                    foundMovableSnake = true;
+                    break;
+                }
+
+                AddSnakeCells(settings, occupied, snake);
+            }
+
+            if (!foundMovableSnake)
+            {
+                return false;
+            }
+        }
+
+        snakes.Clear();
+        snakes.AddRange(orderedSnakes);
+        return true;
+    }
+
+    private static void RemoveSnakeCells(Settings settings, int[] occupied, SnakeSaveData snake)
+    {
+        for (int i = 0; i < snake.segmentPositions.Count; i++)
+        {
+            int index;
+            if (TryGetLocalCellIndex(settings, snake.segmentPositions[i], out index))
+            {
+                occupied[index]--;
+            }
+        }
+    }
+
+    private static void AddSnakeCells(Settings settings, int[] occupied, SnakeSaveData snake)
+    {
+        for (int i = 0; i < snake.segmentPositions.Count; i++)
+        {
+            int index;
+            if (TryGetLocalCellIndex(settings, snake.segmentPositions[i], out index))
+            {
+                occupied[index]++;
+            }
+        }
+    }
+
+    private static bool IsSnakeExitRayClear(Settings settings, int[] occupied, SnakeSaveData snake)
+    {
+        Vector2Int head = snake.segmentPositions[0];
+        int x = head.x - settings.originX;
+        int y = head.y - settings.originY;
+
+        int dx;
+        int dy;
+        GetStep(snake.direction, out dx, out dy);
+        x += dx;
+        y += dy;
+
+        while (IsInside(settings.width, settings.height, x, y))
+        {
+            if (occupied[ToIndex(settings.width, x, y)] > 0)
+            {
+                return false;
+            }
+
+            x += dx;
+            y += dy;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetLocalCellIndex(Settings settings, Vector2Int position, out int index)
+    {
+        int x = position.x - settings.originX;
+        int y = position.y - settings.originY;
+        if (!IsInside(settings.width, settings.height, x, y))
+        {
+            index = -1;
+            return false;
+        }
+
+        index = ToIndex(settings.width, x, y);
+        return true;
+    }
+
+    private static Result FillSolvableRemainder(Settings settings, Result result)
+    {
+        if (result == null || result.snakes.Count == 0)
+        {
+            return result;
+        }
+
+        int totalCells = settings.width * settings.height;
+        int placementArea = GetPlacementAreaCellCount(settings);
+        if (result.occupiedCellCount >= placementArea)
+        {
+            return result;
+        }
+
+        byte[] occupied = new byte[totalCells];
+        bool[] horizontalLineLanes = new bool[settings.height];
+        bool[] verticalLineLanes = new bool[settings.width];
+        int[] snakeCells = new int[totalCells];
+        if (!BuildFillStateFromResult(settings, result, occupied, horizontalLineLanes, verticalLineLanes, snakeCells))
+        {
+            return result;
+        }
+
+        int[] candidateCells = new int[settings.maxSnakeLength];
+        int[] bestCells = new int[settings.maxSnakeLength];
+        int[] pathVisited = new int[totalCells];
+        int pathVisitGeneration = 1;
+        int[] freeCellBuffer = new int[totalCells];
+        System.Random random = new System.Random(settings.seed + 730201 + result.occupiedCellCount * 31 + result.placedArrowCount * 131);
+
+        int maxAdditions = totalCells;
+        int failedSweeps = 0;
+        while (result.occupiedCellCount < placementArea && maxAdditions > 0 && failedSweeps < 4)
+        {
+            maxAdditions--;
+
+            Candidate candidate;
+            int insertionIndex;
+            if (!TryFindBestDeferredFillCandidate(settings, result, occupied, result.occupiedCellCount, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCells, out candidate, out insertionIndex))
+            {
+                failedSweeps++;
+                continue;
+            }
+
+            ApplyDeferredFillCandidate(settings, result, occupied, horizontalLineLanes, verticalLineLanes, random, bestCells, candidate, insertionIndex);
+            failedSweeps = 0;
+        }
+
+        int microSweeps = 0;
+        while (result.occupiedCellCount < placementArea && microSweeps < 4)
+        {
+            microSweeps++;
+
+            Candidate candidate;
+            int insertionIndex;
+            if (!TryFindSmallestDeferredFillCandidate(settings, result, occupied, result.occupiedCellCount, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCells, out candidate, out insertionIndex))
+            {
+                break;
+            }
+
+            ApplyDeferredFillCandidate(settings, result, occupied, horizontalLineLanes, verticalLineLanes, random, bestCells, candidate, insertionIndex);
+            microSweeps = 0;
+        }
+
+        return result;
+    }
+
+    private static Result RepairSparseGaps(Settings settings, Result result)
+    {
+        if (result == null || result.snakes.Count == 0)
+        {
+            return result;
+        }
+
+        int totalCells = settings.width * settings.height;
+        int placementArea = GetPlacementAreaCellCount(settings);
+        if (result.occupiedCellCount >= placementArea)
+        {
+            return result;
+        }
+
+        int[] emptyCells = new int[totalCells];
+        System.Random random = new System.Random(settings.seed + 99173 + result.occupiedCellCount * 17);
+        int repairAttempts = Mathf.Clamp(totalCells / 12, 4, 18);
+
+        for (int attempt = 0; attempt < repairAttempts && result.occupiedCellCount < placementArea; attempt++)
+        {
+            int emptyCount = CollectEmptyCells(settings, result, emptyCells);
+            if (emptyCount <= 0)
+            {
+                break;
+            }
+
+            int targetCell = emptyCells[random.Next(0, emptyCount)];
+            Result candidate = CloneResult(result);
+            int removeBudget = Mathf.Clamp(2 + attempt % 4, 2, 5);
+            int removedCount = RemoveSnakesNearCell(settings, candidate, targetCell, removeBudget);
+            if (removedCount <= 0)
+            {
+                continue;
+            }
+
+            RebuildResultStats(settings, candidate);
+            candidate = FillSolvableRemainder(settings, candidate);
+            candidate = EnsureSolvableResult(settings, candidate);
+            if (candidate != null && candidate.occupiedCellCount > result.occupiedCellCount)
+            {
+                result = candidate;
+            }
+        }
+
+        return result;
+    }
+
+    private static int CollectEmptyCells(Settings settings, Result result, int[] emptyCells)
+    {
+        bool[] occupied = new bool[settings.width * settings.height];
+        for (int i = 0; i < result.snakes.Count; i++)
+        {
+            SnakeSaveData snake = result.snakes[i];
+            if (snake.segmentPositions == null)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < snake.segmentPositions.Count; j++)
+            {
+                int index;
+                if (TryGetLocalCellIndex(settings, snake.segmentPositions[j], out index))
+                {
+                    occupied[index] = true;
+                }
+            }
+        }
+
+        int count = 0;
+        for (int i = 0; i < occupied.Length; i++)
+        {
+            if (!occupied[i] && IsPlacementCell(settings, i))
+            {
+                emptyCells[count] = i;
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static Result CloneResult(Result result)
+    {
+        Result clone = new Result();
+        clone.success = result.success;
+        clone.placedArrowCount = result.placedArrowCount;
+        clone.bentArrowCount = result.bentArrowCount;
+        clone.directionTypeCount = result.directionTypeCount;
+        clone.shapeTypeCount = result.shapeTypeCount;
+        clone.directionMask = result.directionMask;
+        clone.shapeMask = result.shapeMask;
+        clone.occupiedCellCount = result.occupiedCellCount;
+        clone.placementAreaCellCount = result.placementAreaCellCount;
+        clone.straightShapeCount = result.straightShapeCount;
+        clone.lShapeCount = result.lShapeCount;
+        clone.uShapeCount = result.uShapeCount;
+        clone.zigzagShapeCount = result.zigzagShapeCount;
+        clone.randomBentShapeCount = result.randomBentShapeCount;
+        clone.message = result.message;
+
+        for (int i = 0; i < result.snakes.Count; i++)
+        {
+            clone.snakes.Add(CloneSnake(result.snakes[i]));
+        }
+
+        return clone;
+    }
+
+    private static SnakeSaveData CloneSnake(SnakeSaveData snake)
+    {
+        SnakeSaveData clone = new SnakeSaveData();
+        clone.direction = snake.direction;
+        clone.arrowColor = snake.arrowColor;
+        clone.segmentPositions = snake.segmentPositions != null
+            ? new List<Vector2Int>(snake.segmentPositions)
+            : new List<Vector2Int>();
+        return clone;
+    }
+
+    private static int RemoveSnakesNearCell(Settings settings, Result result, int targetCell, int removeBudget)
+    {
+        int removedCount = 0;
+        for (int removePass = 0; removePass < removeBudget && result.snakes.Count > 0; removePass++)
+        {
+            int bestIndex = -1;
+            int bestDistance = int.MaxValue;
+            for (int i = 0; i < result.snakes.Count; i++)
+            {
+                int distance = GetSnakeMinDistanceToCell(settings, result.snakes[i], targetCell);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex < 0 || bestDistance > settings.maxSnakeLength + settings.minDistanceBetweenSnakes + removePass)
+            {
+                break;
+            }
+
+            result.snakes.RemoveAt(bestIndex);
+            removedCount++;
+        }
+
+        return removedCount;
+    }
+
+    private static int GetSnakeMinDistanceToCell(Settings settings, SnakeSaveData snake, int targetCell)
+    {
+        if (snake.segmentPositions == null || snake.segmentPositions.Count == 0)
+        {
+            return int.MaxValue;
+        }
+
+        int targetX = targetCell % settings.width;
+        int targetY = targetCell / settings.width;
+        int bestDistance = int.MaxValue;
+        for (int i = 0; i < snake.segmentPositions.Count; i++)
+        {
+            int cell;
+            if (!TryGetLocalCellIndex(settings, snake.segmentPositions[i], out cell))
+            {
+                continue;
+            }
+
+            int x = cell % settings.width;
+            int y = cell / settings.width;
+            int distance = Mathf.Abs(x - targetX) + Mathf.Abs(y - targetY);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+            }
+        }
+
+        return bestDistance;
+    }
+
+    private static void RebuildResultStats(Settings settings, Result result)
+    {
+        result.placedArrowCount = 0;
+        result.bentArrowCount = 0;
+        result.directionTypeCount = 0;
+        result.shapeTypeCount = 0;
+        result.directionMask = 0;
+        result.shapeMask = 0;
+        result.occupiedCellCount = 0;
+        result.straightShapeCount = 0;
+        result.lShapeCount = 0;
+        result.uShapeCount = 0;
+        result.zigzagShapeCount = 0;
+        result.randomBentShapeCount = 0;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
+
+        for (int i = 0; i < result.snakes.Count; i++)
+        {
+            SnakeSaveData snake = result.snakes[i];
+            if (snake.segmentPositions == null || snake.segmentPositions.Count == 0)
+            {
+                continue;
+            }
+
+            ShapeKind shape = ClassifySnakeShape(settings, snake);
+            bool isBent = shape != ShapeKind.Straight;
+            result.placedArrowCount++;
+            if (isBent)
+            {
+                result.bentArrowCount++;
+            }
+
+            UpdateResultDiversity(result, snake.direction, shape);
+            result.occupiedCellCount += snake.segmentPositions.Count;
+        }
+    }
+
+    private static ShapeKind ClassifySnakeShape(Settings settings, SnakeSaveData snake)
+    {
+        if (snake.segmentPositions == null || snake.segmentPositions.Count < 3)
+        {
+            return ShapeKind.Straight;
+        }
+
+        int prevDx;
+        int prevDy;
+        if (!TryGetSnakeStep(settings, snake, 0, 1, out prevDx, out prevDy))
+        {
+            return ShapeKind.Straight;
+        }
+
+        int turnCount = 0;
+        int firstDx = prevDx;
+        int firstDy = prevDy;
+        int lastDx = prevDx;
+        int lastDy = prevDy;
+
+        for (int i = 2; i < snake.segmentPositions.Count; i++)
+        {
+            int dx;
+            int dy;
+            if (!TryGetSnakeStep(settings, snake, i - 1, i, out dx, out dy))
+            {
+                continue;
+            }
+
+            if (dx != prevDx || dy != prevDy)
+            {
+                turnCount++;
+                lastDx = dx;
+                lastDy = dy;
+                prevDx = dx;
+                prevDy = dy;
+            }
+        }
+
+        if (turnCount <= 0)
+        {
+            return ShapeKind.Straight;
+        }
+
+        if (turnCount == 1)
+        {
+            return ShapeKind.L;
+        }
+
+        if (turnCount == 2)
+        {
+            return firstDx == -lastDx && firstDy == -lastDy
+                ? ShapeKind.U
+                : ShapeKind.Zigzag;
+        }
+
+        return ShapeKind.RandomBent;
+    }
+
+    private static bool TryGetSnakeStep(Settings settings, SnakeSaveData snake, int fromIndex, int toIndex, out int dx, out int dy)
+    {
+        dx = 0;
+        dy = 0;
+
+        int fromCell;
+        int toCell;
+        if (!TryGetLocalCellIndex(settings, snake.segmentPositions[fromIndex], out fromCell)
+            || !TryGetLocalCellIndex(settings, snake.segmentPositions[toIndex], out toCell))
+        {
+            return false;
+        }
+
+        dx = (toCell % settings.width) - (fromCell % settings.width);
+        dy = (toCell / settings.width) - (fromCell / settings.width);
+        return true;
+    }
+
+    private static void ApplyDeferredFillCandidate(Settings settings, Result result, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] cells, Candidate candidate, int insertionIndex)
+    {
+        SnakeSaveData snake = BuildSnake(candidate, settings, random, cells);
+        MarkSnake(occupied, cells, candidate.length);
+        MarkParallelLineLanes(settings, cells, candidate.length, horizontalLineLanes, verticalLineLanes);
+
+        bool hasBentPath = HasBentPath(settings.width, cells, candidate.length);
+        AddGeneratedSnakeAtSolveIndex(result, snake, hasBentPath, hasBentPath ? ShapeKind.RandomBent : ShapeKind.Straight, insertionIndex);
+    }
+
+    private static bool BuildFillStateFromResult(Settings settings, Result result, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] scratchCells)
+    {
+        for (int i = 0; i < result.snakes.Count; i++)
+        {
+            SnakeSaveData snake = result.snakes[i];
+            if (snake.segmentPositions == null || snake.segmentPositions.Count == 0 || snake.segmentPositions.Count > scratchCells.Length)
+            {
+                return false;
+            }
+
+            for (int j = 0; j < snake.segmentPositions.Count; j++)
+            {
+                int cell;
+                if (!TryGetLocalCellIndex(settings, snake.segmentPositions[j], out cell))
+                {
+                    return false;
+                }
+
+                if (occupied[cell] != 0)
+                {
+                    return false;
+                }
+
+                occupied[cell] = 1;
+                scratchCells[j] = cell;
+            }
+
+            MarkParallelLineLanes(settings, scratchCells, snake.segmentPositions.Count, horizontalLineLanes, verticalLineLanes);
+        }
+
+        return true;
+    }
+
+    private static void AddGeneratedSnakeAtSolveIndex(Result result, SnakeSaveData snake, bool isBent, ShapeKind shape, int insertionIndex)
+    {
+        int oldCount = result.snakes.Count;
+        AddGeneratedSnake(result, snake, isBent, shape);
+        if (result.snakes.Count <= oldCount)
+        {
+            return;
+        }
+
+        int lastIndex = result.snakes.Count - 1;
+        SnakeSaveData addedSnake = result.snakes[lastIndex];
+        result.snakes.RemoveAt(lastIndex);
+        result.snakes.Insert(Mathf.Clamp(insertionIndex, 0, result.snakes.Count), addedSnake);
+    }
+
+    private static void ConsiderBentFillResult(ref Result bestBentResult, Result current)
+    {
+        if (current == null || current.bentArrowCount <= 0)
+        {
+            return;
+        }
+
+        if (bestBentResult == null || IsBetterFillResult(current, bestBentResult))
+        {
+            bestBentResult = current;
+        }
+    }
+
+    private static bool IsBentFillAcceptable(Result bentResult, Result bestResult, Settings settings)
+    {
+        if (bentResult == null || bentResult.bentArrowCount <= 0)
+        {
+            return false;
+        }
+
+        if (bestResult == null)
+        {
+            return true;
+        }
+
+        int acceptableLoss = GetBentFillSlack(settings);
+        return bentResult.occupiedCellCount + acceptableLoss >= bestResult.occupiedCellCount;
+    }
+
+    private static int GetBentFillSlack(Settings settings)
+    {
+        int area = GetPlacementAreaCellCount(settings);
+        return Mathf.Max(settings.minSnakeLength, area / 40);
+    }
+
+    private static bool ShouldUseDfsFill(Settings settings)
+    {
+        int area = GetPlacementAreaCellCount(settings);
+        return area <= 180 && settings.maxSnakeLength <= 31;
     }
 
     private static void ConsiderFillResult(ref Result bestResult, Result current)
@@ -244,17 +928,16 @@ public static class LevelGeneratorCore
     private static Result GenerateDfsFillResult(Settings settings, int seed)
     {
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
 
         int totalCells = settings.width * settings.height;
         bool[] occupied = new bool[totalCells];
         bool[] horizontalLineLanes = new bool[settings.height];
         bool[] verticalLineLanes = new bool[settings.width];
-        List<int> zoneCells = new List<int>(totalCells);
-        for (int i = 0; i < totalCells; i++)
-        {
-            zoneCells.Add(i);
-        }
+        int[] freeCells = new int[totalCells];
+        int[] dfsPath = new int[settings.maxSnakeLength];
+        int[] pathVisited = new int[totalCells];
+        int pathVisitGeneration = 1;
 
         System.Random random = new System.Random(seed);
         bool addedInPass = true;
@@ -265,50 +948,50 @@ public static class LevelGeneratorCore
             addedInPass = false;
             passGuard++;
 
-            List<int> freeCells = GetFreeCells(zoneCells, occupied);
-            if (freeCells.Count < settings.minSnakeLength)
+            int freeCount = FillFreeCells(settings, occupied, freeCells);
+            if (freeCount < settings.minSnakeLength)
             {
                 break;
             }
 
-            ShuffleList(freeCells, random);
+            ShuffleArrayPrefix(freeCells, freeCount, random);
 
-            for (int i = 0; i < freeCells.Count; i++)
+            for (int i = 0; i < freeCount; i++)
             {
                 int startCell = freeCells[i];
-                int longestLength = GetLastOddAtMost(Mathf.Min(settings.maxSnakeLength, freeCells.Count));
+                int longestLength = GetLastOddAtMost(Mathf.Min(settings.maxSnakeLength, freeCount));
 
                 for (int targetLength = longestLength; targetLength >= settings.minSnakeLength; targetLength -= 2)
                 {
-                    List<int> bestPath = null;
+                    bool hasBestPath = false;
                     int attempts = Mathf.Max(1, settings.bodyAttemptsPerCandidate);
 
                     for (int attempt = 0; attempt < attempts; attempt++)
                     {
-                        List<int> path = TryCreateDfsSnakePath(settings, startCell, targetLength, occupied, horizontalLineLanes, verticalLineLanes, random);
-                        if (path == null)
+                        if (!TryCreateDfsSnakePath(settings, startCell, targetLength, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, dfsPath, random))
                         {
                             continue;
                         }
 
-                        if (IsDfsExitBlocked(settings, path, occupied))
+                        if (IsDfsExitBlocked(settings, dfsPath, targetLength, occupied))
                         {
                             continue;
                         }
 
-                        bestPath = path;
+                        hasBestPath = true;
                         break;
                     }
 
-                    if (bestPath == null)
+                    if (!hasBestPath)
                     {
                         continue;
                     }
 
-                    SnakeSaveData snake = BuildDfsSnake(settings, random, bestPath);
-                    MarkDfsSnake(occupied, bestPath);
-                    MarkParallelLineLanes(settings, bestPath, horizontalLineLanes, verticalLineLanes);
-                    AddGeneratedSnake(result, snake, IsBentDfsPath(settings.width, bestPath), IsBentDfsPath(settings.width, bestPath) ? ShapeKind.RandomBent : ShapeKind.Straight);
+                    SnakeSaveData snake = BuildDfsSnake(settings, random, dfsPath, targetLength);
+                    MarkDfsSnake(occupied, dfsPath, targetLength);
+                    MarkParallelLineLanes(settings, dfsPath, targetLength, horizontalLineLanes, verticalLineLanes);
+                    bool isBentPath = HasBentPath(settings.width, dfsPath, targetLength);
+                    AddGeneratedSnake(result, snake, isBentPath, isBentPath ? ShapeKind.RandomBent : ShapeKind.Straight);
                     addedInPass = true;
                     break;
                 }
@@ -324,98 +1007,108 @@ public static class LevelGeneratorCore
         return result;
     }
 
-    private static List<int> GetFreeCells(List<int> zoneCells, bool[] occupied)
+    private static int FillFreeCells(Settings settings, bool[] occupied, int[] freeCells)
     {
-        List<int> freeCells = new List<int>();
-        for (int i = 0; i < zoneCells.Count; i++)
+        int count = 0;
+        for (int i = 0; i < occupied.Length; i++)
         {
-            int cell = zoneCells[i];
-            if (!occupied[cell])
+            if (!occupied[i] && IsPlacementCell(settings, i))
             {
-                freeCells.Add(cell);
+                freeCells[count] = i;
+                count++;
             }
         }
 
-        return freeCells;
+        return count;
     }
 
-    private static List<int> TryCreateDfsSnakePath(Settings settings, int startCell, int targetLength, bool[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random)
+    private static int FillFreeCells(Settings settings, byte[] occupied, int[] freeCells)
     {
-        if (!CanUseDfsCell(settings, occupied, null, startCell))
+        int count = 0;
+        for (int i = 0; i < occupied.Length; i++)
         {
-            return null;
+            if (occupied[i] == 0 && IsPlacementCell(settings, i))
+            {
+                freeCells[count] = i;
+                count++;
+            }
         }
 
-        List<int> path = new List<int>(targetLength);
-        bool[] pathVisited = new bool[settings.width * settings.height];
-
-        if (!DfsSnake(settings, startCell, targetLength, occupied, pathVisited, path, random))
-        {
-            return null;
-        }
-
-        path.Reverse();
-        return HasValidDfsSelfSpacing(settings, path)
-            && HasValidDfsStraightRuns(settings, path)
-            && HasValidParallelLineLaneParity(settings, path, horizontalLineLanes, verticalLineLanes)
-                ? path
-                : null;
+        return count;
     }
 
-    private static bool DfsSnake(Settings settings, int currentCell, int targetLength, bool[] occupied, bool[] pathVisited, List<int> path, System.Random random)
+    private static bool TryCreateDfsSnakePath(Settings settings, int startCell, int targetLength, bool[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] path, System.Random random)
     {
-        path.Add(currentCell);
-        pathVisited[currentCell] = true;
+        if (!CanUseDfsCell(settings, occupied, path, 0, startCell))
+        {
+            return false;
+        }
 
-        if (path.Count == targetLength)
+        int generation = NextVisitGeneration(pathVisited, ref pathVisitGeneration);
+
+        if (!DfsSnake(settings, startCell, targetLength, occupied, pathVisited, generation, path, 0, random))
+        {
+            return false;
+        }
+
+        ReverseRange(path, targetLength);
+        return HasValidStraightRuns(settings, path, targetLength)
+            && HasValidParallelLineLaneParity(settings, path, targetLength, horizontalLineLanes, verticalLineLanes);
+    }
+
+    private static bool DfsSnake(Settings settings, int currentCell, int targetLength, bool[] occupied, int[] pathVisited, int generation, int[] path, int pathLength, System.Random random)
+    {
+        path[pathLength] = currentCell;
+        pathVisited[currentCell] = generation;
+        int nextPathLength = pathLength + 1;
+
+        if (nextPathLength == targetLength)
         {
             return true;
         }
 
-        int[] directionOrder = { 0, 1, 2, 3 };
-        Shuffle(directionOrder, random);
-
         int currentX = currentCell % settings.width;
         int currentY = currentCell / settings.width;
+        int directionOffset = random.Next(0, 4);
+        int directionStep = random.Next(0, 2) == 0 ? 1 : 3;
 
-        for (int i = 0; i < directionOrder.Length; i++)
+        for (int i = 0; i < 4; i++)
         {
             int dx;
             int dy;
-            GetDfsDirectionStep(directionOrder[i], out dx, out dy);
+            GetDfsDirectionStep((directionOffset + i * directionStep) & 3, out dx, out dy);
 
             int nextX = currentX + dx;
             int nextY = currentY + dy;
-            if (!IsInside(settings.width, settings.height, nextX, nextY))
+            if (!IsPlacementCell(settings, nextX, nextY))
             {
                 continue;
             }
 
             int nextCell = ToIndex(settings.width, nextX, nextY);
-            if (pathVisited[nextCell])
+            if (pathVisited[nextCell] == generation)
             {
                 continue;
             }
 
-            if (!CanUseDfsCell(settings, occupied, path, nextCell))
+            if (!CanUseDfsCell(settings, occupied, path, nextPathLength, nextCell))
             {
                 continue;
             }
 
-            if (DfsSnake(settings, nextCell, targetLength, occupied, pathVisited, path, random))
+            if (DfsSnake(settings, nextCell, targetLength, occupied, pathVisited, generation, path, nextPathLength, random))
             {
                 return true;
             }
         }
 
-        path.RemoveAt(path.Count - 1);
-        pathVisited[currentCell] = false;
+        pathVisited[currentCell] = 0;
         return false;
     }
 
-    private static bool IsDfsExitBlocked(Settings settings, List<int> path, bool[] occupied)
+    private static bool IsDfsExitBlocked(Settings settings, int[] path, int length, bool[] occupied)
     {
-        if (path == null || path.Count < 2)
+        if (path == null || length < 2)
         {
             return true;
         }
@@ -446,9 +1139,14 @@ public static class LevelGeneratorCore
         return false;
     }
 
-    private static bool CanUseDfsCell(Settings settings, bool[] occupied, List<int> currentPath, int cell)
+    private static bool CanUseDfsCell(Settings settings, bool[] occupied, int[] currentPath, int pathLength, int cell)
     {
         if (occupied[cell])
+        {
+            return false;
+        }
+
+        if (!IsPlacementCell(settings, cell))
         {
             return false;
         }
@@ -460,20 +1158,12 @@ public static class LevelGeneratorCore
             return false;
         }
 
-        if (currentPath == null)
+        if (currentPath == null || pathLength <= 0)
         {
             return true;
         }
 
-        for (int i = 0; i < currentPath.Count; i++)
-        {
-            if (currentPath[i] == cell)
-            {
-                return false;
-            }
-        }
-
-        if (IsTooCloseToCurrentDfsPath(settings, currentPath, cell))
+        if (IsTooCloseToCurrentDfsPath(settings, currentPath, pathLength, cell))
         {
             return false;
         }
@@ -481,16 +1171,16 @@ public static class LevelGeneratorCore
         return true;
     }
 
-    private static bool IsTooCloseToCurrentDfsPath(Settings settings, List<int> currentPath, int cell)
+    private static bool IsTooCloseToCurrentDfsPath(Settings settings, int[] currentPath, int pathLength, int cell)
     {
         int exclusiveDistance = settings.minDistanceBetweenSnakes;
-        if (exclusiveDistance <= 1 || currentPath == null || currentPath.Count <= 1)
+        if (exclusiveDistance <= 1 || currentPath == null || pathLength <= 1)
         {
             return false;
         }
 
         // The last cell is the direct parent in DFS and must stay adjacent to the new cell.
-        for (int i = 0; i < currentPath.Count - 1; i++)
+        for (int i = 0; i < pathLength - 1; i++)
         {
             if (GetManhattanDistance(settings.width, currentPath[i], cell) < exclusiveDistance)
             {
@@ -509,27 +1199,19 @@ public static class LevelGeneratorCore
             return false;
         }
 
-        for (int offsetY = -exclusiveDistance + 1; offsetY < exclusiveDistance; offsetY++)
+        CellOffset[] offsets = GetSpacingOffsets(exclusiveDistance);
+        for (int i = 0; i < offsets.Length; i++)
         {
-            for (int offsetX = -exclusiveDistance + 1; offsetX < exclusiveDistance; offsetX++)
+            int checkX = x + offsets[i].x;
+            int checkY = y + offsets[i].y;
+            if (!IsInside(settings.width, settings.height, checkX, checkY))
             {
-                int distance = Mathf.Abs(offsetX) + Mathf.Abs(offsetY);
-                if (distance >= exclusiveDistance)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                int checkX = x + offsetX;
-                int checkY = y + offsetY;
-                if (!IsInside(settings.width, settings.height, checkX, checkY))
-                {
-                    continue;
-                }
-
-                if (occupied[ToIndex(settings.width, checkX, checkY)])
-                {
-                    return true;
-                }
+            if (occupied[ToIndex(settings.width, checkX, checkY)])
+            {
+                return true;
             }
         }
 
@@ -807,6 +1489,24 @@ public static class LevelGeneratorCore
         return snake;
     }
 
+    private static SnakeSaveData BuildDfsSnake(Settings settings, System.Random random, int[] path, int length)
+    {
+        SnakeSaveData snake = new SnakeSaveData();
+        snake.direction = GetDfsArrowDirection(settings.width, path, length);
+        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.segmentPositions = new List<Vector2Int>(length);
+
+        for (int i = 0; i < length; i++)
+        {
+            int cell = path[i];
+            int x = cell % settings.width;
+            int y = cell / settings.width;
+            snake.segmentPositions.Add(new Vector2Int(settings.originX + x, settings.originY + y));
+        }
+
+        return snake;
+    }
+
     private static ArrowDir GetDfsArrowDirection(int width, List<int> path)
     {
         if (path == null || path.Count < 2)
@@ -825,9 +1525,35 @@ public static class LevelGeneratorCore
         return ArrowDir.Right;
     }
 
+    private static ArrowDir GetDfsArrowDirection(int width, int[] path, int length)
+    {
+        if (path == null || length < 2)
+        {
+            return ArrowDir.Up;
+        }
+
+        int headCell = path[0];
+        int neckCell = path[1];
+        int dx = (headCell % width) - (neckCell % width);
+        int dy = (headCell / width) - (neckCell / width);
+
+        if (dy > 0) return ArrowDir.Up;
+        if (dy < 0) return ArrowDir.Down;
+        if (dx < 0) return ArrowDir.Left;
+        return ArrowDir.Right;
+    }
+
     private static void MarkDfsSnake(bool[] occupied, List<int> path)
     {
         for (int i = 0; i < path.Count; i++)
+        {
+            occupied[path[i]] = true;
+        }
+    }
+
+    private static void MarkDfsSnake(bool[] occupied, int[] path, int length)
+    {
+        for (int i = 0; i < length; i++)
         {
             occupied[path[i]] = true;
         }
@@ -905,57 +1631,88 @@ public static class LevelGeneratorCore
         }
     }
 
+    private static void ShuffleArrayPrefix(int[] values, int length, System.Random random)
+    {
+        int count = length;
+        while (count > 1)
+        {
+            int index = random.Next(count--);
+            int value = values[index];
+            values[index] = values[count];
+            values[count] = value;
+        }
+    }
+
+    private static int NextVisitGeneration(int[] visited, ref int generation)
+    {
+        generation++;
+        if (generation == int.MaxValue)
+        {
+            System.Array.Clear(visited, 0, visited.Length);
+            generation = 1;
+        }
+
+        return generation;
+    }
+
+    private static void ReverseRange(int[] values, int length)
+    {
+        int left = 0;
+        int right = length - 1;
+        while (left < right)
+        {
+            int temp = values[left];
+            values[left] = values[right];
+            values[right] = temp;
+            left++;
+            right--;
+        }
+    }
+
     private static Result GenerateBestStripedFillResult(Settings settings)
     {
+        if (HasPlacementMask(settings))
+        {
+            return null;
+        }
+
         Result bestResult = null;
         int laneStep = GetEvenLaneStep(settings);
 
         for (int offset = 0; offset < laneStep; offset++)
         {
             Result horizontalPairedRight = GeneratePairedLaneFillResult(settings, true, offset, true);
-            if (bestResult == null || IsBetterFillResult(horizontalPairedRight, bestResult))
-            {
-                bestResult = horizontalPairedRight;
-            }
+            ConsiderSolvableLaneFillResult(settings, ref bestResult, horizontalPairedRight);
 
             Result horizontalPairedLeft = GeneratePairedLaneFillResult(settings, true, offset, false);
-            if (bestResult == null || IsBetterFillResult(horizontalPairedLeft, bestResult))
-            {
-                bestResult = horizontalPairedLeft;
-            }
+            ConsiderSolvableLaneFillResult(settings, ref bestResult, horizontalPairedLeft);
 
             Result verticalPairedUp = GeneratePairedLaneFillResult(settings, false, offset, true);
-            if (bestResult == null || IsBetterFillResult(verticalPairedUp, bestResult))
-            {
-                bestResult = verticalPairedUp;
-            }
+            ConsiderSolvableLaneFillResult(settings, ref bestResult, verticalPairedUp);
 
             Result verticalPairedDown = GeneratePairedLaneFillResult(settings, false, offset, false);
-            if (bestResult == null || IsBetterFillResult(verticalPairedDown, bestResult))
-            {
-                bestResult = verticalPairedDown;
-            }
+            ConsiderSolvableLaneFillResult(settings, ref bestResult, verticalPairedDown);
 
             Result horizontal = GenerateStripedFillResult(settings, true, offset);
-            if (bestResult == null || IsBetterFillResult(horizontal, bestResult))
-            {
-                bestResult = horizontal;
-            }
+            ConsiderSolvableLaneFillResult(settings, ref bestResult, horizontal);
 
             Result vertical = GenerateStripedFillResult(settings, false, offset);
-            if (bestResult == null || IsBetterFillResult(vertical, bestResult))
-            {
-                bestResult = vertical;
-            }
+            ConsiderSolvableLaneFillResult(settings, ref bestResult, vertical);
         }
 
         return bestResult;
     }
 
+    private static void ConsiderSolvableLaneFillResult(Settings settings, ref Result bestResult, Result current)
+    {
+        current = EnsureSolvableResult(settings, current);
+        ConsiderFillResult(ref bestResult, current);
+    }
+
     private static Result GenerateStripedFillResult(Settings settings, bool horizontal, int laneOffset)
     {
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
 
         int laneStep = GetEvenLaneStep(settings);
         int laneCount = horizontal ? settings.height : settings.width;
@@ -983,16 +1740,19 @@ public static class LevelGeneratorCore
     private static Result GenerateMixedTemplateFillResult(Settings settings, int seed)
     {
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
 
         byte[] occupied = new byte[settings.width * settings.height];
         bool[] horizontalLineLanes = new bool[settings.height];
         bool[] verticalLineLanes = new bool[settings.width];
         int[] candidateCells = new int[settings.maxSnakeLength];
         int[] bestCells = new int[settings.maxSnakeLength];
+        int[] pathVisited = new int[settings.width * settings.height];
+        int pathVisitGeneration = 1;
+        int[] freeCellBuffer = new int[settings.width * settings.height];
         System.Random random = new System.Random(seed);
 
-        int maxPlacements = settings.width * settings.height;
+        int maxPlacements = GetPlacementAreaCellCount(settings);
         for (int placement = 0; placement < maxPlacements; placement++)
         {
             bool found = false;
@@ -1010,7 +1770,7 @@ public static class LevelGeneratorCore
 
                 int length;
                 ShapeKind actualShape;
-                if (!TryBuildTemplatePath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, shape, x, y, dir, candidateCells, out length, out actualShape))
+                if (!TryBuildTemplatePath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, shape, x, y, dir, candidateCells, out length, out actualShape))
                 {
                     continue;
                 }
@@ -1038,7 +1798,7 @@ public static class LevelGeneratorCore
             AddGeneratedSnake(result, snake, bestShape != ShapeKind.Straight, bestShape);
         }
 
-        FillRemainderWithBestCandidates(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCells, result);
+        FillRemainderWithBestCandidates(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCells, result);
         Reverse(result.snakes);
         return result;
     }
@@ -1046,9 +1806,9 @@ public static class LevelGeneratorCore
     private static ShapeKind PickTemplateShape(System.Random random)
     {
         int roll = random.Next(0, 100);
-        if (roll < 30) return ShapeKind.Straight;
-        if (roll < 60) return ShapeKind.L;
-        if (roll < 80) return ShapeKind.U;
+        if (roll < 18) return ShapeKind.Straight;
+        if (roll < 50) return ShapeKind.L;
+        if (roll < 76) return ShapeKind.U;
         return ShapeKind.Zigzag;
     }
 
@@ -1088,14 +1848,29 @@ public static class LevelGeneratorCore
 
         if (shape != ShapeKind.Straight)
         {
-            score += 400;
+            score += 1800;
+        }
+
+        if (result.placedArrowCount > 0)
+        {
+            int straightPercent = result.straightShapeCount * 100 / result.placedArrowCount;
+            if (shape == ShapeKind.Straight && straightPercent >= 35)
+            {
+                score -= 1800;
+            }
+
+            int bentPercent = result.bentArrowCount * 100 / result.placedArrowCount;
+            if (shape != ShapeKind.Straight && bentPercent < 45)
+            {
+                score += 1200;
+            }
         }
 
         score += random.Next(0, 250);
         return score;
     }
 
-    private static bool TryBuildTemplatePath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, ShapeKind requestedShape, int headX, int headY, ArrowDir dir, int[] candidateCells, out int length, out ShapeKind actualShape)
+    private static bool TryBuildTemplatePath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, System.Random random, ShapeKind requestedShape, int headX, int headY, ArrowDir dir, int[] candidateCells, out int length, out ShapeKind actualShape)
     {
         length = 0;
         actualShape = requestedShape;
@@ -1104,7 +1879,7 @@ public static class LevelGeneratorCore
         int exitDy;
         GetStep(dir, out exitDx, out exitDy);
 
-        if (!IsInside(settings.width, settings.height, headX, headY))
+        if (!IsPlacementCell(settings, headX, headY))
         {
             return false;
         }
@@ -1121,6 +1896,8 @@ public static class LevelGeneratorCore
         }
 
         candidateCells[0] = headIndex;
+        int visitGeneration = NextVisitGeneration(pathVisited, ref pathVisitGeneration);
+        pathVisited[headIndex] = visitGeneration;
         int used = 1;
         int bodyDx = -exitDx;
         int bodyDy = -exitDy;
@@ -1131,7 +1908,7 @@ public static class LevelGeneratorCore
         if (requestedShape == ShapeKind.Straight)
         {
             int runLength = GetWeightedOddInRange(minRun, maxLength, random);
-            if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, runLength))
+            if (!TryAppendRun(settings, occupied, pathVisited, visitGeneration, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, runLength))
             {
                 return false;
             }
@@ -1150,7 +1927,7 @@ public static class LevelGeneratorCore
                 ? GetLeftTurnDirectionIndex(bodyDx, bodyDy)
                 : GetRightTurnDirectionIndex(bodyDx, bodyDy);
 
-            if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, firstRun))
+            if (!TryAppendRun(settings, occupied, pathVisited, visitGeneration, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, firstRun))
             {
                 return false;
             }
@@ -1158,7 +1935,7 @@ public static class LevelGeneratorCore
             int turnDx;
             int turnDy;
             GetStep(turnDir, out turnDx, out turnDy);
-            if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, turnDx, turnDy, secondRun))
+            if (!TryAppendRun(settings, occupied, pathVisited, visitGeneration, candidateCells, ref used, headX, headY, exitDx, exitDy, turnDx, turnDy, secondRun))
             {
                 return false;
             }
@@ -1187,17 +1964,17 @@ public static class LevelGeneratorCore
             int thirdDx = requestedShape == ShapeKind.U ? -bodyDx : bodyDx;
             int thirdDy = requestedShape == ShapeKind.U ? -bodyDy : bodyDy;
 
-            if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, firstRun))
+            if (!TryAppendRun(settings, occupied, pathVisited, visitGeneration, candidateCells, ref used, headX, headY, exitDx, exitDy, bodyDx, bodyDy, firstRun))
             {
                 return false;
             }
 
-            if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, turnDx, turnDy, secondRun))
+            if (!TryAppendRun(settings, occupied, pathVisited, visitGeneration, candidateCells, ref used, headX, headY, exitDx, exitDy, turnDx, turnDy, secondRun))
             {
                 return false;
             }
 
-            if (!TryAppendRun(settings, occupied, candidateCells, ref used, headX, headY, exitDx, exitDy, thirdDx, thirdDy, thirdRun))
+            if (!TryAppendRun(settings, occupied, pathVisited, visitGeneration, candidateCells, ref used, headX, headY, exitDx, exitDy, thirdDx, thirdDy, thirdRun))
             {
                 return false;
             }
@@ -1217,7 +1994,7 @@ public static class LevelGeneratorCore
         return length >= settings.minSnakeLength;
     }
 
-    private static bool TryAppendRun(Settings settings, byte[] occupied, int[] candidateCells, ref int used, int headX, int headY, int exitDx, int exitDy, int dx, int dy, int runCells)
+    private static bool TryAppendRun(Settings settings, byte[] occupied, int[] pathVisited, int visitGeneration, int[] candidateCells, ref int used, int headX, int headY, int exitDx, int exitDy, int dx, int dy, int runCells)
     {
         if (runCells < 1)
         {
@@ -1234,7 +2011,7 @@ public static class LevelGeneratorCore
             x += dx;
             y += dy;
 
-            if (!CanUseBodyCell(settings, occupied, candidateCells, used, headX, headY, exitDx, exitDy, x, y))
+            if (!CanUseBodyCell(settings, occupied, pathVisited, visitGeneration, candidateCells, used, headX, headY, exitDx, exitDy, x, y))
             {
                 return false;
             }
@@ -1245,19 +2022,20 @@ public static class LevelGeneratorCore
             }
 
             candidateCells[used] = ToIndex(settings.width, x, y);
+            pathVisited[candidateCells[used]] = visitGeneration;
             used++;
         }
 
         return true;
     }
 
-    private static void FillRemainderWithBestCandidates(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, int[] bestCells, Result result)
+    private static void FillRemainderWithBestCandidates(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] freeCellBuffer, System.Random random, int[] candidateCells, int[] bestCells, Result result)
     {
-        int maxPlacements = settings.width * settings.height;
+        int maxPlacements = GetPlacementAreaCellCount(settings);
         for (int i = 0; i < maxPlacements; i++)
         {
             Candidate candidate;
-            if (!TryFindBestFillCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCells, out candidate))
+            if (!TryFindBestFillCandidate(settings, occupied, result.occupiedCellCount, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCells, out candidate))
             {
                 break;
             }
@@ -1274,7 +2052,7 @@ public static class LevelGeneratorCore
     private static Result GeneratePairedLaneFillResult(Settings settings, bool horizontal, int laneOffset, bool headAtPositiveEdge)
     {
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
 
         int laneStep = GetEvenLaneStep(settings);
         int laneCount = horizontal ? settings.height : settings.width;
@@ -1576,7 +2354,7 @@ public static class LevelGeneratorCore
     private static Result GenerateSerpentineFillResult(Settings settings, bool horizontal, int laneOffset, bool headAtPositiveEdge)
     {
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
 
         int laneStep = GetEvenLaneStep(settings);
         int laneCount = horizontal ? settings.height : settings.width;
@@ -1788,20 +2566,23 @@ public static class LevelGeneratorCore
     private static Result GenerateSingleFillResult(Settings settings, int seed)
     {
         Result result = new Result();
-        result.placementAreaCellCount = settings.width * settings.height;
+        result.placementAreaCellCount = GetPlacementAreaCellCount(settings);
 
         byte[] occupied = new byte[settings.width * settings.height];
         bool[] horizontalLineLanes = new bool[settings.height];
         bool[] verticalLineLanes = new bool[settings.width];
         int[] candidateCells = new int[settings.maxSnakeLength];
         int[] bestCandidateCells = new int[settings.maxSnakeLength];
+        int[] pathVisited = new int[settings.width * settings.height];
+        int pathVisitGeneration = 1;
+        int[] freeCellBuffer = new int[settings.width * settings.height];
         System.Random random = new System.Random(seed);
 
-        int maxPlacements = settings.width * settings.height;
+        int maxPlacements = GetPlacementAreaCellCount(settings);
         for (int i = 0; i < maxPlacements; i++)
         {
             Candidate candidate;
-            if (!TryFindBestFillCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCandidateCells, out candidate))
+            if (!TryFindBestFillCandidate(settings, occupied, result.occupiedCellCount, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCandidateCells, out candidate))
             {
                 break;
             }
@@ -1826,7 +2607,10 @@ public static class LevelGeneratorCore
 
     private static bool IsBetterFillResult(Result current, Result best)
     {
-        int fillTolerance = Mathf.Max(1, best.occupiedCellCount / 100);
+        int fillTolerance = Mathf.Max(2, best.placementAreaCellCount / 50);
+        int currentDiversityScore = GetShapeDiversityScore(current);
+        int bestDiversityScore = GetShapeDiversityScore(best);
+
         if (current.occupiedCellCount > best.occupiedCellCount + fillTolerance)
         {
             return true;
@@ -1837,8 +2621,6 @@ public static class LevelGeneratorCore
             return false;
         }
 
-        int currentDiversityScore = GetShapeDiversityScore(current);
-        int bestDiversityScore = GetShapeDiversityScore(best);
         if (currentDiversityScore != bestDiversityScore)
         {
             return currentDiversityScore > bestDiversityScore;
@@ -1886,21 +2668,30 @@ public static class LevelGeneratorCore
         int dominantPenalty = Mathf.Max(0, dominantShapeCount - dominantLimit);
 
         int balancedLaneShapes = Mathf.Min(result.straightShapeCount, Mathf.Min(result.lShapeCount, result.uShapeCount));
+        int bentPercent = result.bentArrowCount * 100 / result.placedArrowCount;
+        int straightPercent = result.straightShapeCount * 100 / result.placedArrowCount;
+        int bentBonus = Mathf.Min(result.bentArrowCount, result.placedArrowCount / 2) * 180;
+        int straightDominancePenalty = straightPercent > 55 ? (straightPercent - 55) * 80 : 0;
+
         return result.shapeTypeCount * 1000
             + result.directionTypeCount * 200
             + balancedLaneShapes * 140
             + result.zigzagShapeCount * 80
             + result.randomBentShapeCount * 60
-            - dominantPenalty * 120;
+            + bentBonus
+            + (bentPercent >= 35 ? 1200 : 0)
+            - dominantPenalty * 160
+            - straightDominancePenalty;
     }
 
-    private static bool TryFindBestFillCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
+    private static bool TryFindBestFillCandidate(Settings settings, byte[] occupied, int occupiedCount, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] freeCellBuffer, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
     {
         bool hasBest = false;
         int bestScore = int.MinValue;
         bestCandidate = default;
 
-        for (int i = 0; i < settings.fillSearchAttempts; i++)
+        int searchAttempts = GetPerPlacementSearchAttempts(settings);
+        for (int i = 0; i < searchAttempts; i++)
         {
             Candidate candidate;
             candidate.x = random.Next(0, settings.width);
@@ -1908,12 +2699,12 @@ public static class LevelGeneratorCore
             candidate.dir = (ArrowDir)random.Next(0, 4);
             candidate.length = GetRandomOddLength(settings, random);
 
-            if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
+            if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells))
             {
                 continue;
             }
 
-            int score = GetFillCandidateScore(settings, candidate, occupied, candidateCells);
+            int score = GetFillCandidateScore(settings, candidate, occupied, occupiedCount, candidateCells);
             if (!hasBest || score > bestScore)
             {
                 hasBest = true;
@@ -1929,23 +2720,75 @@ public static class LevelGeneratorCore
             return true;
         }
 
-        return TryFindAnyBestFillCandidate(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidateCells, bestCandidateCells, out bestCandidate);
+        return TryFindAnyBestFillCandidate(settings, occupied, occupiedCount, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCandidateCells, out bestCandidate);
     }
 
-    private static bool TryFindAnyBestFillCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
+    private static bool TryFindBestDeferredFillCandidate(Settings settings, Result result, byte[] occupied, int occupiedCount, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] freeCellBuffer, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate, out int bestInsertionIndex)
     {
         bool hasBest = false;
         int bestScore = int.MinValue;
         bestCandidate = default;
+        bestInsertionIndex = 0;
+
+        int searchAttempts = GetPerPlacementSearchAttempts(settings);
+        for (int i = 0; i < searchAttempts; i++)
+        {
+            Candidate candidate;
+            candidate.x = random.Next(0, settings.width);
+            candidate.y = random.Next(0, settings.height);
+            candidate.dir = (ArrowDir)random.Next(0, 4);
+            candidate.length = GetRandomOddLength(settings, random);
+
+            int insertionIndex;
+            if (!TryBuildDeferredFillCandidate(settings, result, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells, out insertionIndex))
+            {
+                continue;
+            }
+
+            int score = GetFillCandidateScore(settings, candidate, occupied, occupiedCount, candidateCells);
+            if (!hasBest || score > bestScore)
+            {
+                hasBest = true;
+                bestScore = score;
+                bestCandidate = candidate;
+                bestInsertionIndex = insertionIndex;
+                CopyCells(candidateCells, bestCandidateCells, candidate.length);
+            }
+        }
+
+        if (hasBest)
+        {
+            return true;
+        }
+
+        return TryFindAnyBestDeferredFillCandidate(settings, result, occupied, occupiedCount, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, freeCellBuffer, random, candidateCells, bestCandidateCells, out bestCandidate, out bestInsertionIndex);
+    }
+
+    private static bool TryFindAnyBestDeferredFillCandidate(Settings settings, Result result, byte[] occupied, int occupiedCount, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] freeCellBuffer, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate, out int bestInsertionIndex)
+    {
+        bool hasBest = false;
+        int bestScore = int.MinValue;
+        bestCandidate = default;
+        bestInsertionIndex = 0;
 
         int dirOffset = random.Next(0, 4);
-        int cellOffset = random.Next(0, settings.width * settings.height);
+        int freeCount = FillFreeCells(settings, occupied, freeCellBuffer);
+        if (freeCount <= 0)
+        {
+            return false;
+        }
+
+        ShuffleArrayPrefix(freeCellBuffer, freeCount, random);
+        int checkedCandidates = 0;
+        int oddLengthCount = Mathf.Max(1, GetOddLengthCount(settings));
+        int exhaustiveCandidateCount = freeCount * 4 * oddLengthCount;
+        int maxCheckedCandidates = Mathf.Clamp(exhaustiveCandidateCount, 512, GetFallbackCandidateScanLimit(settings) * 2);
 
         for (int length = GetLastOddAtMost(settings.maxSnakeLength); length >= settings.minSnakeLength; length -= 2)
         {
-            for (int cellPass = 0; cellPass < settings.width * settings.height; cellPass++)
+            for (int cellPass = 0; cellPass < freeCount; cellPass++)
             {
-                int cellIndex = (cellOffset + cellPass) % (settings.width * settings.height);
+                int cellIndex = freeCellBuffer[cellPass];
                 int x = cellIndex % settings.width;
                 int y = cellIndex / settings.width;
 
@@ -1956,13 +2799,259 @@ public static class LevelGeneratorCore
                     candidate.y = y;
                     candidate.length = length;
                     candidate.dir = (ArrowDir)((dirOffset + dirPass) & 3);
+                    checkedCandidates++;
 
-                    if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
+                    int insertionIndex;
+                    if (!TryBuildDeferredFillCandidate(settings, result, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells, out insertionIndex))
                     {
+                        if (checkedCandidates >= maxCheckedCandidates)
+                        {
+                            return hasBest;
+                        }
+
                         continue;
                     }
 
-                    int score = GetFillCandidateScore(settings, candidate, occupied, candidateCells);
+                    int score = GetFillCandidateScore(settings, candidate, occupied, occupiedCount, candidateCells);
+                    if (!hasBest || score > bestScore)
+                    {
+                        hasBest = true;
+                        bestScore = score;
+                        bestCandidate = candidate;
+                        bestInsertionIndex = insertionIndex;
+                        CopyCells(candidateCells, bestCandidateCells, candidate.length);
+                    }
+                }
+            }
+
+            if (hasBest)
+            {
+                return true;
+            }
+
+            if (checkedCandidates >= maxCheckedCandidates)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryFindSmallestDeferredFillCandidate(Settings settings, Result result, byte[] occupied, int occupiedCount, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] freeCellBuffer, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate, out int bestInsertionIndex)
+    {
+        bool hasBest = false;
+        int bestScore = int.MinValue;
+        bestCandidate = default;
+        bestInsertionIndex = 0;
+
+        int freeCount = FillFreeCells(settings, occupied, freeCellBuffer);
+        if (freeCount <= 0)
+        {
+            return false;
+        }
+
+        ShuffleArrayPrefix(freeCellBuffer, freeCount, random);
+        int dirOffset = random.Next(0, 4);
+        int checkedCandidates = 0;
+        int maxCheckedCandidates = Mathf.Clamp(freeCount * 4 * Mathf.Max(1, GetOddLengthCount(settings)), 512, GetFallbackCandidateScanLimit(settings) * 2);
+
+        for (int length = GetFirstOddAtLeast(settings.minSnakeLength); length <= settings.maxSnakeLength; length += 2)
+        {
+            for (int cellPass = 0; cellPass < freeCount; cellPass++)
+            {
+                int cellIndex = freeCellBuffer[cellPass];
+                int x = cellIndex % settings.width;
+                int y = cellIndex / settings.width;
+
+                for (int dirPass = 0; dirPass < 4; dirPass++)
+                {
+                    Candidate candidate;
+                    candidate.x = x;
+                    candidate.y = y;
+                    candidate.length = length;
+                    candidate.dir = (ArrowDir)((dirOffset + dirPass) & 3);
+                    checkedCandidates++;
+
+                    int insertionIndex;
+                    if (!TryBuildDeferredFillCandidate(settings, result, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells, out insertionIndex))
+                    {
+                        if (checkedCandidates >= maxCheckedCandidates)
+                        {
+                            return hasBest;
+                        }
+
+                        continue;
+                    }
+
+                    int score = GetLateFillCandidateScore(settings, candidate, occupied, occupiedCount, candidateCells);
+                    if (!hasBest || score > bestScore)
+                    {
+                        hasBest = true;
+                        bestScore = score;
+                        bestCandidate = candidate;
+                        bestInsertionIndex = insertionIndex;
+                        CopyCells(candidateCells, bestCandidateCells, candidate.length);
+                    }
+                }
+            }
+
+            if (hasBest)
+            {
+                return true;
+            }
+
+            if (checkedCandidates >= maxCheckedCandidates)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryBuildDeferredFillCandidate(Settings settings, Result result, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, System.Random random, Candidate candidate, int[] candidateCells, out int insertionIndex)
+    {
+        insertionIndex = 0;
+        if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells, false))
+        {
+            return false;
+        }
+
+        return TryFindDeferredInsertionIndex(settings, result.snakes, candidateCells, candidate.length, candidate.dir, out insertionIndex);
+    }
+
+    private static bool TryFindDeferredInsertionIndex(Settings settings, List<SnakeSaveData> solvedSnakes, int[] candidateCells, int candidateLength, ArrowDir candidateDirection, out int insertionIndex)
+    {
+        int lowerBound = 0;
+        int upperBound = solvedSnakes.Count;
+        int headCell = candidateCells[0];
+        int headX = headCell % settings.width;
+        int headY = headCell / settings.width;
+        int candidateDx;
+        int candidateDy;
+        GetStep(candidateDirection, out candidateDx, out candidateDy);
+
+        for (int i = 0; i < solvedSnakes.Count; i++)
+        {
+            SnakeSaveData snake = solvedSnakes[i];
+            if (SnakeHasCellOnExitRay(settings, snake, headX, headY, candidateDx, candidateDy))
+            {
+                lowerBound = Mathf.Max(lowerBound, i + 1);
+            }
+
+            if (CandidateBlocksSnakeExit(settings, candidateCells, candidateLength, snake))
+            {
+                upperBound = Mathf.Min(upperBound, i);
+            }
+
+            if (lowerBound > upperBound)
+            {
+                insertionIndex = 0;
+                return false;
+            }
+        }
+
+        insertionIndex = lowerBound;
+        return true;
+    }
+
+    private static bool SnakeHasCellOnExitRay(Settings settings, SnakeSaveData snake, int headX, int headY, int dx, int dy)
+    {
+        if (snake.segmentPositions == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < snake.segmentPositions.Count; i++)
+        {
+            Vector2Int position = snake.segmentPositions[i];
+            int x = position.x - settings.originX;
+            int y = position.y - settings.originY;
+            if (IsOnExitRay(headX, headY, dx, dy, x, y))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool CandidateBlocksSnakeExit(Settings settings, int[] candidateCells, int candidateLength, SnakeSaveData snake)
+    {
+        if (snake.segmentPositions == null || snake.segmentPositions.Count == 0)
+        {
+            return false;
+        }
+
+        Vector2Int head = snake.segmentPositions[0];
+        int headX = head.x - settings.originX;
+        int headY = head.y - settings.originY;
+        int dx;
+        int dy;
+        GetStep(snake.direction, out dx, out dy);
+
+        for (int i = 0; i < candidateLength; i++)
+        {
+            int cell = candidateCells[i];
+            int x = cell % settings.width;
+            int y = cell / settings.width;
+            if (IsOnExitRay(headX, headY, dx, dy, x, y))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryFindAnyBestFillCandidate(Settings settings, byte[] occupied, int occupiedCount, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] freeCellBuffer, System.Random random, int[] candidateCells, int[] bestCandidateCells, out Candidate bestCandidate)
+    {
+        bool hasBest = false;
+        int bestScore = int.MinValue;
+        bestCandidate = default;
+
+        int dirOffset = random.Next(0, 4);
+        int freeCount = FillFreeCells(settings, occupied, freeCellBuffer);
+        if (freeCount <= 0)
+        {
+            return false;
+        }
+
+        ShuffleArrayPrefix(freeCellBuffer, freeCount, random);
+        int checkedCandidates = 0;
+        int oddLengthCount = Mathf.Max(1, GetOddLengthCount(settings));
+        int exhaustiveCandidateCount = freeCount * 4 * oddLengthCount;
+        int maxCheckedCandidates = Mathf.Clamp(exhaustiveCandidateCount, 256, GetFallbackCandidateScanLimit(settings));
+
+        for (int length = GetLastOddAtMost(settings.maxSnakeLength); length >= settings.minSnakeLength; length -= 2)
+        {
+            for (int cellPass = 0; cellPass < freeCount; cellPass++)
+            {
+                int cellIndex = freeCellBuffer[cellPass];
+                int x = cellIndex % settings.width;
+                int y = cellIndex / settings.width;
+
+                for (int dirPass = 0; dirPass < 4; dirPass++)
+                {
+                    Candidate candidate;
+                    candidate.x = x;
+                    candidate.y = y;
+                    candidate.length = length;
+                    candidate.dir = (ArrowDir)((dirOffset + dirPass) & 3);
+                    checkedCandidates++;
+
+                    if (!TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells))
+                    {
+                        if (checkedCandidates >= maxCheckedCandidates)
+                        {
+                            return hasBest;
+                        }
+
+                        continue;
+                    }
+
+                    int score = GetFillCandidateScore(settings, candidate, occupied, occupiedCount, candidateCells);
                     if (!hasBest || score > bestScore)
                     {
                         hasBest = true;
@@ -1977,12 +3066,40 @@ public static class LevelGeneratorCore
             {
                 return true;
             }
+
+            if (checkedCandidates >= maxCheckedCandidates)
+            {
+                return false;
+            }
         }
 
         return false;
     }
 
-    private static int GetFillCandidateScore(Settings settings, Candidate candidate, byte[] occupied, int[] candidateCells)
+    private static int GetPerPlacementSearchAttempts(Settings settings)
+    {
+        int area = GetPlacementAreaCellCount(settings);
+        int cap = area <= 180 ? 512 : 384;
+        return Mathf.Clamp(settings.fillSearchAttempts, 32, cap);
+    }
+
+    private static int GetFallbackCandidateScanLimit(Settings settings)
+    {
+        int area = GetPlacementAreaCellCount(settings);
+        if (area <= 180)
+        {
+            return 4096;
+        }
+
+        if (area <= 420)
+        {
+            return 8192;
+        }
+
+        return 12288;
+    }
+
+    private static int GetFillCandidateScore(Settings settings, Candidate candidate, byte[] occupied, int occupiedCount, int[] candidateCells)
     {
         int score = candidate.length * 1000;
         int exactSpacingContacts = 0;
@@ -2007,9 +3124,44 @@ public static class LevelGeneratorCore
         }
 
         score += exactSpacingContacts * 160;
-        if (HasAnyOccupiedCell(occupied))
+        if (occupiedCount > 0)
         {
             score += exactSpacingContacts > 0 ? 2200 : -4800;
+        }
+
+        return score;
+    }
+
+    private static int GetLateFillCandidateScore(Settings settings, Candidate candidate, byte[] occupied, int occupiedCount, int[] candidateCells)
+    {
+        int score = candidate.length * 120;
+        int exactSpacingContacts = 0;
+        int edgeContacts = 0;
+
+        for (int i = 0; i < candidate.length; i++)
+        {
+            int cell = candidateCells[i];
+            int x = cell % settings.width;
+            int y = cell / settings.width;
+
+            if (x == 0 || x == settings.width - 1)
+            {
+                edgeContacts++;
+            }
+
+            if (y == 0 || y == settings.height - 1)
+            {
+                edgeContacts++;
+            }
+
+            exactSpacingContacts += CountOccupiedAtExactSpacing(settings, occupied, x, y);
+        }
+
+        score += exactSpacingContacts * 420;
+        score += edgeContacts * 60;
+        if (occupiedCount > 0 && exactSpacingContacts <= 0)
+        {
+            score -= 2400;
         }
 
         return score;
@@ -2047,19 +3199,6 @@ public static class LevelGeneratorCore
         return count;
     }
 
-    private static bool HasAnyOccupiedCell(byte[] occupied)
-    {
-        for (int i = 0; i < occupied.Length; i++)
-        {
-            if (occupied[i] != 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static bool IsOccupied(Settings settings, byte[] occupied, int x, int y)
     {
         return IsInside(settings.width, settings.height, x, y)
@@ -2074,7 +3213,7 @@ public static class LevelGeneratorCore
         }
     }
 
-    private static bool TryFindRandomCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, out Candidate candidate)
+    private static bool TryFindRandomCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, System.Random random, int[] candidateCells, out Candidate candidate)
     {
         for (int i = 0; i < settings.maxAttemptsPerArrow; i++)
         {
@@ -2083,7 +3222,7 @@ public static class LevelGeneratorCore
             candidate.dir = (ArrowDir)random.Next(0, 4);
             candidate.length = GetRandomOddLength(settings, random);
 
-            if (TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
+            if (TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells))
             {
                 return true;
             }
@@ -2093,7 +3232,7 @@ public static class LevelGeneratorCore
         return false;
     }
 
-    private static bool TryFindAnyCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, int[] candidateCells, out Candidate candidate)
+    private static bool TryFindAnyCandidate(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, System.Random random, int[] candidateCells, out Candidate candidate)
     {
         int dirOffset = random.Next(0, 4);
         int lengthRange = GetOddLengthCount(settings);
@@ -2117,7 +3256,7 @@ public static class LevelGeneratorCore
                     candidate.length = length;
                     candidate.dir = (ArrowDir)((dirOffset + dirPass) & 3);
 
-                    if (TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, random, candidate, candidateCells))
+                    if (TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells))
                     {
                         return true;
                     }
@@ -2129,18 +3268,18 @@ public static class LevelGeneratorCore
         return false;
     }
 
-    private static bool TryBuildPath(Settings settings, byte[] occupied, System.Random random, Candidate candidate, int[] candidateCells)
+    private static bool TryBuildPath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, System.Random random, Candidate candidate, int[] candidateCells)
     {
-        return TryBuildPath(settings, occupied, null, null, random, candidate, candidateCells);
+        return TryBuildPath(settings, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, random, candidate, candidateCells, true);
     }
 
-    private static bool TryBuildPath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, System.Random random, Candidate candidate, int[] candidateCells)
+    private static bool TryBuildPath(Settings settings, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, System.Random random, Candidate candidate, int[] candidateCells, bool requireExitPathClear)
     {
         int exitDx;
         int exitDy;
         GetStep(candidate.dir, out exitDx, out exitDy);
 
-        if (!IsInside(settings.width, settings.height, candidate.x, candidate.y))
+        if (!IsPlacementCell(settings, candidate.x, candidate.y))
         {
             return false;
         }
@@ -2156,14 +3295,15 @@ public static class LevelGeneratorCore
             return false;
         }
 
-        if (!IsExitPathClear(settings, occupied, candidate.x, candidate.y, exitDx, exitDy))
+        if (requireExitPathClear && !IsExitPathClear(settings, occupied, candidate.x, candidate.y, exitDx, exitDy))
         {
             return false;
         }
 
         for (int attempt = 0; attempt < settings.bodyAttemptsPerCandidate; attempt++)
         {
-            if (TryBuildPathOnce(settings, occupied, random, candidate, exitDx, exitDy, candidateCells))
+            int visitGeneration = NextVisitGeneration(pathVisited, ref pathVisitGeneration);
+            if (TryBuildPathOnce(settings, occupied, pathVisited, visitGeneration, random, candidate, exitDx, exitDy, candidateCells))
             {
                 if (HasValidParallelLineLaneParity(settings, candidateCells, candidate.length, horizontalLineLanes, verticalLineLanes))
                 {
@@ -2175,9 +3315,10 @@ public static class LevelGeneratorCore
         return false;
     }
 
-    private static bool TryBuildPathOnce(Settings settings, byte[] occupied, System.Random random, Candidate candidate, int exitDx, int exitDy, int[] candidateCells)
+    private static bool TryBuildPathOnce(Settings settings, byte[] occupied, int[] pathVisited, int visitGeneration, System.Random random, Candidate candidate, int exitDx, int exitDy, int[] candidateCells)
     {
         candidateCells[0] = ToIndex(settings.width, candidate.x, candidate.y);
+        pathVisited[candidateCells[0]] = visitGeneration;
 
         if (candidate.length == 1)
         {
@@ -2189,12 +3330,13 @@ public static class LevelGeneratorCore
         int x = candidate.x + bodyDx;
         int y = candidate.y + bodyDy;
 
-        if (!CanUseBodyCell(settings, occupied, candidateCells, 1, candidate.x, candidate.y, exitDx, exitDy, x, y))
+        if (!CanUseBodyCell(settings, occupied, pathVisited, visitGeneration, candidateCells, 1, candidate.x, candidate.y, exitDx, exitDy, x, y))
         {
             return false;
         }
 
         candidateCells[1] = ToIndex(settings.width, x, y);
+        pathVisited[candidateCells[1]] = visitGeneration;
         int currentRunCells = 2;
 
         for (int i = 2; i < candidate.length; i++)
@@ -2232,12 +3374,13 @@ public static class LevelGeneratorCore
 
                 int nextX = x + stepDx;
                 int nextY = y + stepDy;
-                if (!CanUseBodyCell(settings, occupied, candidateCells, i, candidate.x, candidate.y, exitDx, exitDy, nextX, nextY))
+                if (!CanUseBodyCell(settings, occupied, pathVisited, visitGeneration, candidateCells, i, candidate.x, candidate.y, exitDx, exitDy, nextX, nextY))
                 {
                     continue;
                 }
 
                 candidateCells[i] = ToIndex(settings.width, nextX, nextY);
+                pathVisited[candidateCells[i]] = visitGeneration;
                 x = nextX;
                 y = nextY;
                 bodyDx = stepDx;
@@ -2280,15 +3423,20 @@ public static class LevelGeneratorCore
         return back;
     }
 
-    private static bool CanUseBodyCell(Settings settings, byte[] occupied, int[] candidateCells, int usedCount, int headX, int headY, int exitDx, int exitDy, int x, int y)
+    private static bool CanUseBodyCell(Settings settings, byte[] occupied, int[] pathVisited, int visitGeneration, int[] candidateCells, int usedCount, int headX, int headY, int exitDx, int exitDy, int x, int y)
     {
-        if (!IsInside(settings.width, settings.height, x, y))
+        if (!IsPlacementCell(settings, x, y))
         {
             return false;
         }
 
         int index = ToIndex(settings.width, x, y);
         if (occupied[index] != 0)
+        {
+            return false;
+        }
+
+        if (pathVisited[index] == visitGeneration)
         {
             return false;
         }
@@ -2305,11 +3453,6 @@ public static class LevelGeneratorCore
 
         for (int i = 0; i < usedCount; i++)
         {
-            if (candidateCells[i] == index)
-            {
-                return false;
-            }
-
             if (i < usedCount - 1 && GetManhattanDistance(settings.width, candidateCells[i], index) < settings.minDistanceBetweenSnakes)
             {
                 return false;
@@ -2327,27 +3470,19 @@ public static class LevelGeneratorCore
             return false;
         }
 
-        for (int offsetY = -exclusiveDistance + 1; offsetY < exclusiveDistance; offsetY++)
+        CellOffset[] offsets = GetSpacingOffsets(exclusiveDistance);
+        for (int i = 0; i < offsets.Length; i++)
         {
-            for (int offsetX = -exclusiveDistance + 1; offsetX < exclusiveDistance; offsetX++)
+            int checkX = x + offsets[i].x;
+            int checkY = y + offsets[i].y;
+            if (!IsInside(settings.width, settings.height, checkX, checkY))
             {
-                int distance = Mathf.Abs(offsetX) + Mathf.Abs(offsetY);
-                if (distance >= exclusiveDistance)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                int checkX = x + offsetX;
-                int checkY = y + offsetY;
-                if (!IsInside(settings.width, settings.height, checkX, checkY))
-                {
-                    continue;
-                }
-
-                if (occupied[ToIndex(settings.width, checkX, checkY)] != 0)
-                {
-                    return true;
-                }
+            if (occupied[ToIndex(settings.width, checkX, checkY)] != 0)
+            {
+                return true;
             }
         }
 
@@ -2551,6 +3686,31 @@ public static class LevelGeneratorCore
         return Mathf.Abs(ax - bx) + Mathf.Abs(ay - by);
     }
 
+    private static CellOffset[] GetSpacingOffsets(int exclusiveDistance)
+    {
+        CellOffset[] cachedOffsets;
+        if (SpacingOffsetCache.TryGetValue(exclusiveDistance, out cachedOffsets))
+        {
+            return cachedOffsets;
+        }
+
+        List<CellOffset> offsets = new List<CellOffset>();
+        for (int offsetY = -exclusiveDistance + 1; offsetY < exclusiveDistance; offsetY++)
+        {
+            for (int offsetX = -exclusiveDistance + 1; offsetX < exclusiveDistance; offsetX++)
+            {
+                if (Mathf.Abs(offsetX) + Mathf.Abs(offsetY) < exclusiveDistance)
+                {
+                    offsets.Add(new CellOffset(offsetX, offsetY));
+                }
+            }
+        }
+
+        cachedOffsets = offsets.ToArray();
+        SpacingOffsetCache[exclusiveDistance] = cachedOffsets;
+        return cachedOffsets;
+    }
+
     private static int GetRandomOddLength(Settings settings, System.Random random)
     {
         return GetWeightedOddInRange(settings.minSnakeLength, settings.maxSnakeLength, random);
@@ -2726,6 +3886,51 @@ public static class LevelGeneratorCore
         dy = toY - fromY;
     }
 
+    private static int GetPlacementAreaCellCount(Settings settings)
+    {
+        if (!HasPlacementMask(settings))
+        {
+            return settings.width * settings.height;
+        }
+
+        int count = 0;
+        for (int i = 0; i < settings.placementMask.Length; i++)
+        {
+            if (settings.placementMask[i])
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool HasPlacementMask(Settings settings)
+    {
+        return settings.placementMask != null
+            && settings.placementMask.Length == settings.width * settings.height;
+    }
+
+    private static bool IsPlacementCell(Settings settings, int x, int y)
+    {
+        if (!IsInside(settings.width, settings.height, x, y))
+        {
+            return false;
+        }
+
+        return !HasPlacementMask(settings) || settings.placementMask[ToIndex(settings.width, x, y)];
+    }
+
+    private static bool IsPlacementCell(Settings settings, int cell)
+    {
+        if (cell < 0 || cell >= settings.width * settings.height)
+        {
+            return false;
+        }
+
+        return !HasPlacementMask(settings) || settings.placementMask[cell];
+    }
+
     private static bool IsInside(int width, int height, int x, int y)
     {
         return x >= 0 && x < width && y >= 0 && y < height;
@@ -2750,3 +3955,4 @@ public static class LevelGeneratorCore
         }
     }
 }
+

@@ -15,6 +15,7 @@ MonoBehaviour:
   levelIndex: 22
   gameMode: 0
   levelDifficulty: 2
+  returnToDefaultZoomAfterIntro: 1
   timeLimit: 60
   rewardCoins: 100
   rewardDiamonds: 2
@@ -298,8 +299,39 @@ MonoBehaviour:
     - {x: -1, y: -10}
     - {x: -2, y: -10}
     - {x: -3, y: -10}
-  keycards: []
-  gates: []
+  - direction: 2
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -9, y: -18}
+    - {x: -8, y: -18}
+    - {x: -7, y: -18}
+    - {x: -6, y: -18}
+    - {x: -5, y: -18}
+    - {x: -4, y: -18}
+    - {x: -3, y: -18}
+    - {x: -2, y: -18}
+    - {x: -1, y: -18}
+    - {x: 0, y: -18}
+    - {x: 1, y: -18}
+    - {x: 2, y: -18}
+    - {x: 3, y: -18}
+    - {x: 4, y: -18}
+    - {x: 4, y: -17}
+    - {x: 4, y: -16}
+    - {x: 3, y: -16}
+    - {x: 2, y: -16}
+    - {x: 1, y: -16}
+    - {x: 0, y: -16}
+    - {x: -1, y: -16}
+    - {x: -2, y: -16}
+    - {x: -3, y: -16}
+    - {x: -4, y: -16}
+  keycards:
+  - position: {x: -9, y: -2}
+    color: {r: 1, g: 0.68964195, b: 0, a: 1}
+  gates:
+  - position: {x: -6, y: -12}
+    color: {r: 1, g: 0.68964195, b: 0, a: 1}
   electricButtons:
   - position: {x: 3, y: 14}
     color: {r: 0.20142698, g: 0, b: 1, a: 1}
@@ -307,8 +339,15 @@ MonoBehaviour:
   - start: {x: -11, y: 1}
     end: {x: -11, y: -5}
     color: {r: 0.20142698, g: 0, b: 1, a: 1}
-  portals: []
-  deflectors: []
+  portals:
+  - entrance: {x: -13, y: -2}
+    entranceDir: 0
+    exit: {x: -11, y: -18}
+    exitDir: 3
+    portalColor: {r: 1, g: 0, b: 0, a: 1}
+  deflectors:
+  - position: {x: 3, y: 16}
+    direction: 3
   countdownBlocks:
   - position: {x: 5, y: 12}
     count: 3
