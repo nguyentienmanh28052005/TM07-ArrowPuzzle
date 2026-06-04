@@ -57,6 +57,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private int minDistanceBetweenSnakes = 2;
     private int minStraightCellsPerSegment = 3;
     private bool fillAvailableArea = true;
+    private bool requireFullFill = true;
     private int fillSearchAttempts = 2048;
     private int fillLayoutAttempts = 12;
     private bool allowBentSnakes = true;
@@ -470,6 +471,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
         bodyAttemptsPerCandidate = Mathf.Clamp(EditorGUILayout.IntField("Body Attempts", bodyAttemptsPerCandidate), 1, 64);
         using (new EditorGUI.DisabledScope(!fillAvailableArea))
         {
+            requireFullFill = EditorGUILayout.Toggle("Require Full Fill", requireFullFill);
             fillSearchAttempts = Mathf.Max(maxAttemptsPerArrow, EditorGUILayout.IntField("Fill Search Attempts", fillSearchAttempts));
             fillLayoutAttempts = Mathf.Clamp(EditorGUILayout.IntField("Fill Layout Attempts", fillLayoutAttempts), 1, 64);
         }
@@ -562,6 +564,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
             minDistanceBetweenSnakes = minDistanceBetweenSnakes,
             minStraightCellsPerSegment = minStraightCellsPerSegment,
             fillAvailableArea = fillAvailableArea,
+            requireFullFill = requireFullFill,
             fillSearchAttempts = fillSearchAttempts,
             fillLayoutAttempts = fillLayoutAttempts,
             allowBentSnakes = allowBentSnakes,
@@ -574,6 +577,12 @@ public class ArrowLevelGeneratorWindow : EditorWindow
 
         lastResult = LevelGeneratorCore.Generate(settings);
         seed = effectiveSeed;
+        if (requireFullFill && (lastResult == null || !lastResult.success))
+        {
+            lastAssetPath = string.Empty;
+            return;
+        }
+
         if (centerGeneratedBounds && lastResult != null)
         {
             CenterSnakesOnOrigin(lastResult.snakes);

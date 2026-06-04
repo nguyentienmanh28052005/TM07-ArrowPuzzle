@@ -20,6 +20,7 @@ public static class LevelGeneratorCore
         public int fillLayoutAttempts;
         public bool allowBentSnakes;
         public bool fillAvailableArea;
+        public bool requireFullFill;
         public int originX;
         public int originY;
         public bool[] placementMask;
@@ -257,7 +258,9 @@ public static class LevelGeneratorCore
                 ConsiderGeneratedFillResult(settings, ref bestResult, ref bestBentResult, singleResult);
             }
 
-            if (bestResult.occupiedCellCount >= GetPlacementAreaCellCount(settings) && bestResult.bentArrowCount > 0)
+            if (bestResult != null
+                && bestResult.occupiedCellCount >= GetPlacementAreaCellCount(settings)
+                && bestResult.bentArrowCount > 0)
             {
                 break;
             }
@@ -284,6 +287,12 @@ public static class LevelGeneratorCore
 
         bestResult = FillSolvableRemainder(settings, bestResult);
         bestResult = RepairSparseGaps(settings, bestResult);
+        bestResult = ExtendSnakeEndsIntoRemainder(settings, bestResult);
+
+        if (settings.requireFullFill)
+        {
+            bestResult = CompleteRequiredFullFill(settings, bestResult);
+        }
 
         if (bestResult == null)
         {
@@ -291,10 +300,20 @@ public static class LevelGeneratorCore
             bestResult.placementAreaCellCount = GetPlacementAreaCellCount(settings);
         }
 
-        bestResult.success = bestResult.placedArrowCount > 0;
-        bestResult.message = bestResult.success
-            ? "Generated the densest valid fill found for the selected area."
-            : "No valid candidate could be placed with the current fill settings.";
+        bool isFull = bestResult.occupiedCellCount >= bestResult.placementAreaCellCount;
+        bestResult.success = bestResult.placedArrowCount > 0 && (!settings.requireFullFill || isFull);
+        if (bestResult.success)
+        {
+            bestResult.message = settings.requireFullFill
+                ? "Generated a full valid fill for the selected area."
+                : "Generated the densest valid fill found for the selected area.";
+        }
+        else
+        {
+            bestResult.message = settings.requireFullFill
+                ? "Could not fully fill the selected area with the current rules. Relax spacing/segment rules or redraw the mask."
+                : "No valid candidate could be placed with the current fill settings.";
+        }
 
         return bestResult;
     }
@@ -566,6 +585,451 @@ public static class LevelGeneratorCore
         }
 
         return result;
+    }
+
+    private static Result CompleteRequiredFullFill(Settings settings, Result result)
+    {
+        if (result == null || result.snakes.Count == 0)
+        {
+            return result;
+        }
+
+        int placementArea = GetPlacementAreaCellCount(settings);
+        int stagnantPasses = 0;
+        int maxPasses = GetFullFillCompletionPassLimit(settings);
+        for (int pass = 0; pass < maxPasses && result.occupiedCellCount < placementArea; pass++)
+        {
+            int before = result.occupiedCellCount;
+
+            result = ExtendSnakeEndsIntoRemainder(settings, result, GetEndpointExtensionPassLimit(settings, true), true);
+            result = FillSolvableRemainder(settings, result);
+            result = RepairSparseGaps(settings, result);
+            result = ExtendSnakeEndsIntoRemainder(settings, result, GetEndpointExtensionPassLimit(settings, true), true);
+
+            Result solvable = EnsureSolvableResult(settings, result);
+            if (solvable != null)
+            {
+                result = solvable;
+            }
+
+            if (result.occupiedCellCount >= placementArea)
+            {
+                break;
+            }
+
+            if (result.occupiedCellCount <= before)
+            {
+                stagnantPasses++;
+                if (stagnantPasses >= 2)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                stagnantPasses = 0;
+            }
+        }
+
+        return result;
+    }
+
+    private static int GetFullFillCompletionPassLimit(Settings settings)
+    {
+        int area = GetPlacementAreaCellCount(settings);
+        if (area <= 180)
+        {
+            return 5;
+        }
+
+        if (area <= 720)
+        {
+            return 4;
+        }
+
+        return 3;
+    }
+
+    private static Result ExtendSnakeEndsIntoRemainder(Settings settings, Result result)
+    {
+        return ExtendSnakeEndsIntoRemainder(settings, result, GetEndpointExtensionPassLimit(settings, false), false);
+    }
+
+    private static Result ExtendSnakeEndsIntoRemainder(Settings settings, Result result, int passLimit, bool allowExceedMaxSnakeLength)
+    {
+        if (result == null || result.snakes.Count == 0 || passLimit <= 0)
+        {
+            return result;
+        }
+
+        int totalCells = settings.width * settings.height;
+        int placementArea = GetPlacementAreaCellCount(settings);
+        if (result.occupiedCellCount >= placementArea)
+        {
+            return result;
+        }
+
+        byte[] occupied = new byte[totalCells];
+        bool[] horizontalLineLanes = new bool[settings.height];
+        bool[] verticalLineLanes = new bool[settings.width];
+        int[] snakeCells = new int[Mathf.Max(totalCells, settings.maxSnakeLength)];
+        int[] extensionCells = new int[Mathf.Max(1, allowExceedMaxSnakeLength ? totalCells : settings.maxSnakeLength)];
+        System.Random random = new System.Random(settings.seed + 450001 + result.occupiedCellCount * 43 + result.placedArrowCount * 997);
+
+        for (int pass = 0; pass < passLimit && result.occupiedCellCount < placementArea; pass++)
+        {
+            Result extendedResult;
+            if (!TryApplyBestEndpointExtension(settings, result, occupied, horizontalLineLanes, verticalLineLanes, snakeCells, extensionCells, random, allowExceedMaxSnakeLength, out extendedResult))
+            {
+                break;
+            }
+
+            result = extendedResult;
+        }
+
+        return result;
+    }
+
+    private static int GetEndpointExtensionPassLimit(Settings settings, bool fullFill)
+    {
+        int area = GetPlacementAreaCellCount(settings);
+        if (fullFill)
+        {
+            return Mathf.Clamp(area / 6, 12, 192);
+        }
+
+        return Mathf.Clamp(area / 18, 4, 64);
+    }
+
+    private static bool TryApplyBestEndpointExtension(Settings settings, Result result, byte[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] snakeCells, int[] extensionCells, System.Random random, bool allowExceedMaxSnakeLength, out Result extendedResult)
+    {
+        extendedResult = null;
+
+        System.Array.Clear(occupied, 0, occupied.Length);
+        System.Array.Clear(horizontalLineLanes, 0, horizontalLineLanes.Length);
+        System.Array.Clear(verticalLineLanes, 0, verticalLineLanes.Length);
+        if (!BuildFillStateFromResult(settings, result, occupied, horizontalLineLanes, verticalLineLanes, snakeCells))
+        {
+            return false;
+        }
+
+        int snakeCount = result.snakes.Count;
+        if (snakeCount <= 0)
+        {
+            return false;
+        }
+
+        int startSnake = random.Next(0, snakeCount);
+        int maxChecks = Mathf.Clamp(snakeCount * 8 * Mathf.Min(extensionCells.Length, 17), 128, allowExceedMaxSnakeLength ? 16384 : 4096);
+        int checkedCandidates = 0;
+        int bestScore = int.MinValue;
+
+        for (int snakePass = 0; snakePass < snakeCount && checkedCandidates < maxChecks; snakePass++)
+        {
+            int snakeIndex = (startSnake + snakePass) % snakeCount;
+            int endpointOffset = random.Next(0, 2);
+            for (int endpointPass = 0; endpointPass < 2 && checkedCandidates < maxChecks; endpointPass++)
+            {
+                bool fromHead = ((endpointPass + endpointOffset) & 1) == 0;
+                int dirOffset = random.Next(0, 4);
+                for (int dirPass = 0; dirPass < 4 && checkedCandidates < maxChecks; dirPass++)
+                {
+                    int dirIndex = (dirOffset + dirPass) & 3;
+                    ArrowDir newHeadDirection = fromHead ? (ArrowDir)dirIndex : result.snakes[snakeIndex].direction;
+                    int maxExtension = CollectEndpointExtensionCells(settings, result.snakes[snakeIndex], occupied, fromHead, dirIndex, extensionCells, allowExceedMaxSnakeLength);
+                    if (maxExtension <= 0)
+                    {
+                        continue;
+                    }
+
+                    for (int length = maxExtension; length >= 1 && checkedCandidates < maxChecks; length--)
+                    {
+                        checkedCandidates++;
+                        Result candidate = CloneResult(result);
+                        if (!ApplyEndpointExtension(settings, candidate.snakes[snakeIndex], fromHead, newHeadDirection, extensionCells, length, allowExceedMaxSnakeLength))
+                        {
+                            continue;
+                        }
+
+                        if (!HasValidSnakeStraightRuns(settings, candidate.snakes[snakeIndex]))
+                        {
+                            continue;
+                        }
+
+                        if (!TryCopySnakeCells(settings, candidate.snakes[snakeIndex], snakeCells)
+                            || !HasValidParallelLineLaneParity(settings, snakeCells, candidate.snakes[snakeIndex].segmentPositions.Count, horizontalLineLanes, verticalLineLanes))
+                        {
+                            continue;
+                        }
+
+                        RebuildResultStats(settings, candidate);
+                        if (candidate.occupiedCellCount <= result.occupiedCellCount)
+                        {
+                            continue;
+                        }
+
+                        candidate = EnsureSolvableResult(settings, candidate);
+                        if (candidate == null)
+                        {
+                            continue;
+                        }
+
+                        int score = length * 10000
+                            + GetEndpointExtensionContactScore(settings, occupied, extensionCells, length) * 120
+                            + random.Next(0, 500);
+                        if (extendedResult == null || score > bestScore)
+                        {
+                            extendedResult = candidate;
+                            bestScore = score;
+                        }
+
+                        if (length >= maxExtension && length >= settings.minStraightCellsPerSegment)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return extendedResult != null;
+    }
+
+    private static int CollectEndpointExtensionCells(Settings settings, SnakeSaveData snake, byte[] occupied, bool fromHead, int dirIndex, int[] extensionCells, bool allowExceedMaxSnakeLength)
+    {
+        if (snake == null || snake.segmentPositions == null || snake.segmentPositions.Count == 0)
+        {
+            return 0;
+        }
+
+        int dx;
+        int dy;
+        int startCell;
+        if (!TryGetEndpointExtensionStart(settings, snake, fromHead, out startCell))
+        {
+            return 0;
+        }
+
+        GetStep(dirIndex, out dx, out dy);
+
+        int maxExtension = allowExceedMaxSnakeLength
+            ? extensionCells.Length
+            : Mathf.Min(extensionCells.Length, settings.maxSnakeLength - snake.segmentPositions.Count);
+        if (maxExtension <= 0)
+        {
+            return 0;
+        }
+
+        int x = startCell % settings.width;
+        int y = startCell / settings.width;
+        int count = 0;
+        while (count < maxExtension)
+        {
+            x += dx;
+            y += dy;
+            if (!IsPlacementCell(settings, x, y))
+            {
+                break;
+            }
+
+            int cell = ToIndex(settings.width, x, y);
+            if (occupied[cell] != 0)
+            {
+                break;
+            }
+
+            int directConnectionCell = count == 0 ? startCell : extensionCells[count - 1];
+            if (!CanUseEndpointExtensionCell(settings, occupied, extensionCells, count, directConnectionCell, cell))
+            {
+                break;
+            }
+
+            extensionCells[count] = cell;
+            count++;
+        }
+
+        return count;
+    }
+
+    private static bool TryGetEndpointExtensionStart(Settings settings, SnakeSaveData snake, bool fromHead, out int startCell)
+    {
+        startCell = 0;
+        if (fromHead)
+        {
+            return TryGetLocalCellIndex(settings, snake.segmentPositions[0], out startCell);
+        }
+
+        int count = snake.segmentPositions.Count;
+        if (count <= 0)
+        {
+            return false;
+        }
+
+        return TryGetLocalCellIndex(settings, snake.segmentPositions[count - 1], out startCell);
+    }
+
+    private static bool CanUseEndpointExtensionCell(Settings settings, byte[] occupied, int[] extensionCells, int usedExtensionCount, int directConnectionCell, int cell)
+    {
+        int x = cell % settings.width;
+        int y = cell / settings.width;
+        int exclusiveDistance = settings.minDistanceBetweenSnakes;
+        if (exclusiveDistance > 1)
+        {
+            CellOffset[] offsets = GetSpacingOffsets(exclusiveDistance);
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                int checkX = x + offsets[i].x;
+                int checkY = y + offsets[i].y;
+                if (!IsInside(settings.width, settings.height, checkX, checkY))
+                {
+                    continue;
+                }
+
+                int checkCell = ToIndex(settings.width, checkX, checkY);
+                if (occupied[checkCell] == 0)
+                {
+                    continue;
+                }
+
+                if (checkCell == directConnectionCell && GetManhattanDistance(settings.width, checkCell, cell) == 1)
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            for (int i = 0; i < usedExtensionCount - 1; i++)
+            {
+                if (GetManhattanDistance(settings.width, extensionCells[i], cell) < exclusiveDistance)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ApplyEndpointExtension(Settings settings, SnakeSaveData snake, bool fromHead, ArrowDir newHeadDirection, int[] extensionCells, int length, bool allowExceedMaxSnakeLength)
+    {
+        if (snake == null || snake.segmentPositions == null || length <= 0)
+        {
+            return false;
+        }
+
+        if (!allowExceedMaxSnakeLength && snake.segmentPositions.Count + length > settings.maxSnakeLength)
+        {
+            return false;
+        }
+
+        if (fromHead)
+        {
+            for (int i = 0; i < length; i++)
+            {
+                snake.segmentPositions.Insert(0, ToWorldPosition(settings, extensionCells[i]));
+            }
+
+            snake.direction = newHeadDirection;
+        }
+        else
+        {
+            for (int i = 0; i < length; i++)
+            {
+                snake.segmentPositions.Add(ToWorldPosition(settings, extensionCells[i]));
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryCopySnakeCells(Settings settings, SnakeSaveData snake, int[] cells)
+    {
+        if (snake == null || snake.segmentPositions == null || snake.segmentPositions.Count <= 0 || snake.segmentPositions.Count > cells.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < snake.segmentPositions.Count; i++)
+        {
+            if (!TryGetLocalCellIndex(settings, snake.segmentPositions[i], out cells[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Vector2Int ToWorldPosition(Settings settings, int cell)
+    {
+        return new Vector2Int(settings.originX + cell % settings.width, settings.originY + cell / settings.width);
+    }
+
+    private static bool HasValidSnakeStraightRuns(Settings settings, SnakeSaveData snake)
+    {
+        if (snake == null || snake.segmentPositions == null || snake.segmentPositions.Count < 2)
+        {
+            return true;
+        }
+
+        int prevDx;
+        int prevDy;
+        if (!TryGetSnakeStep(settings, snake, 0, 1, out prevDx, out prevDy)
+            || Mathf.Abs(prevDx) + Mathf.Abs(prevDy) != 1)
+        {
+            return false;
+        }
+
+        int runCells = 2;
+        bool hasTurn = false;
+        for (int i = 2; i < snake.segmentPositions.Count; i++)
+        {
+            int dx;
+            int dy;
+            if (!TryGetSnakeStep(settings, snake, i - 1, i, out dx, out dy)
+                || Mathf.Abs(dx) + Mathf.Abs(dy) != 1)
+            {
+                return false;
+            }
+
+            if (dx == prevDx && dy == prevDy)
+            {
+                runCells++;
+                continue;
+            }
+
+            if (!settings.allowBentSnakes)
+            {
+                return false;
+            }
+
+            hasTurn = true;
+            if (!IsValidStraightRun(settings, runCells))
+            {
+                return false;
+            }
+
+            prevDx = dx;
+            prevDy = dy;
+            runCells = 2;
+        }
+
+        return !hasTurn
+            ? IsOdd(runCells)
+            : IsValidStraightRun(settings, runCells);
+    }
+
+    private static int GetEndpointExtensionContactScore(Settings settings, byte[] occupied, int[] extensionCells, int length)
+    {
+        int score = 0;
+        for (int i = 0; i < length; i++)
+        {
+            int cell = extensionCells[i];
+            score += CountOccupiedAtExactSpacing(settings, occupied, cell % settings.width, cell / settings.width);
+        }
+
+        return score;
     }
 
     private static int CollectEmptyCells(Settings settings, Result result, int[] emptyCells)
