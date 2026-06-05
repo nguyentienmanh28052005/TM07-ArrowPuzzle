@@ -20,8 +20,8 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private float rewardCoins = 100f;
     private float rewardDiamonds = 5f;
 
-    private int width = 9;
-    private int height = 9;
+    private int width = 300;
+    private int height = 300;
     private bool centerGridOnOrigin = true;
     private bool centerGeneratedBounds = true;
     private int originX = -4;
@@ -32,7 +32,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private int placementMaskHeight;
     private Vector2 windowScroll;
     private Vector2 placementMaskScroll;
-    private float placementMaskZoom = 1f;
+    private float placementMaskZoom = 0.5f;
     private int placementMaskViewportWidth = 760;
     private int placementMaskViewportHeight = 720;
     private Texture2D placementMaskTexture;
@@ -51,13 +51,13 @@ public class ArrowLevelGeneratorWindow : EditorWindow
 
     private int targetArrowCount = 24;
     private int minSnakeLength = 3;
-    private int maxSnakeLength = 30;
+    private int maxSnakeLength = 31;
     private int maxAttemptsPerArrow = 512;
     private int bodyAttemptsPerCandidate = 8;
     private int minDistanceBetweenSnakes = 2;
     private int minStraightCellsPerSegment = 3;
     private bool fillAvailableArea = true;
-    private bool requireFullFill = true;
+    private bool requireFullFill = false;
     private int fillSearchAttempts = 2048;
     private int fillLayoutAttempts = 12;
     private bool allowBentSnakes = true;

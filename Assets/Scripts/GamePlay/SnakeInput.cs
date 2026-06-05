@@ -17,6 +17,7 @@ public class SnakeInput : MonoBehaviour
     [SerializeField] private bool boostMobileTouchArea = true;
     [SerializeField, Min(1f)] private float mobileTouchRadiusMultiplier = 1.6f;
     [SerializeField, Min(0f)] private float mobileMinimumTouchRadiusPixels = 120f;
+    [SerializeField, Min(1f)] private float releasableInputDistanceDivisor = 3f;
 
     private bool isPressed = false;
     private bool isHolding = false;
@@ -28,6 +29,19 @@ public class SnakeInput : MonoBehaviour
     private bool _isMemoryMode = false;
 
     public static List<SnakeInput> AllInputs = new List<SnakeInput>();
+
+    private struct ClickCandidate
+    {
+        public SnakeInput input;
+        public float rawDistance;
+        public bool canRelease;
+    }
+
+    private static readonly List<ClickCandidate> _clickCandidatesCache = new List<ClickCandidate>(64);
+    private static int _selectionCacheFrame = -1;
+    private static Vector2 _selectionCachePointer;
+    private static bool _selectionCacheUsesReleaseBias;
+    private static SnakeInput _selectionCacheWinner;
 
     private void OnEnable()
     {
@@ -145,7 +159,7 @@ public class SnakeInput : MonoBehaviour
         float myDist = GetMinDistanceFromMouse(mousePos);
 
         if (myDist > activeClickRadius) return;
-        if (!IsClosestToClick(mousePos, myDist)) return;
+        if (!IsClosestToClick(mousePos)) return;
 
         if (EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive)
         {
@@ -260,28 +274,98 @@ public class SnakeInput : MonoBehaviour
         }
     }
 
-    private bool IsClosestToClick(Vector2 mousePos, float myDist)
+    private bool IsClosestToClick(Vector2 mousePos)
     {
-        foreach (var other in AllInputs)
+        bool useReleaseBias = EraseManager.Instance == null || !EraseManager.Instance.IsEraseModeActive;
+        return GetSelectionWinner(mousePos, useReleaseBias) == this;
+    }
+
+    private static SnakeInput GetSelectionWinner(Vector2 mousePos, bool useReleaseBias)
+    {
+        if (_selectionCacheFrame == Time.frameCount
+            && _selectionCacheUsesReleaseBias == useReleaseBias
+            && (_selectionCachePointer - mousePos).sqrMagnitude < 0.000001f)
         {
-            if (other != null && other != this && other.gameObject.activeInHierarchy)
+            return _selectionCacheWinner;
+        }
+
+        _selectionCacheFrame = Time.frameCount;
+        _selectionCachePointer = mousePos;
+        _selectionCacheUsesReleaseBias = useReleaseBias;
+        _selectionCacheWinner = null;
+        _clickCandidatesCache.Clear();
+
+        bool hasReleasableCandidate = false;
+        bool hasBlockedCandidate = false;
+
+        foreach (var input in AllInputs)
+        {
+            if (!IsValidSelectionCandidate(input)) continue;
+
+            float distance = input.GetMinDistanceFromMouse(mousePos);
+            float clickRadius = input.GetActiveClickRadius();
+            if (distance > clickRadius) continue;
+
+            bool canRelease = useReleaseBias && input.CanReleaseForInputSelection();
+            if (useReleaseBias)
             {
-                // BẢN VÁ: Hỏi khoảng cách đến thân của các con rắn khác để tranh quyền click
-                float otherDist = other.GetMinDistanceFromMouse(mousePos);
-                float otherClickRadius = other.GetActiveClickRadius();
-                
-                if (otherDist <= otherClickRadius)
-                {
-                    if (otherDist < myDist) return false; 
-                    
-                    if (Mathf.Abs(otherDist - myDist) < 0.0001f && other.GetInstanceID() < this.GetInstanceID())
-                    {
-                        return false;
-                    }
-                }
+                if (canRelease) hasReleasableCandidate = true;
+                else hasBlockedCandidate = true;
+            }
+
+            _clickCandidatesCache.Add(new ClickCandidate
+            {
+                input = input,
+                rawDistance = distance,
+                canRelease = canRelease
+            });
+        }
+
+        bool shouldBiasReleasable = useReleaseBias && hasReleasableCandidate && hasBlockedCandidate;
+        float bestRankDistance = float.MaxValue;
+        int bestInstanceId = int.MaxValue;
+
+        for (int i = 0; i < _clickCandidatesCache.Count; i++)
+        {
+            ClickCandidate candidate = _clickCandidatesCache[i];
+            float rankDistance = GetRankDistance(candidate, shouldBiasReleasable);
+            int instanceId = candidate.input.GetInstanceID();
+
+            if (rankDistance < bestRankDistance
+                || (Mathf.Abs(rankDistance - bestRankDistance) < 0.0001f && instanceId < bestInstanceId))
+            {
+                bestRankDistance = rankDistance;
+                bestInstanceId = instanceId;
+                _selectionCacheWinner = candidate.input;
             }
         }
-        return true;
+
+        return _selectionCacheWinner;
+    }
+
+    private static bool IsValidSelectionCandidate(SnakeInput input)
+    {
+        return input != null
+            && input.enabled
+            && input.gameObject.activeInHierarchy
+            && input.parentScript != null
+            && !input.parentScript.IsMoving;
+    }
+
+    private bool CanReleaseForInputSelection()
+    {
+        return parentScript != null && parentScript.CanReleaseNow();
+    }
+
+    private static float GetRankDistance(ClickCandidate candidate, bool shouldBiasReleasable)
+    {
+        if (shouldBiasReleasable && candidate.canRelease)
+        {
+            float divisor = Mathf.Max(1f, candidate.input.releasableInputDistanceDivisor);
+            return candidate.rawDistance / divisor;
+        }
+
+        return candidate.rawDistance;
     }
 
     private float GetActiveClickRadius()

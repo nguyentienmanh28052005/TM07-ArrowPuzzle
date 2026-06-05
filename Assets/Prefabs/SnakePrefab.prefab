@@ -273,7 +273,7 @@ MonoBehaviour:
   maxMoveSpeed: 100
   acceleration: 120
   returnMoveSpeed: 40
-  exitStartSpeed: 5
+  exitStartSpeed: 20
   exitMaxSpeed: 300
   exitAcceleration: 160
   exitTravelDistance: 150
@@ -325,8 +325,9 @@ MonoBehaviour:
   scaleFactor: 1.3
   duration: 0.2
   holdThreshold: 2
-  clickRadius: 4
+  clickRadius: 2
   useHaptics: 1
   boostMobileTouchArea: 1
-  mobileTouchRadiusMultiplier: 2
+  mobileTouchRadiusMultiplier: 1
   mobileMinimumTouchRadiusPixels: 120
+  releasableInputDistanceDivisor: 2

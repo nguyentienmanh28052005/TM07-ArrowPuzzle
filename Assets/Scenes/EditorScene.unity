@@ -1121,6 +1121,9 @@ MonoBehaviour:
   currentColor: {r: 1, g: 1, b: 1, a: 1}
   colorPreviewImage: {fileID: 348230326}
   minDistanceBetweenSnakes: 2
+  frameLevelOnLoad: 1
+  levelFramePadding: 2
+  minimumEditorCameraSize: 8
   inputTimeLimit: {fileID: 0}
   inputRewardCoins: {fileID: 0}
   inputRewardDiamonds: {fileID: 0}
@@ -2706,6 +2709,11 @@ MonoBehaviour:
   rewardCoinIcon: {fileID: 0}
   rewardDiamondIcon: {fileID: 0}
   starFills: []
+  completeWinStreakSlider: {fileID: 0}
+  completeWinStreakProgressText: {fileID: 0}
+  completeWinStreakRewardIcon: {fileID: 0}
+  completeWinStreakFillDuration: 0.35
+  completeWinStreakRewardResetDelay: 0.25
   gameOverPanel: {fileID: 0}
   gameOverContent: {fileID: 0}
   hearthRevive1: {fileID: 0}
@@ -4864,6 +4872,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d29ecbcc8347b694dbcface44d46e09d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameplayMusic: {fileID: 0}
+  gameplayMusicVolume: 1
+  loopGameplayMusic: 1
+  fadeOutMusicOnEnd: 1
+  waitForTransitionBeforeMusic: 1
   countArrowInGame: 0
 --- !u!1 &519420028
 GameObject:
