@@ -64,7 +64,7 @@ public class HintManager : MonoBehaviour
         foreach (var snake in allSnakes)
         {
             // ĐÃ SỬA: Check LogicNodes.Count thay vì bodySegments.Count
-            if (snake == null || snake.IsMoving || snake.LogicNodes == null || snake.LogicNodes.Count == 0) continue;
+            if (snake == null || snake.IsMoving || snake.IsStoppedByStopBlock || snake.LogicNodes == null || snake.LogicNodes.Count == 0) continue;
 
             Vector2Int currentPos = new Vector2Int(Mathf.RoundToInt(snake.HeadPosition.x), Mathf.RoundToInt(snake.HeadPosition.y));
             ArrowDir currentDir = snake.direction;
@@ -100,6 +100,12 @@ public class HintManager : MonoBehaviour
                 }
 
                 if (GridManager.Instance.HasActiveCountdownBlockAt(checkPos))
+                {
+                    isBlocked = true;
+                    break;
+                }
+
+                if (GridManager.Instance.HasActiveStopBlockAt(checkPos))
                 {
                     isBlocked = true;
                     break;

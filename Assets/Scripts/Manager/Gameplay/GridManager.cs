@@ -20,6 +20,7 @@ public class GridManager : MonoBehaviour
     public Dictionary<Vector2Int, PortalLink> PortalMap = new Dictionary<Vector2Int, PortalLink>();
     public Dictionary<Vector2Int, GridDeflector> DeflectorMap = new Dictionary<Vector2Int, GridDeflector>();
     public Dictionary<Vector2Int, GridCountdownBlock> CountdownBlockMap = new Dictionary<Vector2Int, GridCountdownBlock>();
+    public Dictionary<Vector2Int, GridStopBlock> StopBlockMap = new Dictionary<Vector2Int, GridStopBlock>();
 
     public Action<Color> OnKeyCollectedEvent;
     public Action<Color> OnElectricButtonPressedEvent;
@@ -92,6 +93,27 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
+    public bool HasActiveStopBlockAt(Vector2Int pos)
+    {
+        return TryGetActiveStopBlockAt(pos, out _);
+    }
+
+    public bool TryGetActiveStopBlockAt(Vector2Int pos, out GridStopBlock block)
+    {
+        block = null;
+        if (StopBlockMap == null) return false;
+        if (!StopBlockMap.TryGetValue(pos, out block)) return false;
+
+        if (block == null || block.IsDestroyed)
+        {
+            StopBlockMap.Remove(pos);
+            block = null;
+            return false;
+        }
+
+        return true;
+    }
+
     public void ClearLevelState()
     {
         GridMap.Clear();
@@ -102,5 +124,6 @@ public class GridManager : MonoBehaviour
         PortalMap.Clear();
         DeflectorMap.Clear();
         CountdownBlockMap.Clear();
+        StopBlockMap.Clear();
     }
 }

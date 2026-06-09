@@ -335,6 +335,20 @@ MonoBehaviour:
     - {x: 9, y: 16}
     - {x: 10, y: 16}
     - {x: 11, y: 16}
+  - direction: 3
+    arrowColor: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 1, y: -26}
+    - {x: 0, y: -26}
+    - {x: -1, y: -26}
+    - {x: -2, y: -26}
+    - {x: -3, y: -26}
+    - {x: -4, y: -26}
+    - {x: -5, y: -26}
+    - {x: -6, y: -26}
+    - {x: -7, y: -26}
+    - {x: -8, y: -26}
+    - {x: -9, y: -26}
   keycards:
   - position: {x: -9, y: -2}
     color: {r: 1, g: 0.68964195, b: 0, a: 1}
@@ -358,3 +372,6 @@ MonoBehaviour:
   countdownBlocks:
   - position: {x: 5, y: 12}
     count: 3
+  stopBlocks:
+  - position: {x: 8, y: -26}
+    count: 2

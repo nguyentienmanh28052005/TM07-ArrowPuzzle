@@ -45,6 +45,7 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeMoveColor = Color.white;
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.35f;
+    [SerializeField, Range(0.1f, 1f)] private float stopBlockAlpha = 0.35f;
 
     private List<Vector3> _renderPointsCache = new List<Vector3>(100);
     private List<Vector3> _smoothedPointsCache = new List<Vector3>(200);
@@ -92,14 +93,18 @@ public class SnakeBlock : MonoBehaviour
         Snake,
         Gate,
         ElectricWall,
-        CountdownBlock
+        CountdownBlock,
+        StopBlock
     }
 
     private ObstacleType _lastObstacleType = ObstacleType.None;
     private Vector2Int _lastObstacleCell = new Vector2Int(int.MinValue, int.MinValue);
+    private bool _isStoppedByStopBlock = false;
+    private GridStopBlock _holdingStopBlock;
 
     public string LastObstacleType => _lastObstacleType.ToString();
     public Vector2Int LastObstacleCell => _lastObstacleCell;
+    public bool IsStoppedByStopBlock => _isStoppedByStopBlock;
 
     private HashSet<Vector2Int> _occupiedCells = new HashSet<Vector2Int>();
     
@@ -140,6 +145,12 @@ public class SnakeBlock : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (_holdingStopBlock != null)
+        {
+            _holdingStopBlock.ClearHeldSnake(this);
+            _holdingStopBlock = null;
+        }
+
         ClearFromGrid();
         DOTween.Kill(this.GetInstanceID());
     }
@@ -202,6 +213,8 @@ public class SnakeBlock : MonoBehaviour
 
     public void SetFocusEffect(bool isFocused, float scaleFactor, float duration)
     {
+        if (_isStoppedByStopBlock) return;
+
         float targetWidth = isFocused ? (_originalWidthMultiplier * scaleFactor) : _originalWidthMultiplier;
         
         foreach (var lr in _lineRenderers)
@@ -229,6 +242,8 @@ public class SnakeBlock : MonoBehaviour
 
     public void SetFocusColor(bool isFocusing, float duration)
     {
+        if (_isStoppedByStopBlock) return;
+
         Color targetColor = isFocusing ? snakeMoveColor : snakeColor;
         SetLinePressedMaterial(isFocusing);
 
@@ -245,7 +260,7 @@ public class SnakeBlock : MonoBehaviour
 
     public void PlayDashReadyVisual(Color highlightColor, float scaleFactor, float duration)
     {
-        if (!_isInitialized || _isMoving || _isSpawning) return;
+        if (!_isInitialized || _isMoving || _isSpawning || _isStoppedByStopBlock) return;
 
         _hasFocusVisualState = false;
         SetLinePressedMaterial(true);
@@ -255,7 +270,7 @@ public class SnakeBlock : MonoBehaviour
 
     public void BeginHintGlowVisual(float scaleFactor, float duration)
     {
-        if (!_isInitialized || _isMoving || _isSpawning) return;
+        if (!_isInitialized || _isMoving || _isSpawning || _isStoppedByStopBlock) return;
 
         _hasFocusVisualState = false;
         SetLinePressedMaterial(true);
@@ -380,7 +395,7 @@ public class SnakeBlock : MonoBehaviour
 
     public bool OnHeadClicked()
     {
-        if (!_isMoving && !_isSpawning) 
+        if (!_isMoving && !_isSpawning && !_isStoppedByStopBlock) 
         {
             StartCoroutine(ProcessMovementMaster());
             return true;
@@ -390,7 +405,7 @@ public class SnakeBlock : MonoBehaviour
 
     public bool CanReleaseNow()
     {
-        if (!_isInitialized || _isMoving || _isSpawning || _isBeingErased) return false;
+        if (!_isInitialized || _isMoving || _isSpawning || _isBeingErased || _isStoppedByStopBlock) return false;
 
         Vector3 moveDir = GetDirVector(direction);
         bool canRelease = CheckObstacleDistance(moveDir) == float.MaxValue;
@@ -417,7 +432,7 @@ public class SnakeBlock : MonoBehaviour
 
     private void BeginForcedExitRelease(bool keepCurrentVisual, bool isSpinRelease)
     {
-        if (_isMoving || _isSpawning) return;
+        if (_isMoving || _isSpawning || _isStoppedByStopBlock) return;
 
         _isMoving = true;
         if (!keepCurrentVisual)
@@ -543,7 +558,21 @@ public class SnakeBlock : MonoBehaviour
                     targetMaxShift = distToObstacle * _nodesPerUnit;
                     if (currentDist == float.MaxValue) { yield return StartCoroutine(ProcessExitMovement(moveDir)); yield break; }
                 }
-                else { yield return StartCoroutine(HandleCollision(moveDir, distToObstacle, _lastProcessedGrid)); break; }
+                else
+                {
+                    if (_lastObstacleType == ObstacleType.StopBlock
+                        && GridManager.Instance != null
+                        && GridManager.Instance.TryGetActiveStopBlockAt(_lastObstacleCell, out GridStopBlock stopBlock)
+                        && stopBlock.CanCapture)
+                    {
+                        yield return StartCoroutine(HandleStopBlockCollision(moveDir, distToObstacle, _lastProcessedGrid, stopBlock));
+                    }
+                    else
+                    {
+                        yield return StartCoroutine(HandleCollision(moveDir, distToObstacle, _lastProcessedGrid));
+                    }
+                    break;
+                }
             }
 
             _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxMoveSpeed, acceleration * safeDeltaTime);
@@ -573,6 +602,54 @@ public class SnakeBlock : MonoBehaviour
         {
             dotToAnimate.PlayLeaveEffect();
         }
+    }
+
+    private IEnumerator HandleStopBlockCollision(Vector3 dir, float dist, int lastProcessedGrid, GridStopBlock stopBlock)
+    {
+        float targetShift = Mathf.Max(0f, dist) * _nodesPerUnit;
+        int lastStopGrid = lastProcessedGrid;
+
+        while (_accumulatedShift < targetShift)
+        {
+            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
+            float forwardStep = Mathf.Max(_currentMoveSpeed, startMoveSpeed) * _nodesPerUnit * safeDeltaTime;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, forwardStep);
+
+            UpdateSnakePosition(_accumulatedShift, dir);
+
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            while (lastStopGrid < currentGridProgress)
+            {
+                UpdateGridOccupancy();
+                TryCollectKeycardAtGridProgress(lastStopGrid + 1);
+
+                Vector2Int gridToLeave = GetTailGridPosAtProgress(lastStopGrid);
+                PlayDotLeaveEffect(gridToLeave);
+                lastStopGrid++;
+            }
+
+            yield return null;
+        }
+
+        _accumulatedShift = targetShift;
+        UpdateSnakePosition(_accumulatedShift, dir);
+        UpdateGridOccupancy();
+
+        ArrowDir stoppedDirection = GetHeadDirectionAtDistance(dist);
+        if (stopBlock == null || !stopBlock.TryActivate(this))
+        {
+            yield return StartCoroutine(HandleCollision(dir, dist, lastStopGrid));
+            yield break;
+        }
+
+        if (ComboManager.Instance != null) ComboManager.Instance.StopCombo();
+        if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.65f, 0.9f);
+        if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.LightImpact);
+
+        CommitCurrentPoseAsOrigin(stoppedDirection);
+        _isStoppedByStopBlock = true;
+        _holdingStopBlock = stopBlock;
+        ApplyStopBlockVisual();
     }
 
     private IEnumerator HandleCollision(Vector3 dir, float dist, int lastProcessedGrid)
@@ -630,9 +707,16 @@ public class SnakeBlock : MonoBehaviour
     {
         StopAllCoroutines(); 
         DOTween.Kill(this.GetInstanceID()); 
+
+        if (_holdingStopBlock != null)
+        {
+            _holdingStopBlock.ClearHeldSnake(this);
+            _holdingStopBlock = null;
+        }
         
         _accumulatedShift = 0f;
         _isMoving = false;
+        _isStoppedByStopBlock = false;
         _isBeingErased = false;
         _eraseTailTrackIdx = _totalPoints > 0 ? _totalPoints - 1 : 0f;
         _hasDealtDamage = false; 
@@ -653,6 +737,109 @@ public class SnakeBlock : MonoBehaviour
             arrowVisual.localScale = _originalArrowScale;
         }
         foreach (var lr in _lineRenderers) lr.sortingOrder = 10;
+    }
+
+    public void ReleaseFromStopBlock(GridStopBlock stopBlock)
+    {
+        if (!_isStoppedByStopBlock) return;
+        if (stopBlock != null && _holdingStopBlock != stopBlock) return;
+
+        _holdingStopBlock = null;
+        _isStoppedByStopBlock = false;
+        _hasDealtDamage = false;
+
+        SetLinePressedMaterial(false, true);
+        SetColorImmediate(snakeColor);
+        UpdateGridOccupancy();
+        _forceRedraw = true;
+    }
+
+    private void CommitCurrentPoseAsOrigin(ArrowDir newDirection)
+    {
+        if (_currentPositions == null || _totalPoints <= 0) return;
+
+        Vector3[] committedState = new Vector3[_totalPoints];
+        System.Array.Copy(_currentPositions, committedState, _totalPoints);
+        _originalState = committedState;
+
+        if (_currentPositions == null || _currentPositions.Length != _totalPoints)
+        {
+            _currentPositions = new Vector3[_totalPoints];
+        }
+        System.Array.Copy(_originalState, _currentPositions, _totalPoints);
+
+        direction = newDirection;
+        _accumulatedShift = 0f;
+        _activeWarps.Clear();
+        _lastPassedPortalIndex = -1;
+        _lastPassedDeflectorIndex = -1;
+
+        RebuildLogicNodesFromCurrentState();
+        SyncArrowVisualPosition();
+        UpdateVisualRotation();
+        UpdateGridOccupancy();
+        _forceRedraw = true;
+    }
+
+    private void RebuildLogicNodesFromCurrentState()
+    {
+        _logicNodes.Clear();
+        if (_originalState == null || _originalState.Length == 0) return;
+
+        Vector2Int lastCell = new Vector2Int(int.MinValue, int.MinValue);
+        for (int i = 0; i < _originalState.Length; i++)
+        {
+            Vector2Int cell = new Vector2Int(Mathf.RoundToInt(_originalState[i].x), Mathf.RoundToInt(_originalState[i].y));
+            if (cell == lastCell) continue;
+
+            _logicNodes.Add(new Vector3(cell.x, cell.y, 0f));
+            lastCell = cell;
+        }
+
+        SimplifyLogicNodes();
+    }
+
+    private void SimplifyLogicNodes()
+    {
+        if (_logicNodes.Count < 3) return;
+
+        int i = 1;
+        while (i < _logicNodes.Count - 1)
+        {
+            Vector2Int prev = ToGridCell(_logicNodes[i - 1]);
+            Vector2Int current = ToGridCell(_logicNodes[i]);
+            Vector2Int next = ToGridCell(_logicNodes[i + 1]);
+
+            Vector2Int prevStep = NormalizeGridStep(current - prev);
+            Vector2Int nextStep = NormalizeGridStep(next - current);
+
+            if (prevStep == nextStep && prevStep != Vector2Int.zero)
+            {
+                _logicNodes.RemoveAt(i);
+            }
+            else
+            {
+                i++;
+            }
+        }
+    }
+
+    private static Vector2Int ToGridCell(Vector3 position)
+    {
+        return new Vector2Int(Mathf.RoundToInt(position.x), Mathf.RoundToInt(position.y));
+    }
+
+    private static Vector2Int NormalizeGridStep(Vector2Int step)
+    {
+        return new Vector2Int(Mathf.Clamp(step.x, -1, 1), Mathf.Clamp(step.y, -1, 1));
+    }
+
+    private void ApplyStopBlockVisual()
+    {
+        SetLinePressedMaterial(false, true);
+        Color faded = snakeColor;
+        faded.a = Mathf.Clamp01(stopBlockAlpha);
+        SetColorImmediate(faded);
     }
     
     private void ClearFromGrid()
@@ -867,6 +1054,13 @@ public class SnakeBlock : MonoBehaviour
                 return d - 1;
             }
 
+            if (GridManager.Instance.HasActiveStopBlockAt(checkPos))
+            {
+                _lastObstacleType = ObstacleType.StopBlock;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
+
             if (GridManager.Instance.PortalMap.TryGetValue(checkPos, out GridManager.PortalLink link))
             {
                 Vector3 offset = new Vector3(link.exit.x - checkPos.x, link.exit.y - checkPos.y, 0);
@@ -985,6 +1179,8 @@ public class SnakeBlock : MonoBehaviour
         outed = false;
         _accumulatedShift = 0f;
         _isMoving = false;
+        _isStoppedByStopBlock = false;
+        _holdingStopBlock = null;
         _hasDealtDamage = false;
         _hasFocusVisualState = false;
 

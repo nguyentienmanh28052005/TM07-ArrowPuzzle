@@ -203,6 +203,11 @@ public class ArrowGuideline : MonoBehaviour
                 {
                     break;
                 }
+
+                if (GridManager.Instance.HasActiveStopBlockAt(nextCell))
+                {
+                    break;
+                }
             }
 
             if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(nextCell, out GridManager.PortalLink link))

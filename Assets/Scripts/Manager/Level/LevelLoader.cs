@@ -17,6 +17,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     public GameObject portalPrefab;
     public GameObject deflectorPrefab;
     public GameObject countdownBlockPrefab;
+    public GameObject stopBlockPrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -326,6 +327,16 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 GameObject obj = Instantiate(countdownBlockPrefab, new Vector3(cb.position.x, cb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
                 GridCountdownBlock script = obj.GetComponent<GridCountdownBlock>();
                 if (script != null) script.SetCount(cb.count);
+            }
+        }
+
+        if (levelToPlay.stopBlocks != null && stopBlockPrefab != null)
+        {
+            foreach (var sb in levelToPlay.stopBlocks)
+            {
+                GameObject obj = Instantiate(stopBlockPrefab, new Vector3(sb.position.x, sb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
+                GridStopBlock script = obj.GetComponent<GridStopBlock>();
+                if (script != null) script.SetCount(sb.count);
             }
         }
 

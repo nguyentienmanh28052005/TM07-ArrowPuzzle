@@ -121,6 +121,7 @@ public class SnakeInput : MonoBehaviour
         if (CameraController.IsGameplayBlocking) return false;
         if (BoosterTutorialManager.Instance != null && BoosterTutorialManager.Instance.IsBlockingArrowInput) return false;
         if (parentScript != null && parentScript.IsMoving) return false;
+        if (parentScript != null && parentScript.IsStoppedByStopBlock && (EraseManager.Instance == null || !EraseManager.Instance.IsEraseModeActive)) return false;
         if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return false;
 
         float activeClickRadius = GetActiveClickRadius();
@@ -321,11 +322,13 @@ public class SnakeInput : MonoBehaviour
 
     private static bool IsValidSelectionCandidate(SnakeInput input)
     {
+        bool isEraseMode = EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive;
         return input != null
             && input.enabled
             && input.gameObject.activeInHierarchy
             && input.parentScript != null
-            && !input.parentScript.IsMoving;
+            && !input.parentScript.IsMoving
+            && (!input.parentScript.IsStoppedByStopBlock || isEraseMode);
     }
 
     private bool CanReleaseForInputSelection()

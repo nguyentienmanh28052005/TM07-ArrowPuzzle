@@ -88,7 +88,7 @@ public class DashManager : MonoBehaviour
 
         foreach (var snake in allSnakes)
         {
-            if (snake != null && snake.direction == targetDir && !snake.IsMoving)
+            if (snake != null && snake.direction == targetDir && !snake.IsMoving && !snake.IsStoppedByStopBlock)
             {
                 matchingSnakes.Add(snake);
             }
@@ -127,7 +127,7 @@ public class DashManager : MonoBehaviour
         for (int i = 0; i < snakes.Count; i++)
         {
             SnakeBlock snake = snakes[i];
-            if (snake != null && !snake.IsMoving) validCount++;
+            if (snake != null && !snake.IsMoving && !snake.IsStoppedByStopBlock) validCount++;
         }
 
         if (validCount == 0) yield break;
@@ -138,7 +138,7 @@ public class DashManager : MonoBehaviour
         for (int i = 0; i < snakes.Count; i++)
         {
             SnakeBlock snake = snakes[i];
-            if (snake == null || snake.IsMoving) continue;
+            if (snake == null || snake.IsMoving || snake.IsStoppedByStopBlock) continue;
 
             startedAnyLaunch = true;
             startedCount++;
@@ -154,12 +154,12 @@ public class DashManager : MonoBehaviour
 
     private IEnumerator HighlightThenLaunch(SnakeBlock snake, float highlightDuration)
     {
-        if (snake == null || snake.IsMoving) yield break;
+        if (snake == null || snake.IsMoving || snake.IsStoppedByStopBlock) yield break;
 
         snake.PlayDashReadyVisual(releaseHighlightColor, releaseHighlightScale, releaseHighlightInDuration);
         if (highlightDuration > 0f) yield return new WaitForSeconds(highlightDuration);
 
-        if (snake == null || snake.IsMoving) yield break;
+        if (snake == null || snake.IsMoving || snake.IsStoppedByStopBlock) yield break;
 
         snake.ForceDashRelease(keepCurrentVisual: true);
     }

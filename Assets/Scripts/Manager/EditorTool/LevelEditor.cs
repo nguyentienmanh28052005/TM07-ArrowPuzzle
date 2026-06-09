@@ -12,7 +12,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 
-public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector, CountdownBlock, ElectricButton, ElectricWall }
+public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector, CountdownBlock, ElectricButton, ElectricWall, StopBlock }
 
 public class LevelEditor : MonoBehaviour
 {
@@ -29,6 +29,7 @@ public class LevelEditor : MonoBehaviour
     public GameObject electricWallPrefab;
     public GameObject deflectorPrefab;
     public GameObject countdownBlockPrefab;
+    public GameObject stopBlockPrefab;
     public Color highlightColor = Color.yellow;
 
     [Header("Data")]
@@ -134,6 +135,7 @@ public class LevelEditor : MonoBehaviour
         public readonly List<DeadlockElectricWall> electricWalls = new List<DeadlockElectricWall>();
         public readonly Dictionary<Vector2Int, List<int>> electricWallIdsByCell = new Dictionary<Vector2Int, List<int>>();
         public readonly Dictionary<Vector2Int, int> countdownBlocks = new Dictionary<Vector2Int, int>();
+        public readonly Dictionary<Vector2Int, int> stopBlocks = new Dictionary<Vector2Int, int>();
         public readonly Dictionary<Vector2Int, DeadlockPortalLink> portals = new Dictionary<Vector2Int, DeadlockPortalLink>();
         public readonly Dictionary<Vector2Int, ArrowDir> deflectors = new Dictionary<Vector2Int, ArrowDir>();
         public int releasedCount;
@@ -203,6 +205,7 @@ public class LevelEditor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha7)) UI_SetTool(6);
         if (Input.GetKeyDown(KeyCode.Alpha8)) UI_SetTool(7);
         if (Input.GetKeyDown(KeyCode.Alpha9)) UI_SetTool(8);
+        if (Input.GetKeyDown(KeyCode.Alpha0)) UI_SetTool((int)EditorToolType.StopBlock);
 
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) UI_SetDirection(0);
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) UI_SetDirection(1);
@@ -231,6 +234,7 @@ public class LevelEditor : MonoBehaviour
             else if (currentTool == EditorToolType.CountdownBlock) HandleCountdownBlockPlacement();
             else if (currentTool == EditorToolType.ElectricButton) HandleObjectPlacement<GridElectricButton>(electricButtonPrefab);
             else if (currentTool == EditorToolType.ElectricWall) HandleElectricWallClick();
+            else if (currentTool == EditorToolType.StopBlock) HandleStopBlockPlacement();
         }
         else if (Input.GetMouseButton(0)) 
         {
@@ -358,6 +362,7 @@ public class LevelEditor : MonoBehaviour
             GridDeflector d = child.GetComponentInChildren<GridDeflector>();
             if (d != null && Mathf.RoundToInt(d.transform.position.x) == pos.x && Mathf.RoundToInt(d.transform.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridCountdownBlock cb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridStopBlock sb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
         }
         return false;
     }
@@ -445,6 +450,22 @@ public class LevelEditor : MonoBehaviour
 
         GameObject obj = Instantiate(countdownBlockPrefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
         GridCountdownBlock block = obj.GetComponent<GridCountdownBlock>();
+        if (block != null) block.SetCount(editorCountdownValue);
+
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void HandleStopBlockPlacement()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        if (IsPositionOccupied(gridPos) || stopBlockPrefab == null) return;
+
+        if (inputCountdownValue != null)
+            int.TryParse(inputCountdownValue.text, out editorCountdownValue);
+        if (editorCountdownValue < 1) editorCountdownValue = 1;
+
+        GameObject obj = Instantiate(stopBlockPrefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
+        GridStopBlock block = obj.GetComponent<GridStopBlock>();
         if (block != null) block.SetCount(editorCountdownValue);
 
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -546,7 +567,7 @@ public class LevelEditor : MonoBehaviour
         foreach (Transform child in levelContainer)
         {
             GridDeflector deflector = child.GetComponentInChildren<GridDeflector>();
-            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || child.GetComponent<GridElectricButton>() != null || deflector != null || child.GetComponent<GridCountdownBlock>() != null)
+            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || child.GetComponent<GridElectricButton>() != null || deflector != null || child.GetComponent<GridCountdownBlock>() != null || child.GetComponent<GridStopBlock>() != null)
                 && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
                 Destroy(child.gameObject);
@@ -973,7 +994,7 @@ public class LevelEditor : MonoBehaviour
         }
         else if (currentTool == EditorToolType.Erase) previewCursor.color = new Color(1, 0, 0, 0.5f);
         else if (currentTool == EditorToolType.Select) previewCursor.color = new Color(1, 1, 0, 0.3f);
-        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector || currentTool == EditorToolType.CountdownBlock || currentTool == EditorToolType.ElectricButton || currentTool == EditorToolType.ElectricWall) 
+        else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector || currentTool == EditorToolType.CountdownBlock || currentTool == EditorToolType.ElectricButton || currentTool == EditorToolType.ElectricWall || currentTool == EditorToolType.StopBlock) 
             previewCursor.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.8f);
     }
 
@@ -1203,6 +1224,11 @@ public class LevelEditor : MonoBehaviour
             {
                 state.countdownBlocks[childCell] = Mathf.Max(1, countdownBlock.count);
             }
+
+            if (child.TryGetComponent(out GridStopBlock stopBlock))
+            {
+                state.stopBlocks[childCell] = Mathf.Max(1, stopBlock.count);
+            }
         }
 
         for (int i = 0; i < currentDraftPortals.Count; i++)
@@ -1319,6 +1345,12 @@ public class LevelEditor : MonoBehaviour
             if (state.countdownBlocks.TryGetValue(checkPos, out int countdown) && countdown > 0)
             {
                 result.blockedReason = $"blocked by countdown block ({countdown}) at {FormatCell(checkPos)}";
+                return result;
+            }
+
+            if (state.stopBlocks.TryGetValue(checkPos, out int stopCount) && stopCount > 0)
+            {
+                result.blockedReason = $"blocked by stop block ({stopCount}) at {FormatCell(checkPos)}";
                 return result;
             }
 
@@ -1536,6 +1568,8 @@ public class LevelEditor : MonoBehaviour
         currentData.electricWalls.Clear();
         currentData.deflectors.Clear();
         currentData.countdownBlocks.Clear();
+        if (currentData.stopBlocks == null) currentData.stopBlocks = new List<StopBlockSaveData>();
+        else currentData.stopBlocks.Clear();
 
         foreach (Transform s in levelContainer) {
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
@@ -1559,6 +1593,9 @@ public class LevelEditor : MonoBehaviour
 
             if (s.TryGetComponent(out GridCountdownBlock cb))
                 currentData.countdownBlocks.Add(new CountdownBlockSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), count = cb.count });
+
+            if (s.TryGetComponent(out GridStopBlock stopBlock))
+                currentData.stopBlocks.Add(new StopBlockSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), count = stopBlock.count });
         }
 
         currentData.portals = new List<PortalData>(currentDraftPortals);
@@ -1623,6 +1660,14 @@ public class LevelEditor : MonoBehaviour
                 GameObject cb = Instantiate(countdownBlockPrefab, new Vector3(cbData.position.x, cbData.position.y, 0), Quaternion.identity, levelContainer);
                 GridCountdownBlock script = cb.GetComponent<GridCountdownBlock>();
                 if (script != null) script.SetCount(cbData.count);
+            }
+        }
+
+        if (currentData.stopBlocks != null && stopBlockPrefab != null) {
+            foreach (var sbData in currentData.stopBlocks) {
+                GameObject sb = Instantiate(stopBlockPrefab, new Vector3(sbData.position.x, sbData.position.y, 0), Quaternion.identity, levelContainer);
+                GridStopBlock script = sb.GetComponent<GridStopBlock>();
+                if (script != null) script.SetCount(sbData.count);
             }
         }
 
@@ -1738,6 +1783,14 @@ public class LevelEditor : MonoBehaviour
             for (int i = 0; i < currentData.countdownBlocks.Count; i++)
             {
                 AddBoundsPoint(currentData.countdownBlocks[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.stopBlocks != null)
+        {
+            for (int i = 0; i < currentData.stopBlocks.Count; i++)
+            {
+                AddBoundsPoint(currentData.stopBlocks[i].position, ref min, ref max, ref hasPosition);
             }
         }
 

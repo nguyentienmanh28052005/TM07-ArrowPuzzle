@@ -60,6 +60,14 @@ public partial class CountdownBlockSaveData
     public int count;
 }
 
+[System.Serializable]
+[MemoryPackable]
+public partial class StopBlockSaveData
+{
+    public Vector2Int position;
+    public int count;
+}
+
 // BẢN VÁ: THÊM HƯỚNG VÀO HỐ ĐEN
 [System.Serializable]
 [MemoryPackable]
@@ -97,4 +105,5 @@ public class LevelDataSO : ScriptableObject
     public List<PortalData> portals = new List<PortalData>(); 
     public List<DeflectorSaveData> deflectors = new List<DeflectorSaveData>();
     public List<CountdownBlockSaveData> countdownBlocks = new List<CountdownBlockSaveData>();
+    public List<StopBlockSaveData> stopBlocks = new List<StopBlockSaveData>();
 }

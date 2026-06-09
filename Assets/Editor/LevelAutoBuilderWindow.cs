@@ -1023,6 +1023,16 @@ public static class LevelAutoValidator
             }
         }
 
+        if (level.stopBlocks != null)
+        {
+            for (int i = 0; i < level.stopBlocks.Count; i++)
+            {
+                if (level.stopBlocks[i].count < 1)
+                    errors.Add("stop block " + i + " must have count >= 1.");
+                TryOccupy(occupied, level.stopBlocks[i].position, "stop block " + i, errors);
+            }
+        }
+
         if (level.portals != null)
         {
             for (int i = 0; i < level.portals.Count; i++)
@@ -1184,6 +1194,7 @@ public sealed class LevelAutoSolver
     private readonly Dictionary<Vector2Int, PortalNode> _portals = new Dictionary<Vector2Int, PortalNode>();
     private readonly Dictionary<Vector2Int, ArrowDir> _deflectors = new Dictionary<Vector2Int, ArrowDir>();
     private readonly Dictionary<Vector2Int, int> _initialCountdowns = new Dictionary<Vector2Int, int>();
+    private readonly Dictionary<Vector2Int, int> _initialStopBlocks = new Dictionary<Vector2Int, int>();
     private readonly HashSet<string> _visitedStates = new HashSet<string>();
     private readonly List<int> _bestPartial = new List<int>();
     private int _searchedNodes;
@@ -1260,6 +1271,10 @@ public sealed class LevelAutoSolver
         if (level.countdownBlocks != null)
             foreach (CountdownBlockSaveData item in level.countdownBlocks)
                 if (item.count > 0) _initialCountdowns[item.position] = item.count;
+
+        if (level.stopBlocks != null)
+            foreach (StopBlockSaveData item in level.stopBlocks)
+                if (item.count > 0) _initialStopBlocks[item.position] = item.count;
     }
 
     private LevelSolveReport Run(int nodeLimit)
@@ -1269,7 +1284,7 @@ public sealed class LevelAutoSolver
         _visitedStates.Clear();
         _bestPartial.Clear();
 
-        SolveState state = SolveState.Create(_snakes.Count, _keycardColors.Keys, _gateColors.Keys, _buttonColors.Keys, _wallColors.Keys, _initialCountdowns);
+        SolveState state = SolveState.Create(_snakes.Count, _keycardColors.Keys, _gateColors.Keys, _buttonColors.Keys, _wallColors.Keys, _initialCountdowns, _initialStopBlocks);
         LevelSolveReport greedyReport = RunGreedy(state.Clone());
         if (greedyReport.solved || IsMonotonicModel())
         {
@@ -1415,6 +1430,7 @@ public sealed class LevelAutoSolver
             if (previewGates.Contains(next)) return false;
             if (previewWalls.Contains(next)) return false;
             if (state.countdowns.ContainsKey(next)) return false;
+            if (state.stopBlocks.ContainsKey(next)) return false;
 
             if (state.keycards.Contains(next) && _keycardColors.TryGetValue(next, out Color keyColor))
             {
@@ -1520,7 +1536,8 @@ public sealed class LevelAutoSolver
         AppendCells(builder, state.walls, "w");
         AppendCells(builder, state.keycards, "k");
         AppendCells(builder, state.buttons, "b");
-        AppendCountdowns(builder, state.countdowns);
+        AppendCountedCells(builder, state.countdowns, "c");
+        AppendCountedCells(builder, state.stopBlocks, "s");
         return builder.ToString();
     }
 
@@ -1532,15 +1549,15 @@ public sealed class LevelAutoSolver
         for (int i = 0; i < sorted.Count; i++) builder.Append(sorted[i].x).Append(',').Append(sorted[i].y).Append(';');
     }
 
-    private static void AppendCountdowns(System.Text.StringBuilder builder, Dictionary<Vector2Int, int> countdowns)
+    private static void AppendCountedCells(System.Text.StringBuilder builder, Dictionary<Vector2Int, int> cellsByCount, string prefix)
     {
-        List<Vector2Int> sorted = new List<Vector2Int>(countdowns.Keys);
+        List<Vector2Int> sorted = new List<Vector2Int>(cellsByCount.Keys);
         sorted.Sort(CompareCells);
-        builder.Append("|c");
+        builder.Append('|').Append(prefix);
         for (int i = 0; i < sorted.Count; i++)
         {
             Vector2Int cell = sorted[i];
-            builder.Append(cell.x).Append(',').Append(cell.y).Append(':').Append(countdowns[cell]).Append(';');
+            builder.Append(cell.x).Append(',').Append(cell.y).Append(':').Append(cellsByCount[cell]).Append(';');
         }
     }
 
@@ -1659,8 +1676,9 @@ public sealed class LevelAutoSolver
         public HashSet<Vector2Int> buttons;
         public HashSet<Vector2Int> walls;
         public Dictionary<Vector2Int, int> countdowns;
+        public Dictionary<Vector2Int, int> stopBlocks;
 
-        public static SolveState Create(int snakeCount, ICollection<Vector2Int> keycards, ICollection<Vector2Int> gates, ICollection<Vector2Int> buttons, ICollection<Vector2Int> walls, Dictionary<Vector2Int, int> countdowns)
+        public static SolveState Create(int snakeCount, ICollection<Vector2Int> keycards, ICollection<Vector2Int> gates, ICollection<Vector2Int> buttons, ICollection<Vector2Int> walls, Dictionary<Vector2Int, int> countdowns, Dictionary<Vector2Int, int> stopBlocks)
         {
             SolveState state = new SolveState();
             state.exited = new bool[snakeCount];
@@ -1670,6 +1688,7 @@ public sealed class LevelAutoSolver
             state.buttons = new HashSet<Vector2Int>(buttons);
             state.walls = new HashSet<Vector2Int>(walls);
             state.countdowns = new Dictionary<Vector2Int, int>(countdowns);
+            state.stopBlocks = new Dictionary<Vector2Int, int>(stopBlocks);
             return state;
         }
 
@@ -1684,6 +1703,7 @@ public sealed class LevelAutoSolver
             clone.buttons = new HashSet<Vector2Int>(buttons);
             clone.walls = new HashSet<Vector2Int>(walls);
             clone.countdowns = new Dictionary<Vector2Int, int>(countdowns);
+            clone.stopBlocks = new Dictionary<Vector2Int, int>(stopBlocks);
             return clone;
         }
     }
