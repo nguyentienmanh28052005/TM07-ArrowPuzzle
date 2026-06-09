@@ -41,6 +41,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     private List<SnakeBlock> _preloadedSnakes = new List<SnakeBlock>();
     private List<SnakeSaveData> _preloadedSnakeSaveData = new List<SnakeSaveData>();
     private GameObject _dotsContainer; 
+    private GridDotBatchRenderer _dotBatchRenderer;
     private GameObject _obstaclesContainer;
     private Coroutine _loadRoutine;
     private bool _requestedTransitionHold;
@@ -122,6 +123,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         }
         GridPortalVisual.ClearAll();
         GridDeflectorVisual.ClearAll();
+        GridDot.GridMap.Clear();
 
         CameraController.IsGameplayBlocking = true;
         RequestTransitionHold();
@@ -191,23 +193,24 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             {
                 if (dotPrefab != null)
                 {
-                    if (_dotsContainer == null)
-                    {
-                        _dotsContainer = new GameObject("Dots_Container");
-                        _dotsContainer.transform.SetParent(gameContainer);
-                    }
+                    GridDotBatchRenderer dotBatchRenderer = EnsureDotBatchRenderer();
 
                     for (int i = 0; i < snakeData.segmentPositions.Count; i++)
                     {
                         if (i % 2 == 0)
                         {
                             Vector2Int pos = snakeData.segmentPositions[i];
-                            Instantiate(dotPrefab, new Vector3(pos.x, pos.y, 0), Quaternion.identity, _dotsContainer.transform);
+                            dotBatchRenderer.RegisterDot(pos);
                         }
                     }
                 }
                 PreSpawnSingleSnake(snakeData);
             }
+        }
+
+        if (_dotBatchRenderer != null)
+        {
+            _dotBatchRenderer.RebuildMesh();
         }
         
         ActivateAndInitializeSnakes();
@@ -239,6 +242,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             if (Application.isPlaying) Destroy(_dotsContainer);
             else DestroyImmediate(_dotsContainer);
             _dotsContainer = null;
+            _dotBatchRenderer = null;
         }
 
         if (_obstaclesContainer != null) 
@@ -372,11 +376,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     {
         if (levelToPlay == null || levelToPlay.snakes == null || dotPrefab == null) yield break;
 
-        if (_dotsContainer == null)
-        {
-            _dotsContainer = new GameObject("Dots_Container");
-            _dotsContainer.transform.SetParent(gameContainer);
-        }
+        GridDotBatchRenderer dotBatchRenderer = EnsureDotBatchRenderer();
 
         int dotsSpawnedThisFrame = 0;
 
@@ -387,8 +387,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 if (i % 2 == 0)
                 {
                     Vector2Int pos = snakeData.segmentPositions[i];
-                    Vector3 currentPos = new Vector3(pos.x, pos.y, 0);
-                    Instantiate(dotPrefab, currentPos, Quaternion.identity, _dotsContainer.transform);
+                    dotBatchRenderer.RegisterDot(pos);
 
                     IncrementLoadingProgress();
                     
@@ -402,6 +401,28 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 }
             }
         }
+
+        dotBatchRenderer.RebuildMesh();
+    }
+
+    private GridDotBatchRenderer EnsureDotBatchRenderer()
+    {
+        if (_dotBatchRenderer != null) return _dotBatchRenderer;
+
+        if (_dotsContainer == null)
+        {
+            _dotsContainer = new GameObject("Dots_Container");
+            _dotsContainer.transform.SetParent(gameContainer, false);
+        }
+
+        _dotBatchRenderer = _dotsContainer.GetComponent<GridDotBatchRenderer>();
+        if (_dotBatchRenderer == null)
+        {
+            _dotBatchRenderer = _dotsContainer.AddComponent<GridDotBatchRenderer>();
+        }
+
+        _dotBatchRenderer.ConfigureFromPrefab(dotPrefab);
+        return _dotBatchRenderer;
     }
 
     private IEnumerator PreSpawnSnakesCoroutine()

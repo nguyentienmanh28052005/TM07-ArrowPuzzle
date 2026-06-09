@@ -49,6 +49,8 @@ public class SnakeBlock : MonoBehaviour
     private List<Vector3> _renderPointsCache = new List<Vector3>(100);
     private List<Vector3> _smoothedPointsCache = new List<Vector3>(200);
     private List<float> _renderTrackIdxCache = new List<float>(100);
+    private readonly List<List<Vector3>> _visualSegmentsCache = new List<List<Vector3>>(8);
+    private readonly List<Vector3[]> _linePositionsArrayCache = new List<Vector3[]>(8);
 
     private List<Vector3> _logicNodes = new List<Vector3>();
     private Vector3[] _originalState;
@@ -498,7 +500,7 @@ public class SnakeBlock : MonoBehaviour
                 TryCollectKeycardAtGridProgress(_lastProcessedGrid + 1);
 
                 Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
-                if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate)) dotToAnimate.PlayLeaveEffect();
+                PlayDotLeaveEffect(gridToLeave);
                 _lastProcessedGrid++;
             }
 
@@ -556,10 +558,20 @@ public class SnakeBlock : MonoBehaviour
                 TryCollectKeycardAtGridProgress(_lastProcessedGrid + 1);
                 
                 Vector2Int gridToLeave = GetTailGridPosAtProgress(_lastProcessedGrid);
-                if (GridDot.GridMap.TryGetValue(gridToLeave, out GridDot dotToAnimate)) dotToAnimate.PlayLeaveEffect();
+                PlayDotLeaveEffect(gridToLeave);
                 _lastProcessedGrid++;
             }
             yield return null;
+        }
+    }
+
+    private void PlayDotLeaveEffect(Vector2Int gridPosition)
+    {
+        if (GridDotBatchRenderer.TryPlayLeaveEffect(gridPosition)) return;
+
+        if (GridDot.GridMap.TryGetValue(gridPosition, out GridDot dotToAnimate))
+        {
+            dotToAnimate.PlayLeaveEffect();
         }
     }
 
@@ -1233,8 +1245,8 @@ public class SnakeBlock : MonoBehaviour
         // IMPORTANT: Split first, then smooth each segment.
         // Smoothing across a teleport gap (portal) can make the tail end at the rim instead of the center,
         // and produces incorrect extra LineSegment_* geometry.
-        List<List<Vector3>> visualSegments = new List<List<Vector3>>();
-        List<Vector3> currentSegment = new List<Vector3>();
+        int visualSegmentCount = 0;
+        List<Vector3> currentSegment = GetReusableVisualSegment(visualSegmentCount);
 
         for (int i = 0; i < _renderPointsCache.Count; i++)
         {
@@ -1247,28 +1259,32 @@ public class SnakeBlock : MonoBehaviour
                 float dist = Vector3.Distance(currentSegment[currentSegment.Count - 1], _renderPointsCache[i]);
                 if (dist > 1.5f)
                 {
-                    if (currentSegment.Count > 1) visualSegments.Add(currentSegment);
-                    currentSegment = new List<Vector3>();
+                    if (currentSegment.Count > 1) visualSegmentCount++;
+                    currentSegment = GetReusableVisualSegment(visualSegmentCount);
                 }
                 currentSegment.Add(_renderPointsCache[i]);
             }
         }
-        if (currentSegment.Count > 1) visualSegments.Add(currentSegment);
+        if (currentSegment.Count > 1) visualSegmentCount++;
 
         // Smooth each segment independently (never across portal gap).
         if (cornerRadius > 0f)
         {
-            for (int s = 0; s < visualSegments.Count; s++)
+            for (int s = 0; s < visualSegmentCount; s++)
             {
-                if (visualSegments[s].Count <= 2) continue;
+                List<Vector3> segment = _visualSegmentsCache[s];
+                if (segment.Count <= 2) continue;
 
-                BuildSmoothedPositionsForRenderCached(visualSegments[s], _smoothedPointsCache);
-                // Copy smoothed points into a fresh list so we don't share _smoothedPointsCache.
-                visualSegments[s] = new List<Vector3>(_smoothedPointsCache);
+                BuildSmoothedPositionsForRenderCached(segment, _smoothedPointsCache);
+                segment.Clear();
+                for (int p = 0; p < _smoothedPointsCache.Count; p++)
+                {
+                    segment.Add(_smoothedPointsCache[p]);
+                }
             }
         }
 
-        EnsureLineRenderersCount(visualSegments.Count);
+        EnsureLineRenderersCount(visualSegmentCount);
 
         for (int i = 0; i < _lineRenderers.Count; i++)
         {
@@ -1277,12 +1293,11 @@ public class SnakeBlock : MonoBehaviour
                 _lineRenderers[i].widthMultiplier = lineRenderer.widthMultiplier;
             }
 
-            if (i < visualSegments.Count && visualSegments[i].Count > 1)
+            if (i < visualSegmentCount && _visualSegmentsCache[i].Count > 1)
             {
                 if (!_lineRenderers[i].gameObject.activeSelf) _lineRenderers[i].gameObject.SetActive(true);
                 _lineRenderers[i].enabled = true;
-                _lineRenderers[i].positionCount = visualSegments[i].Count;
-                _lineRenderers[i].SetPositions(visualSegments[i].ToArray());
+                ApplyCachedLinePositions(_lineRenderers[i], i, _visualSegmentsCache[i]);
             }
             else
             {
@@ -1291,6 +1306,49 @@ public class SnakeBlock : MonoBehaviour
                 if (i > 0) _lineRenderers[i].gameObject.SetActive(false);
             }
         }
+    }
+
+    private List<Vector3> GetReusableVisualSegment(int index)
+    {
+        while (_visualSegmentsCache.Count <= index)
+        {
+            _visualSegmentsCache.Add(new List<Vector3>(32));
+        }
+
+        List<Vector3> segment = _visualSegmentsCache[index];
+        segment.Clear();
+        return segment;
+    }
+
+    private void ApplyCachedLinePositions(LineRenderer targetRenderer, int segmentIndex, List<Vector3> positions)
+    {
+        int pointCount = positions.Count;
+        targetRenderer.positionCount = pointCount;
+
+        Vector3[] buffer = GetLinePositionsArray(segmentIndex, pointCount);
+        for (int i = 0; i < pointCount; i++)
+        {
+            buffer[i] = positions[i];
+        }
+
+        targetRenderer.SetPositions(buffer);
+    }
+
+    private Vector3[] GetLinePositionsArray(int segmentIndex, int pointCount)
+    {
+        while (_linePositionsArrayCache.Count <= segmentIndex)
+        {
+            _linePositionsArrayCache.Add(null);
+        }
+
+        Vector3[] buffer = _linePositionsArrayCache[segmentIndex];
+        if (buffer == null || buffer.Length != pointCount)
+        {
+            buffer = new Vector3[pointCount];
+            _linePositionsArrayCache[segmentIndex] = buffer;
+        }
+
+        return buffer;
     }
 
     private void BuildSmoothedPositionsForRenderCached(List<Vector3> input, List<Vector3> output)

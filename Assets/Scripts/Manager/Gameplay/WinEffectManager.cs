@@ -21,6 +21,11 @@ public class WinEffectManager : MonoBehaviour
     {
         if (gameContainer == null) return 0f;
 
+        if (GridDotBatchRenderer.Instance != null && GridDotBatchRenderer.Instance.HasDots)
+        {
+            return GridDotBatchRenderer.Instance.PlayWinEffect(winColor, waveSpeed, animationDuration, scaleMultiplier);
+        }
+
         GridDot[] allDots = gameContainer.GetComponentsInChildren<GridDot>();
 
         if (allDots.Length == 0) return 0f;

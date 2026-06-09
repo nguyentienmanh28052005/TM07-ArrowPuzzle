@@ -30,6 +30,9 @@ public class ComboManager : Singleton<ComboManager>
     private float _lastHitTime;
     private bool _isFullComboActive = false;
 
+    [Header("Display Options")]
+    [SerializeField] private bool showComboText = true;
+
     [Header("Visual References")]
     [SerializeField] private TextMeshProUGUI comboText;
     [SerializeField] private RectTransform comboTextRect;
@@ -108,7 +111,7 @@ public class ComboManager : Singleton<ComboManager>
 
     private void Update()
     {
-        if (_isFullComboActive && comboText.gameObject.activeSelf)
+        if (showComboText && _isFullComboActive && comboText != null && comboText.gameObject.activeSelf)
         {
             float hue = Mathf.Repeat(Time.time * rainbowSpeed, 1f);
             comboText.color = Color.HSVToRGB(hue, 0.6f, 1f);
@@ -132,10 +135,25 @@ public class ComboManager : Singleton<ComboManager>
         //         ScreenJuiceManager.Instance.PlayComboJuice(currentCombo);
         //     }
         // }
-        if (currentCombo >= minComboToShow)
+        if (ShouldShowComboEffect())
         {
             PlayBlockBlastFeedback();
         }
+    }
+
+    private bool ShouldShowComboEffect()
+    {
+        if (currentCombo < minComboToShow || feedbackTierSettings == null) return false;
+
+        foreach (var setting in feedbackTierSettings)
+        {
+            if (currentCombo == setting.comboThreshold)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void StopCombo()
@@ -241,10 +259,30 @@ public class ComboManager : Singleton<ComboManager>
 
     private void PlayBlockBlastFeedback()
     {
-        if (comboText == null || comboTextRect == null) return;
-
         int maxCombo = GetMaxComboForCurrentLevel();
         _isFullComboActive = maxCombo > 0 && currentCombo == maxCombo;
+
+        if (_isFullComboActive && !_hasShownFullCombo)
+        {
+            _hasShownFullCombo = true;
+            PlayFeedbackSound(fullComboSound);
+        }
+
+        CheckAndShowFeedback();
+
+        if (comboParticle != null)
+        {
+            comboParticle.Stop();
+            comboParticle.Play();
+        }
+
+        if (!showComboText)
+        {
+            HideComboTextImmediate();
+            return;
+        }
+
+        if (comboText == null || comboTextRect == null) return;
 
         float sizeMult = 1.2f;
 
@@ -252,11 +290,6 @@ public class ComboManager : Singleton<ComboManager>
         {
             comboText.text = "PERFECT COMBO!";
             sizeMult = maxAllowedSizeMultiplier;
-            if (!_hasShownFullCombo)
-            {
-                _hasShownFullCombo = true;
-                PlayFeedbackSound(fullComboSound);
-            }
         }
         else
         {
@@ -288,14 +321,6 @@ public class ComboManager : Singleton<ComboManager>
         comboTextRect.anchoredPosition = startPos;
         comboTextRect.localScale = Vector3.one * 0.4f;
 
-        CheckAndShowFeedback();
-
-        if (comboParticle != null)
-        {
-            comboParticle.Stop();
-            comboParticle.Play();
-        }
-
         _activeSequence = DOTween.Sequence();
         _activeSequence.SetUpdate(true);
 
@@ -309,6 +334,26 @@ public class ComboManager : Singleton<ComboManager>
         _activeSequence.Append(comboTextRect.DOAnchorPosY(startPos.y + floatDist, 0.5f).SetEase(Ease.InSine));
         _activeSequence.Join(comboText.DOFade(0f, 0.4f));
         _activeSequence.OnComplete(() => comboText.gameObject.SetActive(false));
+    }
+
+    private void HideComboTextImmediate()
+    {
+        _activeSequence?.Kill();
+
+        if (comboText != null)
+        {
+            comboText.DOKill();
+            comboText.alpha = 0f;
+            comboText.gameObject.SetActive(false);
+        }
+
+        if (comboTextRect != null)
+        {
+            comboTextRect.DOKill();
+            if (_hasInitializedVisuals) comboTextRect.anchoredPosition = _originalTextPos;
+            comboTextRect.localScale = Vector3.zero;
+            comboTextRect.localRotation = Quaternion.identity;
+        }
     }
 
     private void CheckAndShowFeedback()
@@ -339,6 +384,21 @@ public class ComboManager : Singleton<ComboManager>
     private void TriggerDotFlashEffect()
     {
         if (!enableDotFlashOnFeedback) return;
+
+        if (GridDotBatchRenderer.Instance != null && GridDotBatchRenderer.Instance.HasDots)
+        {
+            bool hasSourceCenter = _lastComboSource != null;
+            Vector3 center = hasSourceCenter ? _lastComboSource.HeadPosition : Vector3.zero;
+            GridDotBatchRenderer.Instance.PlayInwardWave(
+                hasSourceCenter,
+                center,
+                dotFlashScaleAmount,
+                dotFlashDuration,
+                waveBatchSize,
+                waveDelay);
+            return;
+        }
+
         if (GridDot.GridMap == null || GridDot.GridMap.Count == 0) return;
 
         StopDotWaveRoutine();
@@ -428,6 +488,11 @@ public class ComboManager : Singleton<ComboManager>
 
     private void StopDotWaveRoutine()
     {
+        if (GridDotBatchRenderer.Instance != null)
+        {
+            GridDotBatchRenderer.Instance.StopInwardWave();
+        }
+
         if (_dotWaveCoroutine != null)
         {
             StopCoroutine(_dotWaveCoroutine);

@@ -96,6 +96,71 @@ public class GameManager : Singleton<GameManager>, IScreenLifecycle
     {
     }
 
+    public void NextLevel()
+    {
+        ChangeLevelAndReload(1);
+    }
+
+    public void PreviousLevel()
+    {
+        ChangeLevelAndReload(-1);
+    }
+
+    private void ChangeLevelAndReload(int levelOffset)
+    {
+        if (PlaytestSession.IsActive) return;
+        if (TransitionManager.Instance != null && TransitionManager.Instance.IsTransitioning) return;
+
+        int maxLevel = GetMaxPlayableLevel();
+        int targetLevel = Mathf.Clamp(level + levelOffset, 1, maxLevel);
+        if (targetLevel == level) return;
+
+        level = targetLevel;
+        isGameOver = false;
+
+        if (SaveDataPlayer.Instance != null)
+        {
+            SaveDataPlayer.Instance.Save(1, level);
+            SaveDataPlayer.Instance.ClearBoardState();
+        }
+
+        ReloadGameplayScreen();
+    }
+
+    private int GetMaxPlayableLevel()
+    {
+        int dataCount = levelDataSOs != null ? levelDataSOs.Count : 0;
+        int configuredMaxLevel = currentMaxLevel > 0 ? currentMaxLevel : dataCount;
+
+        if (dataCount > 0 && configuredMaxLevel > 0)
+        {
+            return Mathf.Max(1, Mathf.Min(configuredMaxLevel, dataCount));
+        }
+
+        return Mathf.Max(1, configuredMaxLevel);
+    }
+
+    private void ReloadGameplayScreen()
+    {
+        Time.timeScale = 1f;
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.StopAllSfx();
+        }
+
+        if (TransitionManager.Instance != null)
+        {
+            TransitionManager.Instance.TransitionToScreen(ScreenType.Gameplay, true);
+            return;
+        }
+
+        if (ScreenManager.Instance != null)
+        {
+            ScreenManager.Instance.ShowScreen(ScreenType.Gameplay, true);
+        }
+    }
+
     void Update()
     {
         

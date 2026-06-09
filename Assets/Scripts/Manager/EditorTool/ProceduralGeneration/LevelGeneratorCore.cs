@@ -76,6 +76,37 @@ public static class LevelGeneratorCore
         }
     }
 
+    private sealed class DfsBeamBuffers
+    {
+        public readonly int[] currentPaths;
+        public readonly int[] nextPaths;
+        public readonly int[] currentScores;
+        public readonly int[] nextScores;
+        public readonly int[] currentLastDirections;
+        public readonly int[] nextLastDirections;
+        public readonly int[] currentRunCells;
+        public readonly int[] nextRunCells;
+        public readonly int[] currentTurnCounts;
+        public readonly int[] nextTurnCounts;
+
+        public DfsBeamBuffers(int beamCapacity, int pathCapacity)
+        {
+            int pathBufferLength = Mathf.Max(1, beamCapacity * pathCapacity);
+            currentPaths = new int[pathBufferLength];
+            nextPaths = new int[pathBufferLength];
+            currentScores = new int[beamCapacity];
+            nextScores = new int[beamCapacity];
+            currentLastDirections = new int[beamCapacity];
+            nextLastDirections = new int[beamCapacity];
+            currentRunCells = new int[beamCapacity];
+            nextRunCells = new int[beamCapacity];
+            currentTurnCounts = new int[beamCapacity];
+            nextTurnCounts = new int[beamCapacity];
+        }
+    }
+
+    private const int DfsBeamWidthCap = 10;
+
     private static readonly Dictionary<int, CellOffset[]> SpacingOffsetCache = new Dictionary<int, CellOffset[]>();
 
     private static readonly Color[] DefaultPalette =
@@ -1400,8 +1431,7 @@ public static class LevelGeneratorCore
         bool[] verticalLineLanes = new bool[settings.width];
         int[] freeCells = new int[totalCells];
         int[] dfsPath = new int[settings.maxSnakeLength];
-        int[] pathVisited = new int[totalCells];
-        int pathVisitGeneration = 1;
+        DfsBeamBuffers beamBuffers = new DfsBeamBuffers(DfsBeamWidthCap, settings.maxSnakeLength);
 
         System.Random random = new System.Random(seed);
         bool addedInPass = true;
@@ -1428,11 +1458,11 @@ public static class LevelGeneratorCore
                 for (int targetLength = longestLength; targetLength >= settings.minSnakeLength; targetLength -= 2)
                 {
                     bool hasBestPath = false;
-                    int attempts = Mathf.Max(1, settings.bodyAttemptsPerCandidate);
+                    int attempts = Mathf.Clamp(settings.bodyAttemptsPerCandidate, 1, 2);
 
                     for (int attempt = 0; attempt < attempts; attempt++)
                     {
-                        if (!TryCreateDfsSnakePath(settings, startCell, targetLength, occupied, horizontalLineLanes, verticalLineLanes, pathVisited, ref pathVisitGeneration, dfsPath, random))
+                        if (!TryCreateDfsSnakePath(settings, startCell, targetLength, occupied, horizontalLineLanes, verticalLineLanes, beamBuffers, dfsPath, random))
                         {
                             continue;
                         }
@@ -1501,73 +1531,355 @@ public static class LevelGeneratorCore
         return count;
     }
 
-    private static bool TryCreateDfsSnakePath(Settings settings, int startCell, int targetLength, bool[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, int[] pathVisited, ref int pathVisitGeneration, int[] path, System.Random random)
+    private static bool TryCreateDfsSnakePath(Settings settings, int startCell, int targetLength, bool[] occupied, bool[] horizontalLineLanes, bool[] verticalLineLanes, DfsBeamBuffers buffers, int[] path, System.Random random)
     {
         if (!CanUseDfsCell(settings, occupied, path, 0, startCell))
         {
             return false;
         }
 
-        int generation = NextVisitGeneration(pathVisited, ref pathVisitGeneration);
+        int beamWidth = GetDfsBeamWidth(settings, targetLength);
+        int[] currentPaths = buffers.currentPaths;
+        int[] nextPaths = buffers.nextPaths;
+        int[] currentScores = buffers.currentScores;
+        int[] nextScores = buffers.nextScores;
+        int[] currentLastDirections = buffers.currentLastDirections;
+        int[] nextLastDirections = buffers.nextLastDirections;
+        int[] currentRunCells = buffers.currentRunCells;
+        int[] nextRunCells = buffers.nextRunCells;
+        int[] currentTurnCounts = buffers.currentTurnCounts;
+        int[] nextTurnCounts = buffers.nextTurnCounts;
 
-        if (!DfsSnake(settings, startCell, targetLength, occupied, pathVisited, generation, path, 0, random))
+        currentPaths[0] = startCell;
+        currentScores[0] = 0;
+        currentLastDirections[0] = -1;
+        currentRunCells[0] = 1;
+        currentTurnCounts[0] = 0;
+        int currentCount = 1;
+
+        for (int pathLength = 1; pathLength < targetLength; pathLength++)
         {
-            return false;
+            int nextCount = 0;
+            for (int beamIndex = 0; beamIndex < currentCount; beamIndex++)
+            {
+                int pathBase = beamIndex * targetLength;
+                int currentCell = currentPaths[pathBase + pathLength - 1];
+                int currentX = currentCell % settings.width;
+                int currentY = currentCell / settings.width;
+                int directionOffset = random.Next(0, 4);
+                int directionStep = random.Next(0, 2) == 0 ? 1 : 3;
+
+                for (int i = 0; i < 4; i++)
+                {
+                    int directionIndex = (directionOffset + i * directionStep) & 3;
+                    int dx;
+                    int dy;
+                    GetDfsDirectionStep(directionIndex, out dx, out dy);
+
+                    int nextX = currentX + dx;
+                    int nextY = currentY + dy;
+                    if (!IsPlacementCell(settings, nextX, nextY))
+                    {
+                        continue;
+                    }
+
+                    int nextCell = ToIndex(settings.width, nextX, nextY);
+                    if (!CanUseBeamCell(settings, occupied, currentPaths, targetLength, beamIndex, pathLength, nextCell))
+                    {
+                        continue;
+                    }
+
+                    int lastDirection = currentLastDirections[beamIndex];
+                    bool isTurn = lastDirection >= 0 && directionIndex != lastDirection;
+                    if (isTurn)
+                    {
+                        if (!settings.allowBentSnakes || !IsValidStraightRun(settings, currentRunCells[beamIndex]))
+                        {
+                            continue;
+                        }
+
+                        int remainingCells = targetLength - pathLength - 1;
+                        if (remainingCells > 0 && remainingCells < settings.minStraightCellsPerSegment - 2)
+                        {
+                            continue;
+                        }
+                    }
+
+                    int newRunCells = lastDirection < 0
+                        ? 2
+                        : isTurn ? 2 : currentRunCells[beamIndex] + 1;
+                    int newTurnCount = currentTurnCounts[beamIndex] + (isTurn ? 1 : 0);
+                    int onwardOptions = pathLength + 1 >= targetLength
+                        ? 0
+                        : CountBeamOnwardOptions(settings, occupied, currentPaths, targetLength, beamIndex, pathLength, nextCell);
+
+                    if (pathLength + 1 < targetLength && onwardOptions <= 0)
+                    {
+                        continue;
+                    }
+
+                    int score = currentScores[beamIndex]
+                        + GetBeamStepScore(settings, currentX, currentY, nextX, nextY, isTurn, newTurnCount, onwardOptions, random);
+                    InsertBeamCandidate(
+                        currentPaths,
+                        nextPaths,
+                        nextScores,
+                        nextLastDirections,
+                        nextRunCells,
+                        nextTurnCounts,
+                        targetLength,
+                        beamIndex,
+                        pathLength,
+                        nextCell,
+                        directionIndex,
+                        newRunCells,
+                        newTurnCount,
+                        score,
+                        beamWidth,
+                        ref nextCount);
+                }
+            }
+
+            if (nextCount <= 0)
+            {
+                return false;
+            }
+
+            Swap(ref currentPaths, ref nextPaths);
+            Swap(ref currentScores, ref nextScores);
+            Swap(ref currentLastDirections, ref nextLastDirections);
+            Swap(ref currentRunCells, ref nextRunCells);
+            Swap(ref currentTurnCounts, ref nextTurnCounts);
+            currentCount = nextCount;
         }
 
-        ReverseRange(path, targetLength);
-        return HasValidStraightRuns(settings, path, targetLength)
-            && HasValidParallelLineLaneParity(settings, path, targetLength, horizontalLineLanes, verticalLineLanes);
-    }
-
-    private static bool DfsSnake(Settings settings, int currentCell, int targetLength, bool[] occupied, int[] pathVisited, int generation, int[] path, int pathLength, System.Random random)
-    {
-        path[pathLength] = currentCell;
-        pathVisited[currentCell] = generation;
-        int nextPathLength = pathLength + 1;
-
-        if (nextPathLength == targetLength)
+        for (int i = 0; i < currentCount; i++)
         {
-            return true;
-        }
-
-        int currentX = currentCell % settings.width;
-        int currentY = currentCell / settings.width;
-        int directionOffset = random.Next(0, 4);
-        int directionStep = random.Next(0, 2) == 0 ? 1 : 3;
-
-        for (int i = 0; i < 4; i++)
-        {
-            int dx;
-            int dy;
-            GetDfsDirectionStep((directionOffset + i * directionStep) & 3, out dx, out dy);
-
-            int nextX = currentX + dx;
-            int nextY = currentY + dy;
-            if (!IsPlacementCell(settings, nextX, nextY))
+            int pathBase = i * targetLength;
+            for (int j = 0; j < targetLength; j++)
             {
-                continue;
+                path[j] = currentPaths[pathBase + j];
             }
 
-            int nextCell = ToIndex(settings.width, nextX, nextY);
-            if (pathVisited[nextCell] == generation)
-            {
-                continue;
-            }
-
-            if (!CanUseDfsCell(settings, occupied, path, nextPathLength, nextCell))
-            {
-                continue;
-            }
-
-            if (DfsSnake(settings, nextCell, targetLength, occupied, pathVisited, generation, path, nextPathLength, random))
+            ReverseRange(path, targetLength);
+            if (HasValidStraightRuns(settings, path, targetLength)
+                && HasValidParallelLineLaneParity(settings, path, targetLength, horizontalLineLanes, verticalLineLanes))
             {
                 return true;
             }
         }
 
-        pathVisited[currentCell] = 0;
         return false;
+    }
+
+    private static int GetDfsBeamWidth(Settings settings, int targetLength)
+    {
+        int baseWidth = Mathf.Clamp(settings.bodyAttemptsPerCandidate + 3, 4, 8);
+        if (targetLength <= 9)
+        {
+            baseWidth += 2;
+        }
+
+        int area = GetPlacementAreaCellCount(settings);
+        if (area <= 90)
+        {
+            baseWidth += 2;
+        }
+
+        return Mathf.Clamp(baseWidth, 4, DfsBeamWidthCap);
+    }
+
+    private static bool CanUseBeamCell(Settings settings, bool[] occupied, int[] paths, int stride, int beamIndex, int pathLength, int cell)
+    {
+        if (occupied[cell])
+        {
+            return false;
+        }
+
+        if (!IsPlacementCell(settings, cell))
+        {
+            return false;
+        }
+
+        int x = cell % settings.width;
+        int y = cell / settings.width;
+        if (IsTooCloseToOccupied(settings, occupied, x, y))
+        {
+            return false;
+        }
+
+        int pathBase = beamIndex * stride;
+        int exclusiveDistance = settings.minDistanceBetweenSnakes;
+        for (int i = 0; i < pathLength; i++)
+        {
+            int pathCell = paths[pathBase + i];
+            if (pathCell == cell)
+            {
+                return false;
+            }
+
+            if (exclusiveDistance > 1
+                && i < pathLength - 1
+                && GetManhattanDistance(settings.width, pathCell, cell) < exclusiveDistance)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static int CountBeamOnwardOptions(Settings settings, bool[] occupied, int[] paths, int stride, int beamIndex, int pathLength, int nextCell)
+    {
+        int count = 0;
+        int x = nextCell % settings.width;
+        int y = nextCell / settings.width;
+
+        for (int i = 0; i < 4; i++)
+        {
+            int dx;
+            int dy;
+            GetDfsDirectionStep(i, out dx, out dy);
+
+            int checkX = x + dx;
+            int checkY = y + dy;
+            if (!IsPlacementCell(settings, checkX, checkY))
+            {
+                continue;
+            }
+
+            int checkCell = ToIndex(settings.width, checkX, checkY);
+            if (CanUseBeamLookaheadCell(settings, occupied, paths, stride, beamIndex, pathLength, nextCell, checkCell))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool CanUseBeamLookaheadCell(Settings settings, bool[] occupied, int[] paths, int stride, int beamIndex, int pathLength, int parentCell, int cell)
+    {
+        if (cell == parentCell || occupied[cell])
+        {
+            return false;
+        }
+
+        int x = cell % settings.width;
+        int y = cell / settings.width;
+        if (IsTooCloseToOccupied(settings, occupied, x, y))
+        {
+            return false;
+        }
+
+        int pathBase = beamIndex * stride;
+        for (int i = 0; i < pathLength; i++)
+        {
+            if (paths[pathBase + i] == cell)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static int GetBeamStepScore(Settings settings, int fromX, int fromY, int toX, int toY, bool isTurn, int turnCount, int onwardOptions, System.Random random)
+    {
+        int score = 1000;
+        score -= onwardOptions * 120;
+
+        if (isTurn)
+        {
+            score += 180;
+        }
+
+        if (turnCount > 0)
+        {
+            score += 30;
+        }
+
+        if (toX == 0 || toX == settings.width - 1)
+        {
+            score += 12;
+        }
+
+        if (toY == 0 || toY == settings.height - 1)
+        {
+            score += 12;
+        }
+
+        if (fromX != toX && fromY != toY)
+        {
+            score -= 500;
+        }
+
+        return score + random.Next(0, 45);
+    }
+
+    private static void InsertBeamCandidate(
+        int[] currentPaths,
+        int[] nextPaths,
+        int[] nextScores,
+        int[] nextLastDirections,
+        int[] nextRunCells,
+        int[] nextTurnCounts,
+        int stride,
+        int sourceBeamIndex,
+        int pathLength,
+        int nextCell,
+        int directionIndex,
+        int runCells,
+        int turnCount,
+        int score,
+        int beamWidth,
+        ref int nextCount)
+    {
+        int slot = nextCount;
+        if (nextCount < beamWidth)
+        {
+            nextCount++;
+        }
+        else
+        {
+            int worstIndex = 0;
+            int worstScore = nextScores[0];
+            for (int i = 1; i < beamWidth; i++)
+            {
+                if (nextScores[i] < worstScore)
+                {
+                    worstScore = nextScores[i];
+                    worstIndex = i;
+                }
+            }
+
+            if (score <= worstScore)
+            {
+                return;
+            }
+
+            slot = worstIndex;
+        }
+
+        int sourceBase = sourceBeamIndex * stride;
+        int targetBase = slot * stride;
+        for (int i = 0; i < pathLength; i++)
+        {
+            nextPaths[targetBase + i] = currentPaths[sourceBase + i];
+        }
+
+        nextPaths[targetBase + pathLength] = nextCell;
+        nextScores[slot] = score;
+        nextLastDirections[slot] = directionIndex;
+        nextRunCells[slot] = runCells;
+        nextTurnCounts[slot] = turnCount;
+    }
+
+    private static void Swap(ref int[] left, ref int[] right)
+    {
+        int[] temp = left;
+        left = right;
+        right = temp;
     }
 
     private static bool IsDfsExitBlocked(Settings settings, int[] path, int length, bool[] occupied)

@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.EventSystems; 
 using DG.Tweening;
 using System.Collections.Generic;
 using Solo.MOST_IN_ONE;
@@ -46,11 +45,19 @@ public class SnakeInput : MonoBehaviour
     private void OnEnable()
     {
         if (!AllInputs.Contains(this)) AllInputs.Add(this);
+        SnakeInputManager.EnsureExists();
     }
 
     private void OnDisable()
     {
         if (AllInputs.Contains(this)) AllInputs.Remove(this);
+        if (isPressed)
+        {
+            isPressed = false;
+            isHolding = false;
+            if (_isMemoryMode) CameraController.IsGameplayBlocking = false;
+            if (_guidelineCache != null) _guidelineCache.SetLineActive(false);
+        }
     }
 
     private void Awake()
@@ -73,43 +80,6 @@ public class SnakeInput : MonoBehaviour
         {
             _isMemoryMode = currentLevelData.gameMode == GameMode.Memory;
         }
-    }
-
-    private void Update()
-    {
-        if (!PlaytestSession.IsActive && _levelEditor != null && _levelEditor.gameObject.activeInHierarchy) return;
-        if (Time.timeScale == 0f) return;
-
-        if (CameraController.IsCameraGestureActive)
-        {
-            if (isPressed) HandleInputUp(true); 
-            return; 
-        }
-
-        if (IsPointerOverUI()) 
-        { 
-            if (isPressed) HandleInputUp(true); 
-            return; 
-        }
-
-        if (Input.GetMouseButtonDown(0)) HandleInputDown();
-        if (Input.GetMouseButtonUp(0)) HandleInputUp(false);
-    }
-
-    private bool IsPointerOverUI()
-    {
-        if (EventSystem.current == null) return false;
-
-        if (Input.touchCount > 0)
-        {
-            Touch touch = Input.GetTouch(0);
-            if (touch.phase == TouchPhase.Began || touch.phase == TouchPhase.Moved)
-            {
-                return EventSystem.current.IsPointerOverGameObject(touch.fingerId);
-            }
-        }
-        
-        return EventSystem.current.IsPointerOverGameObject();
     }
 
     // =========================================================
@@ -145,27 +115,27 @@ public class SnakeInput : MonoBehaviour
     }
     // =========================================================
 
-    private void HandleInputDown()
+    public bool TryHandleInputDown(Vector2 mousePos)
     {
-        if (CameraController.IsGameplayBlocking) return;
-        if (BoosterTutorialManager.Instance != null && BoosterTutorialManager.Instance.IsBlockingArrowInput) return;
-        if (parentScript != null && parentScript.IsMoving) return;
-        if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return;
+        if (!PlaytestSession.IsActive && _levelEditor != null && _levelEditor.gameObject.activeInHierarchy) return false;
+        if (CameraController.IsGameplayBlocking) return false;
+        if (BoosterTutorialManager.Instance != null && BoosterTutorialManager.Instance.IsBlockingArrowInput) return false;
+        if (parentScript != null && parentScript.IsMoving) return false;
+        if (EraseManager.Instance != null && EraseManager.Instance.IsExecutingErase) return false;
 
-        Vector2 mousePos = GetCurrentPointerWorldPosition();
         float activeClickRadius = GetActiveClickRadius();
         
         // BẢN VÁ: Đo khoảng cách với toàn thân rắn thay vì chỉ Head
         float myDist = GetMinDistanceFromMouse(mousePos);
 
-        if (myDist > activeClickRadius) return;
-        if (!IsClosestToClick(mousePos)) return;
+        if (myDist > activeClickRadius) return false;
+        if (!IsClosestToClick(mousePos)) return false;
 
         if (EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive)
         {
             CameraController.IsGameplayBlocking = true;
             EraseManager.Instance.ExecuteErase(parentScript);
-            return; 
+            return false; 
         }
 
         if (HintManager.Instance != null)
@@ -187,9 +157,11 @@ public class SnakeInput : MonoBehaviour
             if (holdCoroutine != null) StopCoroutine(holdCoroutine);
             holdCoroutine = StartCoroutine(WaitAndScale());
         }
+
+        return true;
     }
 
-    private void HandleInputUp(bool isCanceledByCamera)
+    public void HandleInputUp(bool isCanceledByCamera)
     {
         if (!isPressed) return;
 
@@ -249,7 +221,7 @@ public class SnakeInput : MonoBehaviour
         isHolding = false;
     }
 
-    private void LateUpdate()
+    public void ManagedLateUpdate(Vector2 mousePos)
     {
         if (isPressed)
         {
@@ -258,7 +230,6 @@ public class SnakeInput : MonoBehaviour
                 CameraController.IsGameplayBlocking = true;
             }
 
-            Vector2 mousePos = GetCurrentPointerWorldPosition();
             bool isInside = GetMinDistanceFromMouse(mousePos) <= GetActiveClickRadius();
 
             if (!isInside)
@@ -276,8 +247,13 @@ public class SnakeInput : MonoBehaviour
 
     private bool IsClosestToClick(Vector2 mousePos)
     {
+        return GetInputAtPointer(mousePos) == this;
+    }
+
+    public static SnakeInput GetInputAtPointer(Vector2 mousePos)
+    {
         bool useReleaseBias = EraseManager.Instance == null || !EraseManager.Instance.IsEraseModeActive;
-        return GetSelectionWinner(mousePos, useReleaseBias) == this;
+        return GetSelectionWinner(mousePos, useReleaseBias);
     }
 
     private static SnakeInput GetSelectionWinner(Vector2 mousePos, bool useReleaseBias)
@@ -382,7 +358,7 @@ public class SnakeInput : MonoBehaviour
         return radius;
     }
 
-    private Vector2 GetCurrentPointerWorldPosition()
+    public static Vector2 GetCurrentPointerWorldPosition()
     {
         Camera mainCamera = Camera.main;
         if (mainCamera == null) return Vector2.zero;
@@ -394,7 +370,7 @@ public class SnakeInput : MonoBehaviour
         return mainCamera.ScreenToWorldPoint(screenPos);
     }
 
-    private Vector3 GetCurrentPointerScreenPosition()
+    private static Vector3 GetCurrentPointerScreenPosition()
     {
         if (Input.touchCount > 0)
             return Input.GetTouch(0).position;
@@ -418,7 +394,7 @@ public class SnakeInput : MonoBehaviour
         return Vector2.Distance(worldA, worldB);
     }
 
-    private float GetCameraDistanceToWorldZ(Camera camera, float worldZ)
+    private static float GetCameraDistanceToWorldZ(Camera camera, float worldZ)
     {
         if (camera == null) return 0f;
 
@@ -448,5 +424,118 @@ public class SnakeInput : MonoBehaviour
     {
         transform.DOKill();
         if (isPressed && _isMemoryMode) CameraController.IsGameplayBlocking = false;
+    }
+}
+
+public class SnakeInputManager : MonoBehaviour
+{
+    private static SnakeInputManager _instance;
+
+    private SnakeInput _pressedInput;
+
+    public static void EnsureExists()
+    {
+        if (_instance != null) return;
+
+        GameObject managerObject = new GameObject("SnakeInputManager_Runtime");
+        _instance = managerObject.AddComponent<SnakeInputManager>();
+    }
+
+    private void Awake()
+    {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        _instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
+    }
+
+    private void Update()
+    {
+        if (Time.timeScale == 0f) return;
+
+        if (CameraController.IsCameraGestureActive)
+        {
+            ReleasePressedInput(true);
+            return;
+        }
+
+        if (IsPointerOverUI())
+        {
+            ReleasePressedInput(true);
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            HandlePointerDown();
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            ReleasePressedInput(false);
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (_pressedInput == null || !_pressedInput.isActiveAndEnabled)
+        {
+            _pressedInput = null;
+            return;
+        }
+
+        Vector2 pointerWorldPosition = SnakeInput.GetCurrentPointerWorldPosition();
+        _pressedInput.ManagedLateUpdate(pointerWorldPosition);
+    }
+
+    private void HandlePointerDown()
+    {
+        Vector2 pointerWorldPosition = SnakeInput.GetCurrentPointerWorldPosition();
+        SnakeInput targetInput = SnakeInput.GetInputAtPointer(pointerWorldPosition);
+        if (targetInput == null) return;
+
+        if (targetInput.TryHandleInputDown(pointerWorldPosition))
+        {
+            _pressedInput = targetInput;
+        }
+    }
+
+    private void ReleasePressedInput(bool isCanceledByCamera)
+    {
+        if (_pressedInput == null)
+        {
+            _pressedInput = null;
+            return;
+        }
+
+        SnakeInput input = _pressedInput;
+        _pressedInput = null;
+        if (!input.isActiveAndEnabled) return;
+
+        input.HandleInputUp(isCanceledByCamera);
+    }
+
+    private static bool IsPointerOverUI()
+    {
+        if (UnityEngine.EventSystems.EventSystem.current == null) return false;
+
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            if (touch.phase == TouchPhase.Began || touch.phase == TouchPhase.Moved)
+            {
+                return UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(touch.fingerId);
+            }
+        }
+
+        return UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
     }
 }

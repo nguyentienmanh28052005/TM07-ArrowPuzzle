@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
+using System.Text;
 using UnityEngine.SceneManagement;
 
 #if UNITY_EDITOR
@@ -49,6 +50,9 @@ public class LevelEditor : MonoBehaviour
 
     [Header("Validation Settings")]
     public int minDistanceBetweenSnakes = 2;
+    [SerializeField] private bool checkDeadlockContinuously = true;
+    [SerializeField, Min(0.05f)] private float deadlockCheckInterval = 0.5f;
+    [SerializeField] private int deadlockScanLimit = 512;
 
     [Header("Camera Framing")]
     [SerializeField] private bool frameLevelOnLoad = true;
@@ -89,6 +93,59 @@ public class LevelEditor : MonoBehaviour
 
     private Camera mainCam;
     private Vector2Int lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    private float _nextDeadlockCheckTime;
+    private bool _hasContinuousDeadlockState;
+    private bool _lastContinuousDeadlockState;
+    private string _lastContinuousDeadlockMessage = string.Empty;
+
+    private class DeadlockSnake
+    {
+        public int index;
+        public string label;
+        public ArrowDir direction;
+        public Color color;
+        public List<Vector2Int> cells = new List<Vector2Int>();
+        public bool released;
+        public string lastBlockedReason;
+    }
+
+    private class DeadlockElectricWall
+    {
+        public int index;
+        public ElectricWallSaveData data;
+        public Color color;
+        public bool active = true;
+        public readonly List<Vector2Int> cells = new List<Vector2Int>();
+    }
+
+    private class DeadlockPortalLink
+    {
+        public Vector2Int exit;
+        public ArrowDir exitDir;
+    }
+
+    private class DeadlockCheckState
+    {
+        public readonly List<DeadlockSnake> snakes = new List<DeadlockSnake>();
+        public readonly Dictionary<Vector2Int, int> snakeByCell = new Dictionary<Vector2Int, int>();
+        public readonly Dictionary<Vector2Int, Color> keycards = new Dictionary<Vector2Int, Color>();
+        public readonly Dictionary<Vector2Int, Color> gates = new Dictionary<Vector2Int, Color>();
+        public readonly Dictionary<Vector2Int, Color> electricButtons = new Dictionary<Vector2Int, Color>();
+        public readonly List<DeadlockElectricWall> electricWalls = new List<DeadlockElectricWall>();
+        public readonly Dictionary<Vector2Int, List<int>> electricWallIdsByCell = new Dictionary<Vector2Int, List<int>>();
+        public readonly Dictionary<Vector2Int, int> countdownBlocks = new Dictionary<Vector2Int, int>();
+        public readonly Dictionary<Vector2Int, DeadlockPortalLink> portals = new Dictionary<Vector2Int, DeadlockPortalLink>();
+        public readonly Dictionary<Vector2Int, ArrowDir> deflectors = new Dictionary<Vector2Int, ArrowDir>();
+        public int releasedCount;
+    }
+
+    private class DeadlockPathResult
+    {
+        public bool canExit;
+        public string blockedReason;
+        public readonly List<Color> collectedKeyColors = new List<Color>();
+        public readonly List<Color> pressedButtonColors = new List<Color>();
+    }
 
     private void Start()
     {
@@ -135,6 +192,7 @@ public class LevelEditor : MonoBehaviour
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.F5)) UI_Playtest();
+        if (Input.GetKeyDown(KeyCode.F6)) UI_CheckDeadlock();
 
         if (Input.GetKeyDown(KeyCode.Alpha1)) UI_SetTool(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) UI_SetTool(1);
@@ -156,6 +214,7 @@ public class LevelEditor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Z)) UndoLastSegment();
 
         UpdatePreviewCursor();
+        RunContinuousDeadlockCheck();
 
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
@@ -797,6 +856,26 @@ public class LevelEditor : MonoBehaviour
         return Quaternion.Euler(0f, 0f, angle);
     }
 
+    private static Vector2Int GetDirStep(ArrowDir dir)
+    {
+        switch (dir)
+        {
+            case ArrowDir.Up: return new Vector2Int(0, 1);
+            case ArrowDir.Down: return new Vector2Int(0, -1);
+            case ArrowDir.Left: return new Vector2Int(-1, 0);
+            case ArrowDir.Right: return new Vector2Int(1, 0);
+            default: return Vector2Int.zero;
+        }
+    }
+
+    private static int GetStepKey(Vector2Int step)
+    {
+        if (step.y > 0) return 0;
+        if (step.y < 0) return 1;
+        if (step.x < 0) return 2;
+        return 3;
+    }
+
     private void UpdateSelectionHighlight(EditorSnakeVisual target)
     {
         ClearSelectionHighlight();
@@ -912,6 +991,7 @@ public class LevelEditor : MonoBehaviour
 
     public void UI_SaveLevel() { SaveLevel(); }
     public void UI_LoadLevel() { LoadLevelToEdit(); }
+    public void UI_CheckDeadlock() { CheckDeadlockInCurrentEditorLevel(true, out _); }
 
     public LevelDataSO PrepareCurrentLevelForPlaytest()
     {
@@ -981,6 +1061,464 @@ public class LevelEditor : MonoBehaviour
 
         SceneManager.LoadScene("GameScene");
         return;
+    }
+
+    private void RunContinuousDeadlockCheck()
+    {
+        if (!checkDeadlockContinuously) return;
+
+        float interval = Mathf.Max(0.05f, deadlockCheckInterval);
+        if (Time.unscaledTime < _nextDeadlockCheckTime) return;
+
+        _nextDeadlockCheckTime = Time.unscaledTime + interval;
+
+        bool hasDeadlock = CheckDeadlockInCurrentEditorLevel(false, out string message);
+        bool stateChanged = !_hasContinuousDeadlockState || _lastContinuousDeadlockState != hasDeadlock;
+        bool deadlockMessageChanged = hasDeadlock && _lastContinuousDeadlockMessage != message;
+
+        if (hasDeadlock && (stateChanged || deadlockMessageChanged))
+        {
+            Debug.LogWarning($"[LevelEditor] {message}");
+        }
+        else if (!hasDeadlock && _hasContinuousDeadlockState && _lastContinuousDeadlockState)
+        {
+            Debug.Log($"[LevelEditor] Deadlock cleared. {message}");
+        }
+
+        _hasContinuousDeadlockState = true;
+        _lastContinuousDeadlockState = hasDeadlock;
+        _lastContinuousDeadlockMessage = message;
+    }
+
+    private bool CheckDeadlockInCurrentEditorLevel(bool logResult, out string resultMessage)
+    {
+        DeadlockCheckState state = BuildDeadlockCheckState();
+        if (state.snakes.Count == 0)
+        {
+            resultMessage = "Deadlock check skipped: no snakes in current editor level.";
+            if (logResult) Debug.LogWarning($"[LevelEditor] {resultMessage}");
+            return false;
+        }
+
+        List<int> releaseOrder = new List<int>(state.snakes.Count);
+        bool madeProgress = true;
+
+        while (state.releasedCount < state.snakes.Count && madeProgress)
+        {
+            madeProgress = false;
+
+            for (int i = 0; i < state.snakes.Count; i++)
+            {
+                DeadlockSnake snake = state.snakes[i];
+                if (snake.released) continue;
+
+                DeadlockPathResult pathResult = CheckSnakeExitPath(snake, state);
+                snake.lastBlockedReason = pathResult.blockedReason;
+                if (!pathResult.canExit) continue;
+
+                ApplyDeadlockRelease(snake, pathResult, state);
+                releaseOrder.Add(snake.index);
+                madeProgress = true;
+            }
+        }
+
+        bool solved = state.releasedCount == state.snakes.Count;
+        if (solved)
+        {
+            string orderText = BuildReleaseOrderText(releaseOrder);
+            resultMessage = $"No deadlock. Release order: {orderText}";
+            if (logResult) Debug.Log($"[LevelEditor] Deadlock check OK. {resultMessage}");
+            return false;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.AppendLine("Deadlock detected. Stuck snakes:");
+        for (int i = 0; i < state.snakes.Count; i++)
+        {
+            DeadlockSnake snake = state.snakes[i];
+            if (snake.released) continue;
+
+            builder.Append("- ");
+            builder.Append(snake.label);
+            builder.Append(": ");
+            builder.AppendLine(string.IsNullOrEmpty(snake.lastBlockedReason) ? "no exit path" : snake.lastBlockedReason);
+        }
+
+        resultMessage = builder.ToString().TrimEnd();
+        if (logResult) Debug.LogWarning($"[LevelEditor] {resultMessage}");
+        return true;
+    }
+
+    private DeadlockCheckState BuildDeadlockCheckState()
+    {
+        DeadlockCheckState state = new DeadlockCheckState();
+
+        foreach (Transform child in levelContainer)
+        {
+            if (child == null) continue;
+            if (currentSnakeObj != null && child.gameObject == currentSnakeObj) continue;
+            if (currentSelectionGlowObj != null && child.gameObject == currentSelectionGlowObj) continue;
+
+            EditorSnakeVisual snakeVisual = child.GetComponent<EditorSnakeVisual>();
+            if (snakeVisual == null || snakeVisual.LogicNodes == null || snakeVisual.LogicNodes.Count == 0) continue;
+
+            AddDeadlockSnake(state, snakeVisual.direction, snakeVisual.snakeColor, snakeVisual.LogicNodes, $"Snake #{state.snakes.Count + 1}");
+        }
+
+        if (currentDraftNodes != null && currentDraftNodes.Count > 0)
+        {
+            AddDeadlockSnake(state, currentDir, currentColor, currentDraftNodes, $"Draft Snake #{state.snakes.Count + 1}");
+        }
+
+        foreach (Transform child in levelContainer)
+        {
+            if (child == null) continue;
+            if (currentSelectionGlowObj != null && child.gameObject == currentSelectionGlowObj) continue;
+
+            Vector2Int childCell = new Vector2Int(Mathf.RoundToInt(child.position.x), Mathf.RoundToInt(child.position.y));
+
+            if (child.TryGetComponent(out GridKeycard keycard))
+            {
+                state.keycards[childCell] = keycard.keyColor;
+            }
+
+            if (child.TryGetComponent(out GridLaserGate gate))
+            {
+                state.gates[childCell] = gate.gateColor;
+            }
+
+            if (child.TryGetComponent(out GridElectricButton button))
+            {
+                state.electricButtons[childCell] = button.buttonColor;
+            }
+
+            GridDeflector deflector = child.GetComponentInChildren<GridDeflector>();
+            if (deflector != null)
+            {
+                Vector2Int deflectorCell = new Vector2Int(Mathf.RoundToInt(deflector.transform.position.x), Mathf.RoundToInt(deflector.transform.position.y));
+                state.deflectors[deflectorCell] = deflector.direction;
+            }
+
+            if (child.TryGetComponent(out GridCountdownBlock countdownBlock))
+            {
+                state.countdownBlocks[childCell] = Mathf.Max(1, countdownBlock.count);
+            }
+        }
+
+        for (int i = 0; i < currentDraftPortals.Count; i++)
+        {
+            PortalData portal = currentDraftPortals[i];
+            state.portals[portal.entrance] = new DeadlockPortalLink { exit = portal.exit, exitDir = portal.exitDir };
+            state.portals[portal.exit] = new DeadlockPortalLink { exit = portal.entrance, exitDir = portal.entranceDir };
+        }
+
+        for (int i = 0; i < currentDraftElectricWalls.Count; i++)
+        {
+            AddDeadlockElectricWall(state, currentDraftElectricWalls[i]);
+        }
+
+        return state;
+    }
+
+    private void AddDeadlockSnake(DeadlockCheckState state, ArrowDir direction, Color color, List<Vector2Int> cells, string label)
+    {
+        DeadlockSnake snake = new DeadlockSnake
+        {
+            index = state.snakes.Count,
+            label = label,
+            direction = direction,
+            color = color
+        };
+
+        for (int i = 0; i < cells.Count; i++)
+        {
+            Vector2Int cell = cells[i];
+            snake.cells.Add(cell);
+            state.snakeByCell[cell] = snake.index;
+        }
+
+        state.snakes.Add(snake);
+    }
+
+    private void AddDeadlockElectricWall(DeadlockCheckState state, ElectricWallSaveData wallData)
+    {
+        if (!IsElectricWallAligned(wallData.start, wallData.end)) return;
+
+        DeadlockElectricWall wall = new DeadlockElectricWall
+        {
+            index = state.electricWalls.Count,
+            data = wallData,
+            color = wallData.color
+        };
+
+        int stepX = wallData.start.x == wallData.end.x ? 0 : (wallData.start.x < wallData.end.x ? 1 : -1);
+        int stepY = wallData.start.y == wallData.end.y ? 0 : (wallData.start.y < wallData.end.y ? 1 : -1);
+        int length = Mathf.Max(Mathf.Abs(wallData.end.x - wallData.start.x), Mathf.Abs(wallData.end.y - wallData.start.y));
+
+        for (int i = 0; i <= length; i++)
+        {
+            Vector2Int cell = new Vector2Int(wallData.start.x + stepX * i, wallData.start.y + stepY * i);
+            wall.cells.Add(cell);
+
+            if (!state.electricWallIdsByCell.TryGetValue(cell, out List<int> wallIds))
+            {
+                wallIds = new List<int>(1);
+                state.electricWallIdsByCell[cell] = wallIds;
+            }
+
+            wallIds.Add(wall.index);
+        }
+
+        state.electricWalls.Add(wall);
+    }
+
+    private DeadlockPathResult CheckSnakeExitPath(DeadlockSnake snake, DeadlockCheckState state)
+    {
+        DeadlockPathResult result = new DeadlockPathResult();
+        if (snake.cells == null || snake.cells.Count == 0)
+        {
+            result.blockedReason = "empty snake";
+            return result;
+        }
+
+        Vector2Int currentPos = snake.cells[0];
+        ArrowDir currentDir = snake.direction;
+        Vector2Int step = GetDirStep(currentDir);
+        if (step == Vector2Int.zero)
+        {
+            result.blockedReason = "invalid direction";
+            return result;
+        }
+
+        HashSet<Vector3Int> visitedStates = new HashSet<Vector3Int>();
+        HashSet<Vector2Int> locallyOpenedGateCells = new HashSet<Vector2Int>();
+        HashSet<int> locallyDisabledWallIds = new HashSet<int>();
+
+        int scanLimit = Mathf.Max(16, deadlockScanLimit);
+        for (int scan = 1; scan <= scanLimit; scan++)
+        {
+            Vector3Int stateKey = new Vector3Int(currentPos.x, currentPos.y, GetStepKey(step));
+            if (!visitedStates.Add(stateKey))
+            {
+                result.canExit = true;
+                return result;
+            }
+
+            Vector2Int checkPos = currentPos + step;
+
+            if (state.snakeByCell.TryGetValue(checkPos, out int blockerSnakeIndex)
+                && blockerSnakeIndex != snake.index
+                && blockerSnakeIndex >= 0
+                && blockerSnakeIndex < state.snakes.Count
+                && !state.snakes[blockerSnakeIndex].released)
+            {
+                result.blockedReason = $"blocked by {state.snakes[blockerSnakeIndex].label} at {FormatCell(checkPos)}";
+                return result;
+            }
+
+            if (state.countdownBlocks.TryGetValue(checkPos, out int countdown) && countdown > 0)
+            {
+                result.blockedReason = $"blocked by countdown block ({countdown}) at {FormatCell(checkPos)}";
+                return result;
+            }
+
+            if (state.gates.TryGetValue(checkPos, out Color gateColor) && !locallyOpenedGateCells.Contains(checkPos))
+            {
+                result.blockedReason = $"blocked by gate {FormatColor(gateColor)} at {FormatCell(checkPos)}";
+                return result;
+            }
+
+            if (TryGetActiveElectricWallAt(checkPos, state, locallyDisabledWallIds, out DeadlockElectricWall wall))
+            {
+                result.blockedReason = $"blocked by electric wall {FormatColor(wall.color)} at {FormatCell(checkPos)}";
+                return result;
+            }
+
+            if (state.keycards.TryGetValue(checkPos, out Color keyColor))
+            {
+                result.collectedKeyColors.Add(keyColor);
+                MarkMatchingGatesOpened(state, keyColor, locallyOpenedGateCells);
+            }
+
+            if (state.electricButtons.TryGetValue(checkPos, out Color buttonColor))
+            {
+                result.pressedButtonColors.Add(buttonColor);
+                MarkMatchingElectricWallsDisabled(state, buttonColor, locallyDisabledWallIds);
+            }
+
+            if (state.portals.TryGetValue(checkPos, out DeadlockPortalLink portalLink))
+            {
+                currentPos = portalLink.exit;
+                currentDir = portalLink.exitDir;
+                step = GetDirStep(currentDir);
+                if (step == Vector2Int.zero)
+                {
+                    result.blockedReason = $"portal exits with invalid direction at {FormatCell(checkPos)}";
+                    return result;
+                }
+                continue;
+            }
+
+            if (state.deflectors.TryGetValue(checkPos, out ArrowDir deflectedDir))
+            {
+                currentPos = checkPos;
+                currentDir = deflectedDir;
+                step = GetDirStep(currentDir);
+                if (step == Vector2Int.zero)
+                {
+                    result.blockedReason = $"deflector has invalid direction at {FormatCell(checkPos)}";
+                    return result;
+                }
+                continue;
+            }
+
+            currentPos = checkPos;
+        }
+
+        result.canExit = true;
+        return result;
+    }
+
+    private void ApplyDeadlockRelease(DeadlockSnake snake, DeadlockPathResult pathResult, DeadlockCheckState state)
+    {
+        snake.released = true;
+        state.releasedCount++;
+
+        for (int i = 0; i < snake.cells.Count; i++)
+        {
+            Vector2Int cell = snake.cells[i];
+            if (state.snakeByCell.TryGetValue(cell, out int snakeIndex) && snakeIndex == snake.index)
+            {
+                state.snakeByCell.Remove(cell);
+            }
+        }
+
+        for (int i = 0; i < pathResult.collectedKeyColors.Count; i++)
+        {
+            RemoveMatchingGates(state, pathResult.collectedKeyColors[i]);
+        }
+
+        for (int i = 0; i < pathResult.pressedButtonColors.Count; i++)
+        {
+            DisableMatchingElectricWalls(state, pathResult.pressedButtonColors[i]);
+        }
+
+        DecrementCountdownBlocks(state);
+    }
+
+    private void MarkMatchingGatesOpened(DeadlockCheckState state, Color keyColor, HashSet<Vector2Int> locallyOpenedGateCells)
+    {
+        foreach (KeyValuePair<Vector2Int, Color> gate in state.gates)
+        {
+            if (ColorsMatch(keyColor, gate.Value))
+            {
+                locallyOpenedGateCells.Add(gate.Key);
+            }
+        }
+    }
+
+    private void MarkMatchingElectricWallsDisabled(DeadlockCheckState state, Color buttonColor, HashSet<int> locallyDisabledWallIds)
+    {
+        for (int i = 0; i < state.electricWalls.Count; i++)
+        {
+            DeadlockElectricWall wall = state.electricWalls[i];
+            if (wall.active && ColorsMatch(buttonColor, wall.color))
+            {
+                locallyDisabledWallIds.Add(wall.index);
+            }
+        }
+    }
+
+    private void RemoveMatchingGates(DeadlockCheckState state, Color keyColor)
+    {
+        List<Vector2Int> gatesToRemove = new List<Vector2Int>();
+        foreach (KeyValuePair<Vector2Int, Color> gate in state.gates)
+        {
+            if (ColorsMatch(keyColor, gate.Value)) gatesToRemove.Add(gate.Key);
+        }
+
+        for (int i = 0; i < gatesToRemove.Count; i++)
+        {
+            state.gates.Remove(gatesToRemove[i]);
+        }
+    }
+
+    private void DisableMatchingElectricWalls(DeadlockCheckState state, Color buttonColor)
+    {
+        for (int i = 0; i < state.electricWalls.Count; i++)
+        {
+            DeadlockElectricWall wall = state.electricWalls[i];
+            if (wall.active && ColorsMatch(buttonColor, wall.color))
+            {
+                wall.active = false;
+            }
+        }
+    }
+
+    private void DecrementCountdownBlocks(DeadlockCheckState state)
+    {
+        if (state.countdownBlocks.Count == 0) return;
+
+        List<Vector2Int> cells = new List<Vector2Int>(state.countdownBlocks.Keys);
+        for (int i = 0; i < cells.Count; i++)
+        {
+            Vector2Int cell = cells[i];
+            int nextCount = state.countdownBlocks[cell] - 1;
+            if (nextCount <= 0) state.countdownBlocks.Remove(cell);
+            else state.countdownBlocks[cell] = nextCount;
+        }
+    }
+
+    private bool TryGetActiveElectricWallAt(Vector2Int cell, DeadlockCheckState state, HashSet<int> locallyDisabledWallIds, out DeadlockElectricWall wall)
+    {
+        wall = null;
+        if (!state.electricWallIdsByCell.TryGetValue(cell, out List<int> wallIds)) return false;
+
+        for (int i = 0; i < wallIds.Count; i++)
+        {
+            int wallIndex = wallIds[i];
+            if (wallIndex < 0 || wallIndex >= state.electricWalls.Count) continue;
+            if (locallyDisabledWallIds.Contains(wallIndex)) continue;
+
+            DeadlockElectricWall candidate = state.electricWalls[wallIndex];
+            if (!candidate.active) continue;
+
+            wall = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private string BuildReleaseOrderText(List<int> releaseOrder)
+    {
+        if (releaseOrder == null || releaseOrder.Count == 0) return "(none)";
+
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < releaseOrder.Count; i++)
+        {
+            if (i > 0) builder.Append(" -> ");
+            builder.Append(releaseOrder[i] + 1);
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool ColorsMatch(Color a, Color b)
+    {
+        return Mathf.Abs(a.r - b.r) < 0.1f
+            && Mathf.Abs(a.g - b.g) < 0.1f
+            && Mathf.Abs(a.b - b.b) < 0.1f;
+    }
+
+    private static string FormatCell(Vector2Int cell)
+    {
+        return $"({cell.x}, {cell.y})";
+    }
+
+    private static string FormatColor(Color color)
+    {
+        return $"#{ColorUtility.ToHtmlStringRGB(color)}";
     }
 
     private void SaveLevel()
