@@ -1101,6 +1101,8 @@ MonoBehaviour:
     type: 3}
   electricButtonPrefab: {fileID: 5777897644502336199, guid: 2f652b2c73a49ae43a4e2a6c8692059a,
     type: 3}
+  revealWaveButtonPrefab: {fileID: 5777897644502336199, guid: 3d5fb2a5f9a84d94f94d3c2078f9a673,
+    type: 3}
   electricWallPrefab: {fileID: 7191572499317531063, guid: 19d9efb3ddd682f4e98b45cf99213c36,
     type: 3}
   deflectorPrefab: {fileID: 2362271296126747096, guid: e0a8b61bfabe7e0499285d5445e4be46,
@@ -1108,6 +1110,10 @@ MonoBehaviour:
   countdownBlockPrefab: {fileID: 2447517671910416408, guid: 0152925b397c0734cbb85555e67b9c33,
     type: 3}
   stopBlockPrefab: {fileID: 2447517671910416408, guid: c9587555cde44fcab8360be57e841f65,
+    type: 3}
+  turnStateBlockPrefab: {fileID: 2447517671910416408, guid: df75ddb4c1b39c8469bf5b00c5b6c9d9,
+    type: 3}
+  blackHolePrefab: {fileID: 2449077247767161360, guid: bf94d066d89c4b44d8d7d1783d6bcff7,
     type: 3}
   highlightColor: {r: 1, g: 1, b: 1, a: 1}
   currentData: {fileID: 11400000, guid: 88f90cfb47ca8a34fb679296c2d85621, type: 2}
@@ -1123,6 +1129,9 @@ MonoBehaviour:
   currentColor: {r: 1, g: 1, b: 1, a: 1}
   colorPreviewImage: {fileID: 348230326}
   minDistanceBetweenSnakes: 2
+  checkDeadlockContinuously: 1
+  deadlockCheckInterval: 0.5
+  deadlockScanLimit: 512
   frameLevelOnLoad: 1
   levelFramePadding: 2
   minimumEditorCameraSize: 8
@@ -6970,7 +6979,7 @@ SpriteRenderer:
   m_Size: {x: 200, y: 200}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!1 &759684315
@@ -12307,7 +12316,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a23615c8cd2c53045a3aa804251b33ae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  myColor: {r: 1, g: 1, b: 1, a: 1}
+  myColor: {r: 1, g: 1, b: 1, a: 0}
 --- !u!114 &1309250115
 MonoBehaviour:
   m_ObjectHideFlags: 0

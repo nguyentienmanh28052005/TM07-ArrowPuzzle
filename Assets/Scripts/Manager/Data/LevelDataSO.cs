@@ -12,6 +12,14 @@ public partial class ElectricButtonSaveData
 
 [System.Serializable]
 [MemoryPackable]
+public partial class RevealWaveButtonSaveData
+{
+    public Vector2Int position;
+    public Color color;
+}
+
+[System.Serializable]
+[MemoryPackable]
 public partial class ElectricWallSaveData
 {
     public Vector2Int start;
@@ -25,6 +33,7 @@ public partial class SnakeSaveData
 {
     public ArrowDir direction;
     public Color arrowColor;
+    public bool hasArrowShadow;
     public List<Vector2Int> segmentPositions = new List<Vector2Int>();
 }
 
@@ -68,6 +77,22 @@ public partial class StopBlockSaveData
     public int count;
 }
 
+[System.Serializable]
+[MemoryPackable]
+public partial class TurnStateBlockSaveData
+{
+    public Vector2Int position;
+    public bool startsRed;
+}
+
+[System.Serializable]
+[MemoryPackable]
+public partial class BlackHoleSaveData
+{
+    public Vector2Int position;
+    public ArrowDir direction;
+}
+
 // BẢN VÁ: THÊM HƯỚNG VÀO HỐ ĐEN
 [System.Serializable]
 [MemoryPackable]
@@ -101,9 +126,12 @@ public class LevelDataSO : ScriptableObject
     public List<KeycardSaveData> keycards = new List<KeycardSaveData>();
     public List<GateSaveData> gates = new List<GateSaveData>();
     public List<ElectricButtonSaveData> electricButtons = new List<ElectricButtonSaveData>();
+    public List<RevealWaveButtonSaveData> revealWaveButtons = new List<RevealWaveButtonSaveData>();
     public List<ElectricWallSaveData> electricWalls = new List<ElectricWallSaveData>();
     public List<PortalData> portals = new List<PortalData>(); 
     public List<DeflectorSaveData> deflectors = new List<DeflectorSaveData>();
     public List<CountdownBlockSaveData> countdownBlocks = new List<CountdownBlockSaveData>();
     public List<StopBlockSaveData> stopBlocks = new List<StopBlockSaveData>();
+    public List<TurnStateBlockSaveData> turnStateBlocks = new List<TurnStateBlockSaveData>();
+    public List<BlackHoleSaveData> blackHoles = new List<BlackHoleSaveData>();
 }

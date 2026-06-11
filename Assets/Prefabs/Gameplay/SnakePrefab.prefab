@@ -290,6 +290,11 @@ MonoBehaviour:
   snakeMoveColor: {r: 1, g: 1, b: 1, a: 1}
   snakeTakeHitColor: {r: 0.99607843, g: 0.40784314, b: 0.40784314, a: 1}
   lineWidth: 0.9
+  stopBlockAlpha: 0.35
+  arrowShadowTurnsToFade: 3
+  arrowShadowAlpha: 0.68
+  arrowShadowWidthMultiplier: 3.3
+  arrowShadowHeadScaleMultiplier: 1.65
 --- !u!114 &7548681103910764942
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -24,6 +24,7 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private float exitAcceleration = 180f;
     [SerializeField] private float exitTravelDistance = 150f;
     [SerializeField] private int maxPathScanCells = 180;
+    [SerializeField] private float blackHoleConsumeShrinkDuration = 0.24f;
 
     [Header("Movement: DASH EXIT")]
     [SerializeField] private float dashExitStartSpeed = 40f;
@@ -46,6 +47,12 @@ public class SnakeBlock : MonoBehaviour
     public Color snakeTakeHitColor = new Color(254f / 255f, 104f / 255f, 104f / 255f, 1f);
     public float lineWidth = 0.35f;
     [SerializeField, Range(0.1f, 1f)] private float stopBlockAlpha = 0.35f;
+
+    [Header("Arrow Shadow")]
+    [SerializeField] private int arrowShadowTurnsToFade = 3;
+    [SerializeField, Range(0.05f, 1f)] private float arrowShadowAlpha = 0.68f;
+    [SerializeField, Min(1f)] private float arrowShadowWidthMultiplier = 2.8f;
+    [SerializeField, Min(1f)] private float arrowShadowHeadScaleMultiplier = 1.65f;
 
     private List<Vector3> _renderPointsCache = new List<Vector3>(100);
     private List<Vector3> _smoothedPointsCache = new List<Vector3>(200);
@@ -85,7 +92,14 @@ public class SnakeBlock : MonoBehaviour
     private bool _isSpawning = false;
     private bool _isBeingErased = false;
     private float _eraseTailTrackIdx = 0f;
+    private bool _isBeingConsumedByBlackHole = false;
+    private float _blackHoleConsumeHeadTrackIdx = 0f;
+    private float _blackHoleConsumeTailTrackIdx = 0f;
     private bool _hasDealtDamage = false;
+    private bool _hasArrowShadow = false;
+    private bool _arrowShadowReleased = false;
+    private ArrowShadowVisual _arrowShadowVisual;
+    private Coroutine _transparentRevealFlashRoutine;
 
     private enum ObstacleType
     {
@@ -94,7 +108,11 @@ public class SnakeBlock : MonoBehaviour
         Gate,
         ElectricWall,
         CountdownBlock,
-        StopBlock
+        StopBlock,
+        ArrowShadow,
+        TurnStateBlock,
+        BlackHole,
+        BlackHoleBlocked
     }
 
     private ObstacleType _lastObstacleType = ObstacleType.None;
@@ -105,6 +123,7 @@ public class SnakeBlock : MonoBehaviour
     public string LastObstacleType => _lastObstacleType.ToString();
     public Vector2Int LastObstacleCell => _lastObstacleCell;
     public bool IsStoppedByStopBlock => _isStoppedByStopBlock;
+    public bool HasArrowShadow => _hasArrowShadow;
 
     private HashSet<Vector2Int> _occupiedCells = new HashSet<Vector2Int>();
     
@@ -149,6 +168,12 @@ public class SnakeBlock : MonoBehaviour
         {
             _holdingStopBlock.ClearHeldSnake(this);
             _holdingStopBlock = null;
+        }
+
+        if (_arrowShadowVisual != null && !_arrowShadowReleased)
+        {
+            _arrowShadowVisual.DestroyIfNotCounting();
+            _arrowShadowVisual = null;
         }
 
         ClearFromGrid();
@@ -308,7 +333,8 @@ public class SnakeBlock : MonoBehaviour
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
         _hasFocusVisualState = false;
         _currentLineColor = color;
-        ApplyColorToAll(color);
+        _currentLineColor = color;
+        ApplyColorToAll(_currentLineColor);
     }
 
     public void BeginEraseVisual()
@@ -377,6 +403,142 @@ public class SnakeBlock : MonoBehaviour
         _arrowSpriteRenderer = arrowVisual.GetComponentInChildren<SpriteRenderer>(true);
     }
 
+    public bool IsVisualAlphaZero(float threshold = 0.01f)
+    {
+        if (!_isInitialized || _isBeingErased || _isBeingConsumedByBlackHole) return false;
+
+        float maxAlpha = 0f;
+        bool hasVisual = false;
+
+        if (_lineRenderers != null)
+        {
+            for (int i = 0; i < _lineRenderers.Count; i++)
+            {
+                LineRenderer lr = _lineRenderers[i];
+                if (lr == null) continue;
+
+                maxAlpha = Mathf.Max(maxAlpha, lr.startColor.a, lr.endColor.a);
+                hasVisual = true;
+            }
+        }
+
+        CacheArrowRenderer();
+        if (_arrowSpriteRenderer != null)
+        {
+            maxAlpha = Mathf.Max(maxAlpha, _arrowSpriteRenderer.color.a);
+            hasVisual = true;
+        }
+
+        if (!hasVisual) maxAlpha = _currentLineColor.a;
+        return maxAlpha <= Mathf.Clamp01(threshold);
+    }
+
+    public void FlashIfVisualAlphaZero(float flashAlpha, float duration, Color flashTint, float threshold = 0.01f)
+    {
+        if (!IsVisualAlphaZero(threshold)) return;
+
+        if (_transparentRevealFlashRoutine != null) return;
+
+        _transparentRevealFlashRoutine = StartCoroutine(TransparentRevealFlashRoutine(flashAlpha, duration, flashTint));
+    }
+
+    private IEnumerator TransparentRevealFlashRoutine(float flashAlpha, float duration, Color flashTint)
+    {
+        float halfDuration = Mathf.Max(0.01f, duration * 0.5f);
+        Color flashColor = Color.Lerp(snakeColor, flashTint, 0.45f);
+        flashColor.a = Mathf.Clamp01(flashAlpha);
+
+        int rendererCount = _lineRenderers != null ? _lineRenderers.Count : 0;
+        Color[] originalStartColors = new Color[rendererCount];
+        Color[] originalEndColors = new Color[rendererCount];
+        bool[] hasLineRenderer = new bool[rendererCount];
+
+        for (int i = 0; i < rendererCount; i++)
+        {
+            LineRenderer lr = _lineRenderers[i];
+            if (lr == null) continue;
+
+            originalStartColors[i] = lr.startColor;
+            originalEndColors[i] = lr.endColor;
+            hasLineRenderer[i] = true;
+        }
+
+        CacheArrowRenderer();
+        bool hasArrowRenderer = _arrowSpriteRenderer != null;
+        Color originalArrowColor = hasArrowRenderer ? _arrowSpriteRenderer.color : Color.clear;
+
+        float elapsed = 0f;
+        while (elapsed < halfDuration)
+        {
+            elapsed += Mathf.Min(Time.deltaTime, 0.033f);
+            float t = Mathf.Clamp01(elapsed / halfDuration);
+            ApplyTransparentRevealFlashColor(t, originalStartColors, originalEndColors, hasLineRenderer, hasArrowRenderer, originalArrowColor, flashColor);
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < halfDuration)
+        {
+            elapsed += Mathf.Min(Time.deltaTime, 0.033f);
+            float t = Mathf.Clamp01(elapsed / halfDuration);
+            ApplyTransparentRevealFlashColor(1f - t, originalStartColors, originalEndColors, hasLineRenderer, hasArrowRenderer, originalArrowColor, flashColor);
+            yield return null;
+        }
+
+        RestoreTransparentRevealFlashColors(originalStartColors, originalEndColors, hasLineRenderer, hasArrowRenderer, originalArrowColor);
+        _transparentRevealFlashRoutine = null;
+    }
+
+    private void ApplyTransparentRevealFlashColor(
+        float flashWeight,
+        Color[] originalStartColors,
+        Color[] originalEndColors,
+        bool[] hasLineRenderer,
+        bool hasArrowRenderer,
+        Color originalArrowColor,
+        Color flashColor)
+    {
+        float t = Mathf.Clamp01(flashWeight);
+
+        for (int i = 0; i < hasLineRenderer.Length; i++)
+        {
+            if (!hasLineRenderer[i]) continue;
+            LineRenderer lr = _lineRenderers[i];
+            if (lr == null) continue;
+
+            lr.startColor = Color.Lerp(originalStartColors[i], flashColor, t);
+            lr.endColor = Color.Lerp(originalEndColors[i], flashColor, t);
+        }
+
+        if (hasArrowRenderer && _arrowSpriteRenderer != null)
+        {
+            _arrowSpriteRenderer.color = Color.Lerp(originalArrowColor, flashColor, t);
+        }
+    }
+
+    private void RestoreTransparentRevealFlashColors(
+        Color[] originalStartColors,
+        Color[] originalEndColors,
+        bool[] hasLineRenderer,
+        bool hasArrowRenderer,
+        Color originalArrowColor)
+    {
+        for (int i = 0; i < hasLineRenderer.Length; i++)
+        {
+            if (!hasLineRenderer[i]) continue;
+            LineRenderer lr = _lineRenderers[i];
+            if (lr == null) continue;
+
+            lr.startColor = originalStartColors[i];
+            lr.endColor = originalEndColors[i];
+        }
+
+        if (hasArrowRenderer && _arrowSpriteRenderer != null)
+        {
+            _arrowSpriteRenderer.color = originalArrowColor;
+        }
+    }
+
     private void SetLinePressedMaterial(bool isPressed, bool force = false)
     {
         if (lineRenderer == null) return;
@@ -408,7 +570,8 @@ public class SnakeBlock : MonoBehaviour
         if (!_isInitialized || _isMoving || _isSpawning || _isBeingErased || _isStoppedByStopBlock) return false;
 
         Vector3 moveDir = GetDirVector(direction);
-        bool canRelease = CheckObstacleDistance(moveDir) == float.MaxValue;
+        float obstacleDistance = CheckObstacleDistance(moveDir);
+        bool canRelease = obstacleDistance == float.MaxValue || _lastObstacleType == ObstacleType.BlackHole;
         _activeWarps.Clear();
         _lastPassedPortalIndex = -1;
         _lastPassedDeflectorIndex = -1;
@@ -463,6 +626,12 @@ public class SnakeBlock : MonoBehaviour
         bool isGhostMode = (distToObstacle == float.MaxValue);
 
         if (isGhostMode) yield return StartCoroutine(ProcessExitMovement(moveDir));
+        else if (_lastObstacleType == ObstacleType.BlackHole
+            && GridManager.Instance != null
+            && GridManager.Instance.TryGetBlackHoleAt(_lastObstacleCell, out GridBlackHole blackHole))
+        {
+            yield return StartCoroutine(ProcessBlackHoleMovement(moveDir, distToObstacle, blackHole));
+        }
         else
         {
             float targetMaxShift = distToObstacle * _nodesPerUnit;
@@ -522,6 +691,7 @@ public class SnakeBlock : MonoBehaviour
             if (_accumulatedShift > 2f * _nodesPerUnit && !outed)
             {
                 if (levelController != null) levelController.SetCountArrowInGame();
+                BeginArrowShadowFadeAfterOwnerReleased();
                 outed = true;
             }
 
@@ -537,6 +707,7 @@ public class SnakeBlock : MonoBehaviour
         Vector2Int headCell = GetGridPosFromTrackIndex(headTrackIdx);
         if (GridManager.Instance.KeycardMap != null && GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
         if (GridManager.Instance.ElectricButtonMap != null && GridManager.Instance.ElectricButtonMap.TryGetValue(headCell, out GridElectricButton button)) button.Press();
+        if (GridManager.Instance.RevealWaveButtonMap != null && GridManager.Instance.RevealWaveButtonMap.TryGetValue(headCell, out GridRevealWaveButton revealButton)) revealButton.Trigger();
     }
 
     private IEnumerator ProcessBlockedMovement(Vector3 moveDir, float targetMaxShift, float distToObstacle)
@@ -557,6 +728,13 @@ public class SnakeBlock : MonoBehaviour
                     distToObstacle = currentDist;
                     targetMaxShift = distToObstacle * _nodesPerUnit;
                     if (currentDist == float.MaxValue) { yield return StartCoroutine(ProcessExitMovement(moveDir)); yield break; }
+                    if (_lastObstacleType == ObstacleType.BlackHole
+                        && GridManager.Instance != null
+                        && GridManager.Instance.TryGetBlackHoleAt(_lastObstacleCell, out GridBlackHole blackHole))
+                    {
+                        yield return StartCoroutine(ProcessBlackHoleMovement(moveDir, currentDist, blackHole));
+                        yield break;
+                    }
                 }
                 else
                 {
@@ -592,6 +770,94 @@ public class SnakeBlock : MonoBehaviour
             }
             yield return null;
         }
+    }
+
+    private IEnumerator ProcessBlackHoleMovement(Vector3 moveDir, float targetDistance, GridBlackHole blackHole)
+    {
+        ClearFromGrid();
+        if (ComboManager.Instance != null) ComboManager.Instance.AddCombo(this);
+
+        _currentMoveSpeed = exitStartSpeed;
+        int lastProcessedGrid = 0;
+        outed = false;
+
+        float targetShift = Mathf.Max(0f, targetDistance) * _nodesPerUnit;
+
+        while (_accumulatedShift < targetShift)
+        {
+            float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
+            _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, exitMaxSpeed, exitAcceleration * safeDeltaTime);
+            float forwardStep = _currentMoveSpeed * _nodesPerUnit * safeDeltaTime;
+            _accumulatedShift = Mathf.MoveTowards(_accumulatedShift, targetShift, forwardStep);
+
+            UpdateSnakePosition(_accumulatedShift, moveDir);
+
+            int currentGridProgress = Mathf.FloorToInt((_accumulatedShift / _nodesPerUnit) + 0.5f);
+            while (lastProcessedGrid < currentGridProgress)
+            {
+                TryCollectKeycardAtGridProgress(lastProcessedGrid + 1);
+
+                Vector2Int gridToLeave = GetTailGridPosAtProgress(lastProcessedGrid);
+                PlayDotLeaveEffect(gridToLeave);
+                lastProcessedGrid++;
+            }
+
+            yield return null;
+        }
+
+        _accumulatedShift = targetShift;
+        UpdateSnakePosition(_accumulatedShift, moveDir);
+
+        if (blackHole != null) blackHole.PlayEnterFeedback();
+        if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.45f, 0.8f);
+        if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.LightImpact);
+
+        yield return StartCoroutine(PlayBlackHoleConsumeShrink());
+
+        if (!outed)
+        {
+            if (levelController != null) levelController.SetCountArrowInGame();
+            BeginArrowShadowFadeAfterOwnerReleased();
+            outed = true;
+        }
+
+        Destroy(gameObject);
+    }
+
+    private IEnumerator PlayBlackHoleConsumeShrink()
+    {
+        float duration = Mathf.Max(0.01f, blackHoleConsumeShrinkDuration);
+        float elapsed = 0f;
+
+        CacheArrowRenderer();
+
+        Vector3 arrowStartScale = arrowVisual != null ? arrowVisual.localScale : Vector3.one;
+        _isBeingConsumedByBlackHole = true;
+        _blackHoleConsumeHeadTrackIdx = -_accumulatedShift;
+        float startTailTrackIdx = -_accumulatedShift + (_totalPoints - 1);
+        _blackHoleConsumeTailTrackIdx = startTailTrackIdx;
+
+        while (elapsed < duration)
+        {
+            elapsed += Mathf.Min(Time.deltaTime, 0.033f);
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 2f);
+
+            _blackHoleConsumeTailTrackIdx = Mathf.Lerp(startTailTrackIdx, _blackHoleConsumeHeadTrackIdx, eased);
+            if (arrowVisual != null)
+            {
+                arrowVisual.localScale = Vector3.Lerp(arrowStartScale, Vector3.zero, Mathf.Clamp01(eased * 1.35f));
+            }
+
+            _forceRedraw = true;
+            UpdateLineRenderer();
+            yield return null;
+        }
+
+        _blackHoleConsumeTailTrackIdx = _blackHoleConsumeHeadTrackIdx;
+        UpdateLineRenderer();
+        HideAllLineRenderers();
+        if (arrowVisual != null) arrowVisual.localScale = Vector3.zero;
     }
 
     private void PlayDotLeaveEffect(Vector2Int gridPosition)
@@ -718,6 +984,7 @@ public class SnakeBlock : MonoBehaviour
         _isMoving = false;
         _isStoppedByStopBlock = false;
         _isBeingErased = false;
+        _isBeingConsumedByBlackHole = false;
         _eraseTailTrackIdx = _totalPoints > 0 ? _totalPoints - 1 : 0f;
         _hasDealtDamage = false; 
         _activeWarps.Clear();
@@ -841,6 +1108,52 @@ public class SnakeBlock : MonoBehaviour
         faded.a = Mathf.Clamp01(stopBlockAlpha);
         SetColorImmediate(faded);
     }
+
+    private void CreateOrRefreshArrowShadow()
+    {
+        if (!_hasArrowShadow || _logicNodes == null || _logicNodes.Count == 0)
+        {
+            if (_arrowShadowVisual != null)
+            {
+                _arrowShadowVisual.DestroyIfNotCounting();
+                _arrowShadowVisual = null;
+            }
+            return;
+        }
+
+        if (_arrowShadowVisual == null)
+        {
+            GameObject shadowObject = new GameObject("ArrowShadow");
+            shadowObject.transform.SetParent(transform, false);
+            shadowObject.transform.localPosition = Vector3.zero;
+            shadowObject.transform.localRotation = Quaternion.identity;
+            shadowObject.transform.localScale = Vector3.one;
+            _arrowShadowVisual = shadowObject.AddComponent<ArrowShadowVisual>();
+        }
+
+        _arrowShadowReleased = false;
+        _arrowShadowVisual.Initialize(
+            _logicNodes,
+            direction,
+            snakeColor,
+            arrowVisual,
+            lineRenderer,
+            lineWidth,
+            arrowShadowWidthMultiplier,
+            arrowShadowAlpha,
+            arrowShadowHeadScaleMultiplier,
+            arrowShadowTurnsToFade);
+    }
+
+    private void BeginArrowShadowFadeAfterOwnerReleased()
+    {
+        if (!_hasArrowShadow || _arrowShadowVisual == null || _arrowShadowReleased) return;
+
+        _arrowShadowReleased = true;
+        Transform stableParent = transform.parent;
+        _arrowShadowVisual.BeginFadeAfterOwnerReleased(stableParent);
+        _arrowShadowVisual = null;
+    }
     
     private void ClearFromGrid()
     {
@@ -872,6 +1185,7 @@ public class SnakeBlock : MonoBehaviour
         Vector2Int headCell = GetGridPosFromTrackIndex(headIdx);
         if (GridManager.Instance.KeycardMap != null && GridManager.Instance.KeycardMap.TryGetValue(headCell, out GridKeycard card)) card.Collect();
         if (GridManager.Instance.ElectricButtonMap != null && GridManager.Instance.ElectricButtonMap.TryGetValue(headCell, out GridElectricButton button)) button.Press();
+        if (GridManager.Instance.RevealWaveButtonMap != null && GridManager.Instance.RevealWaveButtonMap.TryGetValue(headCell, out GridRevealWaveButton revealButton)) revealButton.Trigger();
     }
 
     private Vector3 GetPositionAtTrackIndex(float trackIndex, bool snapToPortalEntryForRender = false)
@@ -1061,6 +1375,34 @@ public class SnakeBlock : MonoBehaviour
                 return d - 1;
             }
 
+            if (GridManager.Instance.HasActiveArrowShadowAt(checkPos))
+            {
+                _lastObstacleType = ObstacleType.ArrowShadow;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
+
+            if (GridManager.Instance.HasBlockingTurnStateBlockAt(checkPos))
+            {
+                _lastObstacleType = ObstacleType.TurnStateBlock;
+                _lastObstacleCell = checkPos;
+                return d - 1;
+            }
+
+            if (GridManager.Instance.TryGetBlackHoleAt(checkPos, out GridBlackHole blackHole))
+            {
+                ArrowDir incomingDirection = GetArrowDirFromStep(step);
+                _lastObstacleCell = checkPos;
+                if (blackHole.CanEnter(incomingDirection))
+                {
+                    _lastObstacleType = ObstacleType.BlackHole;
+                    return d;
+                }
+
+                _lastObstacleType = ObstacleType.BlackHoleBlocked;
+                return d - 1;
+            }
+
             if (GridManager.Instance.PortalMap.TryGetValue(checkPos, out GridManager.PortalLink link))
             {
                 Vector3 offset = new Vector3(link.exit.x - checkPos.x, link.exit.y - checkPos.y, 0);
@@ -1110,6 +1452,14 @@ public class SnakeBlock : MonoBehaviour
         return 3;
     }
 
+    private static ArrowDir GetArrowDirFromStep(Vector2Int step)
+    {
+        if (step.y > 0) return ArrowDir.Up;
+        if (step.y < 0) return ArrowDir.Down;
+        if (step.x < 0) return ArrowDir.Left;
+        return ArrowDir.Right;
+    }
+
     private Vector2Int GetTailGridPosAtProgress(int gridsMoved) 
     {
         float shiftAtThatTime = gridsMoved * _nodesPerUnit;
@@ -1118,11 +1468,12 @@ public class SnakeBlock : MonoBehaviour
         return new Vector2Int(Mathf.RoundToInt(exactTailPos.x), Mathf.RoundToInt(exactTailPos.y));
     }
 
-    public void Initialize(ArrowDir dir, List<Vector2Int> gridPositions, int resolution, Color color, bool playSpawnAnimation = true)
+    public void Initialize(ArrowDir dir, List<Vector2Int> gridPositions, int resolution, Color color, bool playSpawnAnimation = true, bool hasArrowShadow = false)
     {
         snakeColor = color;
         direction = dir;
         _nodesPerUnit = resolution;
+        _hasArrowShadow = hasArrowShadow;
 
         _logicNodes.Clear();
         foreach(var pos in gridPositions) _logicNodes.Add(new Vector3(pos.x, pos.y, 0f));
@@ -1174,6 +1525,7 @@ public class SnakeBlock : MonoBehaviour
         _isInitialized = true;
         _visiblePoints = 0;
         _isBeingErased = false;
+        _isBeingConsumedByBlackHole = false;
         _eraseTailTrackIdx = _totalPoints > 0 ? _totalPoints - 1 : 0f;
         
         outed = false;
@@ -1183,11 +1535,13 @@ public class SnakeBlock : MonoBehaviour
         _holdingStopBlock = null;
         _hasDealtDamage = false;
         _hasFocusVisualState = false;
+        _arrowShadowReleased = false;
 
         ApplyColorToAll(color);
         SetLinePressedMaterial(false);
         UpdateVisualRotation();
         UpdateGridOccupancy(); 
+        CreateOrRefreshArrowShadow();
 
         if (arrowVisual != null)
         {
@@ -1369,7 +1723,12 @@ public class SnakeBlock : MonoBehaviour
         float headTrackIdx = -_accumulatedShift;
         float tailTrackIdx = -_accumulatedShift + (_totalPoints - 1);
 
-        if (_isSpawning)
+        if (_isBeingConsumedByBlackHole)
+        {
+            headTrackIdx = _blackHoleConsumeHeadTrackIdx;
+            tailTrackIdx = Mathf.Max(headTrackIdx, _blackHoleConsumeTailTrackIdx);
+        }
+        else if (_isSpawning)
         {
             tailTrackIdx = _totalPoints - 1; 
             headTrackIdx = tailTrackIdx - (_visiblePoints - 1); 

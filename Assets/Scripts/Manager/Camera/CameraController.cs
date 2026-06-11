@@ -169,6 +169,18 @@ public class CameraController : MonoBehaviour
             }
         }
 
+        if (data.revealWaveButtons != null)
+        {
+            foreach (var b in data.revealWaveButtons)
+            {
+                if (b.position.x < minX) minX = b.position.x;
+                if (b.position.x > maxX) maxX = b.position.x;
+                if (b.position.y < minY) minY = b.position.y;
+                if (b.position.y > maxY) maxY = b.position.y;
+                hasAny = true;
+            }
+        }
+
         if (data.portals != null)
         {
             foreach (var p in data.portals)
@@ -214,6 +226,30 @@ public class CameraController : MonoBehaviour
         if (data.stopBlocks != null)
         {
             foreach (var block in data.stopBlocks)
+            {
+                if (block.position.x < minX) minX = block.position.x;
+                if (block.position.x > maxX) maxX = block.position.x;
+                if (block.position.y < minY) minY = block.position.y;
+                if (block.position.y > maxY) maxY = block.position.y;
+                hasAny = true;
+            }
+        }
+
+        if (data.turnStateBlocks != null)
+        {
+            foreach (var block in data.turnStateBlocks)
+            {
+                if (block.position.x < minX) minX = block.position.x;
+                if (block.position.x > maxX) maxX = block.position.x;
+                if (block.position.y < minY) minY = block.position.y;
+                if (block.position.y > maxY) maxY = block.position.y;
+                hasAny = true;
+            }
+        }
+
+        if (data.blackHoles != null)
+        {
+            foreach (var block in data.blackHoles)
             {
                 if (block.position.x < minX) minX = block.position.x;
                 if (block.position.x > maxX) maxX = block.position.x;

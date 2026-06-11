@@ -17,13 +17,22 @@ public class EditorSnakeVisual : MonoBehaviour
     [SerializeField] private Transform arrowVisual;
     [SerializeField] private LineRenderer lineRenderer;
 
+    [Header("Arrow Shadow")]
+    [SerializeField] private int arrowShadowTurnsToFade = 3;
+    [SerializeField, Range(0.05f, 1f)] private float arrowShadowAlpha = 0.68f;
+    [SerializeField, Min(1f)] private float arrowShadowWidthMultiplier = 2.8f;
+    [SerializeField, Min(1f)] private float arrowShadowHeadScaleMultiplier = 1.65f;
+
     // --- BỔ SUNG DATA CHO LEVEL EDITOR ---
     public ArrowDir direction;
     public Color snakeColor;
+    public bool HasArrowShadow { get; private set; }
     public List<Vector2Int> LogicNodes { get; private set; } = new List<Vector2Int>();
 
     private List<Vector3> _renderPointsCache = new List<Vector3>();
     private List<Vector3> _smoothedPointsCache = new List<Vector3>();
+    private readonly List<Vector3> _shadowPathCache = new List<Vector3>();
+    private ArrowShadowVisual _arrowShadowVisual;
 
     private void Awake()
     {
@@ -39,16 +48,17 @@ public class EditorSnakeVisual : MonoBehaviour
         lineRenderer.startWidth = lineWidth;
         lineRenderer.endWidth = lineWidth;
         lineRenderer.useWorldSpace = true;
-        //lineRenderer.sortingOrder = 5; 
+        lineRenderer.sortingOrder = 10;
         lineRenderer.numCapVertices = 10; 
     }
 
-    public void Initialize(ArrowDir dir, List<Vector2Int> positions, Color color)
+    public void Initialize(ArrowDir dir, List<Vector2Int> positions, Color color, bool hasArrowShadow = false)
     {
         if (positions == null || positions.Count == 0) return;
 
         // Lưu trữ Data cho việc Save Level
         direction = dir;
+        HasArrowShadow = hasArrowShadow;
         LogicNodes = new List<Vector2Int>(positions);
 
         SetupLineRenderer(); 
@@ -67,6 +77,7 @@ public class EditorSnakeVisual : MonoBehaviour
         }
 
         UpdateVisuals();
+        RefreshArrowShadow();
     }
 
     public void SetColorImmediatePublic(Color color)
@@ -82,6 +93,7 @@ public class EditorSnakeVisual : MonoBehaviour
             var sr = arrowVisual.GetComponentInChildren<SpriteRenderer>();
             if (sr) sr.color = color;
         }
+        RefreshArrowShadow();
     }
 
     public void UpdateVisualRotation()
@@ -96,6 +108,7 @@ public class EditorSnakeVisual : MonoBehaviour
             case ArrowDir.Right: angle = -90f; break;
         }
         arrowVisual.localRotation = Quaternion.Euler(0f, 0f, angle);
+        RefreshArrowShadow();
     }
 
     public void SetArrowWorldPosition(Vector2Int headGridPos)
@@ -125,6 +138,60 @@ public class EditorSnakeVisual : MonoBehaviour
                 lineRenderer.SetPosition(i, _renderPointsCache[i]);
             }
         }
+    }
+
+    public void SetArrowShadowEnabled(bool enabled)
+    {
+        HasArrowShadow = enabled;
+        RefreshArrowShadow();
+    }
+
+    private void RefreshArrowShadow()
+    {
+        if (!HasArrowShadow || LogicNodes == null || LogicNodes.Count == 0)
+        {
+            DestroyArrowShadow();
+            return;
+        }
+
+        if (_arrowShadowVisual == null)
+        {
+            GameObject shadowObject = new GameObject("ArrowShadow");
+            shadowObject.transform.SetParent(transform, false);
+            shadowObject.transform.localPosition = Vector3.zero;
+            shadowObject.transform.localRotation = Quaternion.identity;
+            shadowObject.transform.localScale = Vector3.one;
+            _arrowShadowVisual = shadowObject.AddComponent<ArrowShadowVisual>();
+        }
+
+        _shadowPathCache.Clear();
+        for (int i = 0; i < LogicNodes.Count; i++)
+        {
+            Vector2Int pos = LogicNodes[i];
+            _shadowPathCache.Add(new Vector3(pos.x, pos.y, 0f));
+        }
+
+        _arrowShadowVisual.Initialize(
+            _shadowPathCache,
+            direction,
+            snakeColor,
+            arrowVisual,
+            lineRenderer,
+            lineWidth,
+            arrowShadowWidthMultiplier,
+            arrowShadowAlpha,
+            arrowShadowHeadScaleMultiplier,
+            arrowShadowTurnsToFade);
+    }
+
+    private void DestroyArrowShadow()
+    {
+        if (_arrowShadowVisual == null) return;
+
+        if (Application.isPlaying) Destroy(_arrowShadowVisual.gameObject);
+        else DestroyImmediate(_arrowShadowVisual.gameObject);
+
+        _arrowShadowVisual = null;
     }
 
     private void BuildSmoothedPositionsForRenderCached(List<Vector3> input, List<Vector3> output)

@@ -16,11 +16,15 @@ public class GridManager : MonoBehaviour
     public Dictionary<Vector2Int, GridKeycard> KeycardMap = new Dictionary<Vector2Int, GridKeycard>();
     public Dictionary<Vector2Int, GridLaserGate> GateMap = new Dictionary<Vector2Int, GridLaserGate>();
     public Dictionary<Vector2Int, GridElectricButton> ElectricButtonMap = new Dictionary<Vector2Int, GridElectricButton>();
+    public Dictionary<Vector2Int, GridRevealWaveButton> RevealWaveButtonMap = new Dictionary<Vector2Int, GridRevealWaveButton>();
     public Dictionary<Vector2Int, GridElectricWall> ElectricWallMap = new Dictionary<Vector2Int, GridElectricWall>();
     public Dictionary<Vector2Int, PortalLink> PortalMap = new Dictionary<Vector2Int, PortalLink>();
     public Dictionary<Vector2Int, GridDeflector> DeflectorMap = new Dictionary<Vector2Int, GridDeflector>();
     public Dictionary<Vector2Int, GridCountdownBlock> CountdownBlockMap = new Dictionary<Vector2Int, GridCountdownBlock>();
     public Dictionary<Vector2Int, GridStopBlock> StopBlockMap = new Dictionary<Vector2Int, GridStopBlock>();
+    public Dictionary<Vector2Int, ArrowShadowVisual> ArrowShadowMap = new Dictionary<Vector2Int, ArrowShadowVisual>();
+    public Dictionary<Vector2Int, GridTurnStateBlock> TurnStateBlockMap = new Dictionary<Vector2Int, GridTurnStateBlock>();
+    public Dictionary<Vector2Int, GridBlackHole> BlackHoleMap = new Dictionary<Vector2Int, GridBlackHole>();
 
     public Action<Color> OnKeyCollectedEvent;
     public Action<Color> OnElectricButtonPressedEvent;
@@ -114,16 +118,78 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
+    public bool HasActiveArrowShadowAt(Vector2Int pos)
+    {
+        return TryGetActiveArrowShadowAt(pos, out _);
+    }
+
+    public bool TryGetActiveArrowShadowAt(Vector2Int pos, out ArrowShadowVisual shadow)
+    {
+        shadow = null;
+        if (ArrowShadowMap == null) return false;
+        if (!ArrowShadowMap.TryGetValue(pos, out shadow)) return false;
+
+        if (shadow == null || shadow.IsDestroyed)
+        {
+            ArrowShadowMap.Remove(pos);
+            shadow = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool HasBlockingTurnStateBlockAt(Vector2Int pos)
+    {
+        return TryGetTurnStateBlockAt(pos, out GridTurnStateBlock block) && block.IsBlocking;
+    }
+
+    public bool TryGetTurnStateBlockAt(Vector2Int pos, out GridTurnStateBlock block)
+    {
+        block = null;
+        if (TurnStateBlockMap == null) return false;
+        if (!TurnStateBlockMap.TryGetValue(pos, out block)) return false;
+
+        if (block == null || block.IsDestroyed)
+        {
+            TurnStateBlockMap.Remove(pos);
+            block = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryGetBlackHoleAt(Vector2Int pos, out GridBlackHole blackHole)
+    {
+        blackHole = null;
+        if (BlackHoleMap == null) return false;
+        if (!BlackHoleMap.TryGetValue(pos, out blackHole)) return false;
+
+        if (blackHole == null || blackHole.IsDestroyed)
+        {
+            BlackHoleMap.Remove(pos);
+            blackHole = null;
+            return false;
+        }
+
+        return true;
+    }
+
     public void ClearLevelState()
     {
         GridMap.Clear();
         KeycardMap.Clear();
         GateMap.Clear();
         ElectricButtonMap.Clear();
+        RevealWaveButtonMap.Clear();
         ElectricWallMap.Clear();
         PortalMap.Clear();
         DeflectorMap.Clear();
         CountdownBlockMap.Clear();
         StopBlockMap.Clear();
+        ArrowShadowMap.Clear();
+        TurnStateBlockMap.Clear();
+        BlackHoleMap.Clear();
     }
 }

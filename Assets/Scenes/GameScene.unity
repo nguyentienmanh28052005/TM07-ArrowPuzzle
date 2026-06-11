@@ -13650,7 +13650,7 @@ MonoBehaviour:
   fullComboSound: {fileID: 8300000, guid: 265a797fb8121554da69e26183d36864, type: 3}
   fullComboPositionTarget: {fileID: 1381837675}
   enableDotFlashOnFeedback: 1
-  dotFlashScaleAmount: 2
+  dotFlashScaleAmount: 1.6
   dotFlashDuration: 0.2
   waveBatchSize: 15
   waveDelay: 0.015
@@ -44525,7 +44525,7 @@ PrefabInstance:
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
       propertyPath: levelDataSOs.Array.size
-      value: 34
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
         type: 3}
@@ -44544,6 +44544,12 @@ PrefabInstance:
       propertyPath: levelDataSOs.Array.data[33]
       value: 
       objectReference: {fileID: 11400000, guid: da3ed097307e9bd4f91666ccec0fcbc8,
+        type: 2}
+    - target: {fileID: 6470682474960894880, guid: cd8c41575da1c1242a885d47437c735a,
+        type: 3}
+      propertyPath: levelDataSOs.Array.data[34]
+      value: 
+      objectReference: {fileID: 11400000, guid: 88f90cfb47ca8a34fb679296c2d85621,
         type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -69792,7 +69798,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a6655a59d6999e4cb9c9e0291f76536, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  delayBetweenReleases: 0.1
+  delayBetweenReleases: 0.4
   waitWhileGameplayBlocked: 1
   toggleLabel: {fileID: 247746942}
   enabledLabel: 'AUTO: ON'
@@ -95759,9 +95765,21 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
+      propertyPath: blackHolePrefab
+      value: 
+      objectReference: {fileID: 2449077247767161360, guid: bf94d066d89c4b44d8d7d1783d6bcff7,
+        type: 3}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
       propertyPath: deflectorPrefab
       value: 
       objectReference: {fileID: 2362271296126747096, guid: e0a8b61bfabe7e0499285d5445e4be46,
+        type: 3}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
+      propertyPath: stopBlockPrefab
+      value: 
+      objectReference: {fileID: 2447517671910416408, guid: c9587555cde44fcab8360be57e841f65,
         type: 3}
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
@@ -95797,15 +95815,21 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}
-      propertyPath: stopBlockPrefab
-      value: 
-      objectReference: {fileID: 2447517671910416408, guid: c9587555cde44fcab8360be57e841f65,
-        type: 3}
-    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
-        type: 3}
       propertyPath: electricButtonPrefab
       value: 
       objectReference: {fileID: 5777897644502336199, guid: 2f652b2c73a49ae43a4e2a6c8692059a,
+        type: 3}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
+      propertyPath: turnStateBlockPrefab
+      value: 
+      objectReference: {fileID: 2447517671910416408, guid: df75ddb4c1b39c8469bf5b00c5b6c9d9,
+        type: 3}
+    - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
+        type: 3}
+      propertyPath: revealWaveButtonPrefab
+      value: 
+      objectReference: {fileID: 5777897644502336199, guid: 3d5fb2a5f9a84d94f94d3c2078f9a673,
         type: 3}
     - target: {fileID: 4621351834560312628, guid: 34ee98815322bd1489f3ce047fc2ae21,
         type: 3}

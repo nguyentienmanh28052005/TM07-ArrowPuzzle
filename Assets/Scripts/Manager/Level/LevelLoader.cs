@@ -13,11 +13,14 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
     public GameObject electricButtonPrefab;
+    public GameObject revealWaveButtonPrefab;
     public GameObject electricWallPrefab;
     public GameObject portalPrefab;
     public GameObject deflectorPrefab;
     public GameObject countdownBlockPrefab;
     public GameObject stopBlockPrefab;
+    public GameObject turnStateBlockPrefab;
+    public GameObject blackHolePrefab;
 
     [Header("Container")]
     public Transform gameContainer;
@@ -299,6 +302,15 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             }
         }
 
+        if (levelToPlay.revealWaveButtons != null && revealWaveButtonPrefab != null)
+        {
+            foreach (var b in levelToPlay.revealWaveButtons)
+            {
+                GameObject obj = Instantiate(revealWaveButtonPrefab, new Vector3(b.position.x, b.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
+                if (obj.TryGetComponent(out GridRevealWaveButton script)) script.SetColor(b.color);
+            }
+        }
+
         if (levelToPlay.electricWalls != null && electricWallPrefab != null)
         {
             foreach (var w in levelToPlay.electricWalls)
@@ -337,6 +349,26 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                 GameObject obj = Instantiate(stopBlockPrefab, new Vector3(sb.position.x, sb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
                 GridStopBlock script = obj.GetComponent<GridStopBlock>();
                 if (script != null) script.SetCount(sb.count);
+            }
+        }
+
+        if (levelToPlay.turnStateBlocks != null && turnStateBlockPrefab != null)
+        {
+            foreach (var tb in levelToPlay.turnStateBlocks)
+            {
+                GameObject obj = Instantiate(turnStateBlockPrefab, new Vector3(tb.position.x, tb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
+                GridTurnStateBlock script = obj.GetComponent<GridTurnStateBlock>();
+                if (script != null) script.SetInitialState(tb.startsRed);
+            }
+        }
+
+        if (levelToPlay.blackHoles != null && blackHolePrefab != null)
+        {
+            foreach (var blackHoleData in levelToPlay.blackHoles)
+            {
+                GameObject obj = Instantiate(blackHolePrefab, new Vector3(blackHoleData.position.x, blackHoleData.position.y, 0), GetRotationForDir(blackHoleData.direction), _obstaclesContainer.transform);
+                GridBlackHole script = obj.GetComponent<GridBlackHole>();
+                if (script != null) script.SetDirection(blackHoleData.direction);
             }
         }
 
@@ -474,7 +506,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             SnakeBlock snakeScript = _preloadedSnakes[i];
             SnakeSaveData data = _preloadedSnakeSaveData[i];
 
-            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.arrowColor, false);
+            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.arrowColor, false, data.hasArrowShadow);
 
             if (GridManager.Instance != null) 
                 GridManager.Instance.RegisterSnake(snakeScript);

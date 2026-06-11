@@ -208,6 +208,25 @@ public class ArrowGuideline : MonoBehaviour
                 {
                     break;
                 }
+
+                if (GridManager.Instance.HasActiveArrowShadowAt(nextCell))
+                {
+                    break;
+                }
+
+                if (GridManager.Instance.HasBlockingTurnStateBlockAt(nextCell))
+                {
+                    break;
+                }
+            }
+
+            if (GridManager.Instance.TryGetBlackHoleAt(nextCell, out GridBlackHole blackHole))
+            {
+                if (blackHole.CanEnter(currentDir))
+                {
+                    currentSeg.steps += 1;
+                }
+                break;
             }
 
             if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(nextCell, out GridManager.PortalLink link))

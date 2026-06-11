@@ -180,6 +180,7 @@ public class SaveDataPlayer : Singleton<SaveDataPlayer>
             SnakeSaveData data = new SnakeSaveData();
             data.direction = sb.direction;
             data.arrowColor = sb.snakeColor;
+            data.hasArrowShadow = sb.HasArrowShadow;
 
             // ĐÃ SỬA: Lưu từ mảng Toán học
             foreach (Vector3 node in sb.LogicNodes)

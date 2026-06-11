@@ -1129,6 +1129,7 @@ public static class LevelGeneratorCore
         SnakeSaveData clone = new SnakeSaveData();
         clone.direction = snake.direction;
         clone.arrowColor = snake.arrowColor;
+        clone.hasArrowShadow = snake.hasArrowShadow;
         clone.segmentPositions = snake.segmentPositions != null
             ? new List<Vector2Int>(snake.segmentPositions)
             : new List<Vector2Int>();

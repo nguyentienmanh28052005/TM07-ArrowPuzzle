@@ -111,6 +111,24 @@ public class HintManager : MonoBehaviour
                     break;
                 }
 
+                if (GridManager.Instance.HasActiveArrowShadowAt(checkPos))
+                {
+                    isBlocked = true;
+                    break;
+                }
+
+                if (GridManager.Instance.HasBlockingTurnStateBlockAt(checkPos))
+                {
+                    isBlocked = true;
+                    break;
+                }
+
+                if (GridManager.Instance.TryGetBlackHoleAt(checkPos, out GridBlackHole blackHole))
+                {
+                    isBlocked = !blackHole.CanEnter(currentDir);
+                    break;
+                }
+
                 if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(checkPos, out GridManager.PortalLink link))
                 {
                     currentPos = link.exit;

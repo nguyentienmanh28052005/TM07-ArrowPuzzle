@@ -12,7 +12,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 
-public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector, CountdownBlock, ElectricButton, ElectricWall, StopBlock }
+public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector, CountdownBlock, ElectricButton, ElectricWall, StopBlock, ArrowShadow, TurnStateBlock, BlackHole, RevealWaveButton }
 
 public class LevelEditor : MonoBehaviour
 {
@@ -26,10 +26,13 @@ public class LevelEditor : MonoBehaviour
     public GameObject keycardPrefab;
     public GameObject gatePrefab;
     public GameObject electricButtonPrefab;
+    public GameObject revealWaveButtonPrefab;
     public GameObject electricWallPrefab;
     public GameObject deflectorPrefab;
     public GameObject countdownBlockPrefab;
     public GameObject stopBlockPrefab;
+    public GameObject turnStateBlockPrefab;
+    public GameObject blackHolePrefab;
     public Color highlightColor = Color.yellow;
 
     [Header("Data")]
@@ -136,6 +139,8 @@ public class LevelEditor : MonoBehaviour
         public readonly Dictionary<Vector2Int, List<int>> electricWallIdsByCell = new Dictionary<Vector2Int, List<int>>();
         public readonly Dictionary<Vector2Int, int> countdownBlocks = new Dictionary<Vector2Int, int>();
         public readonly Dictionary<Vector2Int, int> stopBlocks = new Dictionary<Vector2Int, int>();
+        public readonly Dictionary<Vector2Int, bool> turnStateBlocks = new Dictionary<Vector2Int, bool>();
+        public readonly Dictionary<Vector2Int, ArrowDir> blackHoles = new Dictionary<Vector2Int, ArrowDir>();
         public readonly Dictionary<Vector2Int, DeadlockPortalLink> portals = new Dictionary<Vector2Int, DeadlockPortalLink>();
         public readonly Dictionary<Vector2Int, ArrowDir> deflectors = new Dictionary<Vector2Int, ArrowDir>();
         public int releasedCount;
@@ -206,6 +211,10 @@ public class LevelEditor : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha8)) UI_SetTool(7);
         if (Input.GetKeyDown(KeyCode.Alpha9)) UI_SetTool(8);
         if (Input.GetKeyDown(KeyCode.Alpha0)) UI_SetTool((int)EditorToolType.StopBlock);
+        if (Input.GetKeyDown(KeyCode.B)) UI_SetTool((int)EditorToolType.ArrowShadow);
+        if (Input.GetKeyDown(KeyCode.T)) UI_SetTool((int)EditorToolType.TurnStateBlock);
+        if (Input.GetKeyDown(KeyCode.H)) UI_SetTool((int)EditorToolType.BlackHole);
+        if (Input.GetKeyDown(KeyCode.V)) UI_SetTool((int)EditorToolType.RevealWaveButton);
 
         if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) UI_SetDirection(0);
         if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) UI_SetDirection(1);
@@ -235,6 +244,10 @@ public class LevelEditor : MonoBehaviour
             else if (currentTool == EditorToolType.ElectricButton) HandleObjectPlacement<GridElectricButton>(electricButtonPrefab);
             else if (currentTool == EditorToolType.ElectricWall) HandleElectricWallClick();
             else if (currentTool == EditorToolType.StopBlock) HandleStopBlockPlacement();
+            else if (currentTool == EditorToolType.ArrowShadow) HandleArrowShadowClick();
+            else if (currentTool == EditorToolType.TurnStateBlock) HandleTurnStateBlockPlacement();
+            else if (currentTool == EditorToolType.BlackHole) HandleBlackHolePlacement();
+            else if (currentTool == EditorToolType.RevealWaveButton) HandleObjectPlacement<GridRevealWaveButton>(revealWaveButtonPrefab);
         }
         else if (Input.GetMouseButton(0)) 
         {
@@ -357,12 +370,15 @@ public class LevelEditor : MonoBehaviour
             if (child.TryGetComponent(out GridKeycard k) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridLaserGate g) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridElectricButton eb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridRevealWaveButton rwb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
             GridElectricWall ew = child.GetComponent<GridElectricWall>();
             if (ew != null && ew.ContainsCell(pos)) return true;
             GridDeflector d = child.GetComponentInChildren<GridDeflector>();
             if (d != null && Mathf.RoundToInt(d.transform.position.x) == pos.x && Mathf.RoundToInt(d.transform.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridCountdownBlock cb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
             if (child.TryGetComponent(out GridStopBlock sb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridTurnStateBlock tb) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
+            if (child.TryGetComponent(out GridBlackHole bh) && Mathf.RoundToInt(child.position.x) == pos.x && Mathf.RoundToInt(child.position.y) == pos.y) return true;
         }
         return false;
     }
@@ -423,6 +439,7 @@ public class LevelEditor : MonoBehaviour
         if (obj.TryGetComponent(out GridKeycard k)) k.keyColor = currentColor;
         if (obj.TryGetComponent(out GridLaserGate g)) g.gateColor = currentColor;
         if (obj.TryGetComponent(out GridElectricButton eb)) eb.SetColor(currentColor);
+        if (obj.TryGetComponent(out GridRevealWaveButton rwb)) rwb.SetColor(currentColor);
         
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
     }
@@ -469,6 +486,69 @@ public class LevelEditor : MonoBehaviour
         if (block != null) block.SetCount(editorCountdownValue);
 
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void HandleArrowShadowClick()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        EditorSnakeVisual snake = GetSnakeAtGridPos(gridPos);
+        if (snake == null) return;
+
+        snake.SetArrowShadowEnabled(!snake.HasArrowShadow);
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void HandleTurnStateBlockPlacement()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+        if (IsPositionOccupied(gridPos) || turnStateBlockPrefab == null) return;
+
+        GameObject obj = Instantiate(turnStateBlockPrefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
+        GridTurnStateBlock block = obj.GetComponent<GridTurnStateBlock>();
+        if (block != null) block.SetInitialState(ShouldUseRedTurnState());
+
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private void HandleBlackHolePlacement()
+    {
+        Vector2Int gridPos = GetMouseGridPosition();
+
+        foreach (Transform child in levelContainer)
+        {
+            if (child.TryGetComponent(out GridBlackHole existingBlackHole)
+                && Mathf.RoundToInt(child.position.x) == gridPos.x
+                && Mathf.RoundToInt(child.position.y) == gridPos.y)
+            {
+                existingBlackHole.SetDirection(currentDir);
+                child.rotation = GetRotationForDir(currentDir);
+                lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+                return;
+            }
+        }
+
+        if (IsPositionOccupied(gridPos) || blackHolePrefab == null) return;
+
+        GameObject obj = Instantiate(blackHolePrefab, new Vector3(gridPos.x, gridPos.y, 0), GetRotationForDir(currentDir), levelContainer);
+        GridBlackHole blackHole = obj.GetComponent<GridBlackHole>();
+        if (blackHole != null) blackHole.SetDirection(currentDir);
+
+        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
+    }
+
+    private bool ShouldUseRedTurnState()
+    {
+        float redDistance = ColorDistanceSqr(currentColor, Color.red);
+        float greenDistance = ColorDistanceSqr(currentColor, Color.green);
+        return redDistance <= greenDistance;
+    }
+
+    private static float ColorDistanceSqr(Color a, Color b)
+    {
+        float dr = a.r - b.r;
+        float dg = a.g - b.g;
+        float db = a.b - b.b;
+        return dr * dr + dg * dg + db * db;
     }
 
     private void HandleEraseClick()
@@ -545,7 +625,7 @@ public class LevelEditor : MonoBehaviour
                     }
                     else
                     {
-                        sb.Initialize(sb.direction, new List<Vector2Int>(sb.LogicNodes), sb.snakeColor);
+                        sb.Initialize(sb.direction, new List<Vector2Int>(sb.LogicNodes), sb.snakeColor, sb.HasArrowShadow);
                         if (selectedSnakeToModify == sb)
                         {
                             UpdateSelectionHighlight(sb);
@@ -567,7 +647,7 @@ public class LevelEditor : MonoBehaviour
         foreach (Transform child in levelContainer)
         {
             GridDeflector deflector = child.GetComponentInChildren<GridDeflector>();
-            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || child.GetComponent<GridElectricButton>() != null || deflector != null || child.GetComponent<GridCountdownBlock>() != null || child.GetComponent<GridStopBlock>() != null)
+            if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || child.GetComponent<GridElectricButton>() != null || child.GetComponent<GridRevealWaveButton>() != null || deflector != null || child.GetComponent<GridCountdownBlock>() != null || child.GetComponent<GridStopBlock>() != null || child.GetComponent<GridTurnStateBlock>() != null || child.GetComponent<GridBlackHole>() != null)
                 && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
                 Destroy(child.gameObject);
@@ -607,6 +687,12 @@ public class LevelEditor : MonoBehaviour
         {
             if (Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
+                if (child.TryGetComponent(out GridTurnStateBlock turnStateBlock))
+                {
+                    turnStateBlock.SetInitialState(ShouldUseRedTurnState());
+                    return;
+                }
+
                 if (child.TryGetComponent(out GridKeycard k))
                 {
                     hasLinkedGroupColor = true;
@@ -619,6 +705,12 @@ public class LevelEditor : MonoBehaviour
                     hasLinkedGroupColor = true;
                     linkedGroupColor = eb.buttonColor;
                     break;
+                }
+
+                if (child.TryGetComponent(out GridRevealWaveButton revealWaveButton))
+                {
+                    revealWaveButton.SetColor(currentColor);
+                    return;
                 }
 
                 if (child.TryGetComponent(out GridLaserGate g))
@@ -994,6 +1086,10 @@ public class LevelEditor : MonoBehaviour
         }
         else if (currentTool == EditorToolType.Erase) previewCursor.color = new Color(1, 0, 0, 0.5f);
         else if (currentTool == EditorToolType.Select) previewCursor.color = new Color(1, 1, 0, 0.3f);
+        else if (currentTool == EditorToolType.ArrowShadow) previewCursor.color = new Color(0.15f, 0.75f, 1f, 0.45f);
+        else if (currentTool == EditorToolType.TurnStateBlock) previewCursor.color = ShouldUseRedTurnState() ? new Color(1f, 0.1f, 0.1f, 0.8f) : new Color(0.1f, 1f, 0.35f, 0.8f);
+        else if (currentTool == EditorToolType.BlackHole) previewCursor.color = new Color(0.05f, 0.05f, 0.08f, 0.75f);
+        else if (currentTool == EditorToolType.RevealWaveButton) previewCursor.color = new Color(0.35f, 0.9f, 1f, 0.8f);
         else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector || currentTool == EditorToolType.CountdownBlock || currentTool == EditorToolType.ElectricButton || currentTool == EditorToolType.ElectricWall || currentTool == EditorToolType.StopBlock) 
             previewCursor.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.8f);
     }
@@ -1229,6 +1325,16 @@ public class LevelEditor : MonoBehaviour
             {
                 state.stopBlocks[childCell] = Mathf.Max(1, stopBlock.count);
             }
+
+            if (child.TryGetComponent(out GridTurnStateBlock turnStateBlock))
+            {
+                state.turnStateBlocks[childCell] = turnStateBlock.IsRed;
+            }
+
+            if (child.TryGetComponent(out GridBlackHole blackHole))
+            {
+                state.blackHoles[childCell] = blackHole.direction;
+            }
         }
 
         for (int i = 0; i < currentDraftPortals.Count; i++)
@@ -1354,6 +1460,24 @@ public class LevelEditor : MonoBehaviour
                 return result;
             }
 
+            if (state.turnStateBlocks.TryGetValue(checkPos, out bool isRedTurnState) && isRedTurnState)
+            {
+                result.blockedReason = $"blocked by red turn-state block at {FormatCell(checkPos)}";
+                return result;
+            }
+
+            if (state.blackHoles.TryGetValue(checkPos, out ArrowDir blackHoleDir))
+            {
+                if (blackHoleDir == GetOppositeDirection(currentDir))
+                {
+                    result.canExit = true;
+                    return result;
+                }
+
+                result.blockedReason = $"blocked by black hole facing {blackHoleDir} at {FormatCell(checkPos)}";
+                return result;
+            }
+
             if (state.gates.TryGetValue(checkPos, out Color gateColor) && !locallyOpenedGateCells.Contains(checkPos))
             {
                 result.blockedReason = $"blocked by gate {FormatColor(gateColor)} at {FormatCell(checkPos)}";
@@ -1436,6 +1560,8 @@ public class LevelEditor : MonoBehaviour
         }
 
         DecrementCountdownBlocks(state);
+        ToggleTurnStateBlocks(state);
+        RotateBlackHoles(state);
     }
 
     private void MarkMatchingGatesOpened(DeadlockCheckState state, Color keyColor, HashSet<Vector2Int> locallyOpenedGateCells)
@@ -1498,6 +1624,54 @@ public class LevelEditor : MonoBehaviour
             int nextCount = state.countdownBlocks[cell] - 1;
             if (nextCount <= 0) state.countdownBlocks.Remove(cell);
             else state.countdownBlocks[cell] = nextCount;
+        }
+    }
+
+    private void ToggleTurnStateBlocks(DeadlockCheckState state)
+    {
+        if (state.turnStateBlocks.Count == 0) return;
+
+        List<Vector2Int> keys = new List<Vector2Int>(state.turnStateBlocks.Keys);
+        for (int i = 0; i < keys.Count; i++)
+        {
+            Vector2Int key = keys[i];
+            state.turnStateBlocks[key] = !state.turnStateBlocks[key];
+        }
+    }
+
+    private void RotateBlackHoles(DeadlockCheckState state)
+    {
+        if (state.blackHoles.Count == 0) return;
+
+        List<Vector2Int> keys = new List<Vector2Int>(state.blackHoles.Keys);
+        for (int i = 0; i < keys.Count; i++)
+        {
+            Vector2Int key = keys[i];
+            state.blackHoles[key] = GetClockwiseDirection(state.blackHoles[key]);
+        }
+    }
+
+    private static ArrowDir GetClockwiseDirection(ArrowDir dir)
+    {
+        switch (dir)
+        {
+            case ArrowDir.Up: return ArrowDir.Right;
+            case ArrowDir.Right: return ArrowDir.Down;
+            case ArrowDir.Down: return ArrowDir.Left;
+            case ArrowDir.Left: return ArrowDir.Up;
+            default: return ArrowDir.Up;
+        }
+    }
+
+    private static ArrowDir GetOppositeDirection(ArrowDir dir)
+    {
+        switch (dir)
+        {
+            case ArrowDir.Up: return ArrowDir.Down;
+            case ArrowDir.Down: return ArrowDir.Up;
+            case ArrowDir.Left: return ArrowDir.Right;
+            case ArrowDir.Right: return ArrowDir.Left;
+            default: return ArrowDir.Up;
         }
     }
 
@@ -1565,16 +1739,22 @@ public class LevelEditor : MonoBehaviour
         currentData.keycards.Clear();
         currentData.gates.Clear();
         currentData.electricButtons.Clear();
+        if (currentData.revealWaveButtons == null) currentData.revealWaveButtons = new List<RevealWaveButtonSaveData>();
+        else currentData.revealWaveButtons.Clear();
         currentData.electricWalls.Clear();
         currentData.deflectors.Clear();
         currentData.countdownBlocks.Clear();
         if (currentData.stopBlocks == null) currentData.stopBlocks = new List<StopBlockSaveData>();
         else currentData.stopBlocks.Clear();
+        if (currentData.turnStateBlocks == null) currentData.turnStateBlocks = new List<TurnStateBlockSaveData>();
+        else currentData.turnStateBlocks.Clear();
+        if (currentData.blackHoles == null) currentData.blackHoles = new List<BlackHoleSaveData>();
+        else currentData.blackHoles.Clear();
 
         foreach (Transform s in levelContainer) {
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
             if (sb != null && sb.gameObject != currentSelectionGlowObj && sb.LogicNodes != null && sb.LogicNodes.Count > 0) {
-                SnakeSaveData e = new SnakeSaveData { direction = sb.direction, arrowColor = sb.snakeColor, segmentPositions = new List<Vector2Int>(sb.LogicNodes) };
+                SnakeSaveData e = new SnakeSaveData { direction = sb.direction, arrowColor = sb.snakeColor, hasArrowShadow = sb.HasArrowShadow, segmentPositions = new List<Vector2Int>(sb.LogicNodes) };
                 currentData.snakes.Add(e);
             }
 
@@ -1587,6 +1767,9 @@ public class LevelEditor : MonoBehaviour
             if (s.TryGetComponent(out GridElectricButton eb))
                 currentData.electricButtons.Add(new ElectricButtonSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = eb.buttonColor });
 
+            if (s.TryGetComponent(out GridRevealWaveButton revealWaveButton))
+                currentData.revealWaveButtons.Add(new RevealWaveButtonSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), color = revealWaveButton.buttonColor });
+
             GridDeflector d = s.GetComponentInChildren<GridDeflector>();
             if (d != null)
                 currentData.deflectors.Add(new DeflectorSaveData { position = new Vector2Int((int)d.transform.position.x, (int)d.transform.position.y), direction = d.direction });
@@ -1596,6 +1779,12 @@ public class LevelEditor : MonoBehaviour
 
             if (s.TryGetComponent(out GridStopBlock stopBlock))
                 currentData.stopBlocks.Add(new StopBlockSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), count = stopBlock.count });
+
+            if (s.TryGetComponent(out GridTurnStateBlock turnStateBlock))
+                currentData.turnStateBlocks.Add(new TurnStateBlockSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), startsRed = turnStateBlock.IsRed });
+
+            if (s.TryGetComponent(out GridBlackHole blackHole))
+                currentData.blackHoles.Add(new BlackHoleSaveData { position = new Vector2Int((int)s.position.x, (int)s.position.y), direction = blackHole.direction });
         }
 
         currentData.portals = new List<PortalData>(currentDraftPortals);
@@ -1620,7 +1809,7 @@ public class LevelEditor : MonoBehaviour
         foreach (var d in currentData.snakes) {
             GameObject s = Instantiate(snakePrefab, levelContainer);
             EditorSnakeVisual sb = s.GetComponent<EditorSnakeVisual>();
-            sb.Initialize(d.direction, d.segmentPositions, d.arrowColor);
+            sb.Initialize(d.direction, d.segmentPositions, d.arrowColor, d.hasArrowShadow);
             finishedSnakesHistory.Push(s);
         }
 
@@ -1647,6 +1836,13 @@ public class LevelEditor : MonoBehaviour
             }
         }
 
+        if (currentData.revealWaveButtons != null && revealWaveButtonPrefab != null) {
+            foreach (var bData in currentData.revealWaveButtons) {
+                GameObject b = Instantiate(revealWaveButtonPrefab, new Vector3(bData.position.x, bData.position.y, 0), Quaternion.identity, levelContainer);
+                if (b.TryGetComponent(out GridRevealWaveButton script)) script.SetColor(bData.color);
+            }
+        }
+
         if (currentData.deflectors != null && deflectorPrefab != null) {
             foreach (var dData in currentData.deflectors) {
                 GameObject d = Instantiate(deflectorPrefab, new Vector3(dData.position.x, dData.position.y, 0), GetRotationForDir(dData.direction), levelContainer);
@@ -1668,6 +1864,22 @@ public class LevelEditor : MonoBehaviour
                 GameObject sb = Instantiate(stopBlockPrefab, new Vector3(sbData.position.x, sbData.position.y, 0), Quaternion.identity, levelContainer);
                 GridStopBlock script = sb.GetComponent<GridStopBlock>();
                 if (script != null) script.SetCount(sbData.count);
+            }
+        }
+
+        if (currentData.turnStateBlocks != null && turnStateBlockPrefab != null) {
+            foreach (var tbData in currentData.turnStateBlocks) {
+                GameObject tb = Instantiate(turnStateBlockPrefab, new Vector3(tbData.position.x, tbData.position.y, 0), Quaternion.identity, levelContainer);
+                GridTurnStateBlock script = tb.GetComponent<GridTurnStateBlock>();
+                if (script != null) script.SetInitialState(tbData.startsRed);
+            }
+        }
+
+        if (currentData.blackHoles != null && blackHolePrefab != null) {
+            foreach (var blackHoleData in currentData.blackHoles) {
+                GameObject blackHoleObject = Instantiate(blackHolePrefab, new Vector3(blackHoleData.position.x, blackHoleData.position.y, 0), GetRotationForDir(blackHoleData.direction), levelContainer);
+                GridBlackHole script = blackHoleObject.GetComponent<GridBlackHole>();
+                if (script != null) script.SetDirection(blackHoleData.direction);
             }
         }
 
@@ -1770,6 +1982,14 @@ public class LevelEditor : MonoBehaviour
             }
         }
 
+        if (currentData.revealWaveButtons != null)
+        {
+            for (int i = 0; i < currentData.revealWaveButtons.Count; i++)
+            {
+                AddBoundsPoint(currentData.revealWaveButtons[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
         if (currentData.deflectors != null)
         {
             for (int i = 0; i < currentData.deflectors.Count; i++)
@@ -1791,6 +2011,22 @@ public class LevelEditor : MonoBehaviour
             for (int i = 0; i < currentData.stopBlocks.Count; i++)
             {
                 AddBoundsPoint(currentData.stopBlocks[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.turnStateBlocks != null)
+        {
+            for (int i = 0; i < currentData.turnStateBlocks.Count; i++)
+            {
+                AddBoundsPoint(currentData.turnStateBlocks[i].position, ref min, ref max, ref hasPosition);
+            }
+        }
+
+        if (currentData.blackHoles != null)
+        {
+            for (int i = 0; i < currentData.blackHoles.Count; i++)
+            {
+                AddBoundsPoint(currentData.blackHoles[i].position, ref min, ref max, ref hasPosition);
             }
         }
 
