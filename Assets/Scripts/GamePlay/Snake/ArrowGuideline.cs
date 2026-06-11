@@ -18,7 +18,6 @@ public class ArrowGuideline : MonoBehaviour
     [SerializeField] private bool stopAtBlockers = false;
 
     private const float _pixelsPerUnit = 100f;
-    private const int _maxPortalHopsSafety = 32;
     private const int _maxSegmentsSafety = 32;
 
     private GameObject _guidelineRoot;
@@ -28,16 +27,7 @@ public class ArrowGuideline : MonoBehaviour
     private readonly List<Transform> _segmentVisuals = new List<Transform>();
     private readonly List<SpriteRenderer> _segmentRenderers = new List<SpriteRenderer>();
 
-    private struct Segment
-    {
-        public Vector3 startWorld;
-        public ArrowDir dir;
-        public int steps;
-        public bool startsFromPortal;
-        public bool endsInPortal;
-    }
-
-    private readonly List<Segment> _segmentsCache = new List<Segment>(8);
+    private readonly List<PathSegment> _segmentsCache = new List<PathSegment>(8);
 
     private void Awake()
     {
@@ -115,7 +105,7 @@ public class ArrowGuideline : MonoBehaviour
             _segmentVisuals[i].gameObject.SetActive(active);
             if (!active) continue;
 
-            Segment seg = _segmentsCache[i];
+            PathSegment seg = _segmentsCache[i];
             if (seg.steps <= 0)
             {
                 _segmentVisuals[i].gameObject.SetActive(false);
@@ -153,136 +143,24 @@ public class ArrowGuideline : MonoBehaviour
         }
     }
 
-    private void BuildPredictedSegments(List<Segment> outSegments)
+    private void BuildPredictedSegments(List<PathSegment> outSegments)
     {
-        outSegments.Clear();
-        if (_snakeBlock == null || GridManager.Instance == null) return;
+        if (_snakeBlock == null)
+        {
+            outSegments?.Clear();
+            return;
+        }
 
         int maxSteps = Mathf.Clamp(Mathf.FloorToInt(lineLength / _pixelsPerUnit), 1, 200);
-
-        Vector3 headPos = _snakeBlock.HeadPosition;
-        ArrowDir currentDir = _snakeBlock.direction;
-        Vector3 dirWorld = GetDirVector(currentDir);
-
-        Vector3 currentWorldStart = headPos;
-        Vector2Int currentCell = new Vector2Int(Mathf.RoundToInt(currentWorldStart.x), Mathf.RoundToInt(currentWorldStart.y));
-        Vector2Int step = GetDirStep(currentDir);
-
-        Segment currentSeg = new Segment { startWorld = currentWorldStart, dir = currentDir, steps = 0 };
-
-        int portalHops = 0;
-        for (int used = 0; used < maxSteps; used++)
-        {
-            Vector2Int nextCell = currentCell + step;
-
-            if (Mathf.Abs(nextCell.x) > 100 || Mathf.Abs(nextCell.y) > 100)
-            {
-                currentSeg.steps += (maxSteps - used);
-                break;
-            }
-
-            if (stopAtBlockers)
-            {
-                SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(nextCell);
-                if (obstacle != null && obstacle != _snakeBlock)
-                {
-                    break;
-                }
-
-                if (GridManager.Instance.GateMap != null && GridManager.Instance.GateMap.ContainsKey(nextCell))
-                {
-                    break;
-                }
-
-                if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(nextCell))
-                {
-                    break;
-                }
-
-                if (GridManager.Instance.HasActiveCountdownBlockAt(nextCell))
-                {
-                    break;
-                }
-
-                if (GridManager.Instance.HasActiveStopBlockAt(nextCell))
-                {
-                    break;
-                }
-
-                if (GridManager.Instance.HasActiveArrowShadowAt(nextCell))
-                {
-                    break;
-                }
-
-                if (GridManager.Instance.HasBlockingTurnStateBlockAt(nextCell))
-                {
-                    break;
-                }
-            }
-
-            if (GridManager.Instance.TryGetBlackHoleAt(nextCell, out GridBlackHole blackHole))
-            {
-                if (blackHole.CanEnter(currentDir))
-                {
-                    currentSeg.steps += 1;
-                }
-                break;
-            }
-
-            if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(nextCell, out GridManager.PortalLink link))
-            {
-                currentSeg.steps += 1;
-                currentSeg.endsInPortal = true;
-                if (currentSeg.steps > 0) outSegments.Add(currentSeg);
-
-                currentCell = link.exit;
-                currentWorldStart = new Vector3(link.exit.x, link.exit.y, headPos.z);
-
-                currentDir = link.exitDir;
-                step = GetDirStep(currentDir);
-                currentSeg = new Segment { startWorld = currentWorldStart, dir = currentDir, steps = 0, startsFromPortal = true };
-
-                portalHops++;
-                if (portalHops >= _maxPortalHopsSafety || outSegments.Count >= _maxSegmentsSafety) break;
-                continue;
-            }
-
-            if (GridManager.Instance.DeflectorMap != null && GridManager.Instance.DeflectorMap.TryGetValue(nextCell, out GridDeflector deflector))
-            {
-                currentSeg.steps += 1;
-                if (currentSeg.steps > 0) outSegments.Add(currentSeg);
-
-                currentCell = nextCell;
-                currentWorldStart = new Vector3(currentCell.x, currentCell.y, headPos.z);
-
-                currentDir = deflector.direction;
-                step = GetDirStep(currentDir);
-                currentSeg = new Segment { startWorld = currentWorldStart, dir = currentDir, steps = 0 };
-
-                if (outSegments.Count >= _maxSegmentsSafety) break;
-                continue;
-            }
-
-            currentSeg.steps += 1;
-            currentCell = nextCell;
-        }
-
-        if (currentSeg.steps > 0 && outSegments.Count < _maxSegmentsSafety)
-        {
-            outSegments.Add(currentSeg);
-        }
-    }
-
-    private static Vector2Int GetDirStep(ArrowDir dir)
-    {
-        switch (dir)
-        {
-            case ArrowDir.Up: return new Vector2Int(0, 1);
-            case ArrowDir.Down: return new Vector2Int(0, -1);
-            case ArrowDir.Left: return new Vector2Int(-1, 0);
-            case ArrowDir.Right: return new Vector2Int(1, 0);
-            default: return Vector2Int.zero;
-        }
+        PathScanner.BuildGuidelineSegments(
+            BoardState.Active,
+            _snakeBlock,
+            _snakeBlock.HeadPosition,
+            _snakeBlock.direction,
+            maxSteps,
+            stopAtBlockers,
+            _maxSegmentsSafety,
+            outSegments);
     }
 
     private static float GetAngle(ArrowDir dir)

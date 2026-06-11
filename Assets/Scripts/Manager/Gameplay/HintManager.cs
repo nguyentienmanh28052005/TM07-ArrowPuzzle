@@ -57,115 +57,29 @@ public class HintManager : MonoBehaviour
 
     private SnakeBlock FindBestMove()
     {
-        SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
+        BoardState board = BoardState.Active;
+        if (board == null || !board.IsValid) return null;
 
-        if (GridManager.Instance == null) return null;
-
-        foreach (var snake in allSnakes)
+        IReadOnlyList<SnakeBlock> allSnakes = SnakeBlock.ActiveSnakes;
+        for (int i = 0; i < allSnakes.Count; i++)
         {
-            // ĐÃ SỬA: Check LogicNodes.Count thay vì bodySegments.Count
+            SnakeBlock snake = allSnakes[i];
             if (snake == null || snake.IsMoving || snake.IsStoppedByStopBlock || snake.LogicNodes == null || snake.LogicNodes.Count == 0) continue;
 
-            Vector2Int currentPos = new Vector2Int(Mathf.RoundToInt(snake.HeadPosition.x), Mathf.RoundToInt(snake.HeadPosition.y));
-            ArrowDir currentDir = snake.direction;
-            Vector2Int step = GetDirStep(currentDir);
+            MoveResult result = PathScanner.Scan(
+                board,
+                snake,
+                PathScanner.ToGridCell(snake.HeadPosition),
+                snake.direction,
+                50,
+                stopAtBlockers: true,
+                boundaryAbs: 100);
 
-            bool isBlocked = false;
-            for (int d = 1; d < 50; d++)
-            {
-                Vector2Int checkPos = currentPos + step;
-
-                if (Mathf.Abs(checkPos.x) > 100 || Mathf.Abs(checkPos.y) > 100)
-                {
-                    break;
-                }
-
-                SnakeBlock obstacle = GridManager.Instance.GetSnakeAt(checkPos);
-                if (obstacle != null && obstacle != snake)
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.GateMap != null && GridManager.Instance.GateMap.ContainsKey(checkPos))
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.ElectricWallMap != null && GridManager.Instance.ElectricWallMap.ContainsKey(checkPos))
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.HasActiveCountdownBlockAt(checkPos))
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.HasActiveStopBlockAt(checkPos))
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.HasActiveArrowShadowAt(checkPos))
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.HasBlockingTurnStateBlockAt(checkPos))
-                {
-                    isBlocked = true;
-                    break;
-                }
-
-                if (GridManager.Instance.TryGetBlackHoleAt(checkPos, out GridBlackHole blackHole))
-                {
-                    isBlocked = !blackHole.CanEnter(currentDir);
-                    break;
-                }
-
-                if (GridManager.Instance.PortalMap != null && GridManager.Instance.PortalMap.TryGetValue(checkPos, out GridManager.PortalLink link))
-                {
-                    currentPos = link.exit;
-                    currentDir = link.exitDir;
-                    step = GetDirStep(currentDir);
-                    continue;
-                }
-
-                if (GridManager.Instance.DeflectorMap != null && GridManager.Instance.DeflectorMap.TryGetValue(checkPos, out GridDeflector deflector))
-                {
-                    currentPos = checkPos;
-                    currentDir = deflector.direction;
-                    step = GetDirStep(currentDir);
-                    continue;
-                }
-
-                currentPos = checkPos;
-            }
-
-            if (!isBlocked) return snake;
+            if (result.CanRelease) return snake;
         }
         
         return null;
     }
-
-    private static Vector2Int GetDirStep(ArrowDir dir)
-    {
-        switch (dir)
-        {
-            case ArrowDir.Up: return new Vector2Int(0, 1);
-            case ArrowDir.Down: return new Vector2Int(0, -1);
-            case ArrowDir.Left: return new Vector2Int(-1, 0);
-            case ArrowDir.Right: return new Vector2Int(1, 0);
-            default: return Vector2Int.zero;
-        }
-    }
-
     private void PlayHintAnimation(SnakeBlock snake)
     {
         _isHinting = true;

@@ -380,8 +380,8 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
                 if (GridManager.Instance != null)
                 {
-                    GridManager.Instance.PortalMap[p.entrance] = new GridManager.PortalLink { exit = p.exit, exitDir = p.exitDir };
-                    GridManager.Instance.PortalMap[p.exit] = new GridManager.PortalLink { exit = p.entrance, exitDir = p.entranceDir };
+                    GridManager.Instance.RegisterPortalLink(p.entrance, p.exit, p.exitDir);
+                    GridManager.Instance.RegisterPortalLink(p.exit, p.entrance, p.entranceDir);
                 }
 
                 if (portalPrefab != null)

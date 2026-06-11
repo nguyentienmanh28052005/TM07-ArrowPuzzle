@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
 
-public class GridRevealWaveButton : MonoBehaviour
+public class GridRevealWaveButton : GridOccupantBehaviour, IGridTrigger
 {
     public Color buttonColor = new Color(0.25f, 0.85f, 1f, 1f);
 
@@ -33,10 +33,10 @@ public class GridRevealWaveButton : MonoBehaviour
 
     private bool _isTriggered;
     private bool _spawnPlayed;
-    private Coroutine _registerRoutine;
-    private GridManager _registeredManager;
     private SpriteRenderer[] _spriteRenderers;
     private Vector3 _baseScale = Vector3.one;
+
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !_isTriggered;
 
     private class WaveTarget
     {
@@ -50,7 +50,7 @@ public class GridRevealWaveButton : MonoBehaviour
     private void Start()
     {
         CacheVisuals();
-        TryRegister();
+        RegisterOccupantOrWait();
         ApplyColor();
         if (Application.isPlaying) PlaySpawnEffect();
     }
@@ -58,7 +58,7 @@ public class GridRevealWaveButton : MonoBehaviour
     private void OnEnable()
     {
         CacheVisuals();
-        TryRegister();
+        RegisterOccupantOrWait();
         ApplyColor();
     }
 
@@ -66,18 +66,13 @@ public class GridRevealWaveButton : MonoBehaviour
     {
         transform.DOKill();
         KillRendererTweens();
-        if (_registerRoutine != null)
-        {
-            StopCoroutine(_registerRoutine);
-            _registerRoutine = null;
-        }
-
-        Unregister();
+        StopPendingOccupantRegistration();
+        UnregisterOccupant();
     }
 
     private void OnDestroy()
     {
-        Unregister();
+        UnregisterOccupant();
     }
 
     private void OnValidate()
@@ -96,7 +91,7 @@ public class GridRevealWaveButton : MonoBehaviour
     {
         if (_isTriggered) return;
         _isTriggered = true;
-        Unregister();
+        UnregisterOccupant();
         StartCoroutine(TriggerRoutine());
     }
 
@@ -351,45 +346,14 @@ public class GridRevealWaveButton : MonoBehaviour
         }
     }
 
-    private void TryRegister()
-    {
-        GridManager manager = GridManager.Instance;
-        if (manager == null)
-        {
-            if (_registerRoutine == null && Application.isPlaying) _registerRoutine = StartCoroutine(WaitAndRegister());
-            return;
-        }
-
-        if (_registeredManager != null && _registeredManager != manager) Unregister();
-
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.RevealWaveButtonMap[pos] = this;
-        _registeredManager = manager;
-    }
-
-    private IEnumerator WaitAndRegister()
-    {
-        while (GridManager.Instance == null) yield return null;
-        _registerRoutine = null;
-        TryRegister();
-    }
-
-    private void Unregister()
-    {
-        if (_registeredManager == null || _registeredManager.RevealWaveButtonMap == null) return;
-
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        if (_registeredManager.RevealWaveButtonMap.TryGetValue(pos, out GridRevealWaveButton existing) && existing == this)
-        {
-            _registeredManager.RevealWaveButtonMap.Remove(pos);
-        }
-
-        _registeredManager = null;
-    }
-
     private static Color WithAlpha(Color color, float alpha)
     {
         color.a = Mathf.Clamp01(alpha);
         return color;
+    }
+
+    public void TriggerFromGrid()
+    {
+        Trigger();
     }
 }

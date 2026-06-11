@@ -2,7 +2,7 @@ using UnityEngine;
 using DG.Tweening;
 using TMPro;
 
-public class GridCountdownBlock : MonoBehaviour
+public class GridCountdownBlock : GridOccupantBehaviour, IArrowExitListener
 {
     public int count = 3;
 
@@ -13,10 +13,9 @@ public class GridCountdownBlock : MonoBehaviour
     private bool _isSubscribed = false;
     private Coroutine _subscribeRoutine;
     private GridManager _subscribedManager;
-    private GridManager _registeredManager;
-    private Vector2Int _registeredPos;
 
     public bool IsDestroyed => _isDestroyed;
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !_isDestroyed;
 
     [SerializeField] private ParticleSystem explosionEffect;
 
@@ -53,6 +52,7 @@ public class GridCountdownBlock : MonoBehaviour
             _subscribeRoutine = null;
         }
         Unsubscribe();
+        StopPendingOccupantRegistration();
         UnregisterFromGrid();
     }
 
@@ -79,13 +79,13 @@ public class GridCountdownBlock : MonoBehaviour
 
         if (_subscribedManager != null && _subscribedManager != manager)
         {
-            _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+            _subscribedManager.UnregisterArrowExitListener(this);
             _isSubscribed = false;
         }
 
         if (_isSubscribed && _subscribedManager == manager) return;
 
-        manager.OnArrowExitedEvent += OnArrowExited;
+        manager.RegisterArrowExitListener(this);
         _subscribedManager = manager;
         _isSubscribed = true;
     }
@@ -100,45 +100,24 @@ public class GridCountdownBlock : MonoBehaviour
 
     private void TryRegister()
     {
-        var manager = GridManager.Instance;
-        if (manager == null)
-        {
-            if (_subscribeRoutine == null) _subscribeRoutine = StartCoroutine(WaitAndSubscribe());
-            return;
-        }
-
-        if (_registeredManager != null && _registeredManager != manager)
-        {
-            UnregisterFromGrid();
-        }
-
-        _registeredPos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.CountdownBlockMap[_registeredPos] = this;
-        _registeredManager = manager;
+        RegisterOccupantOrWait();
     }
 
     private void UnregisterFromGrid()
     {
-        if (_registeredManager == null || _registeredManager.CountdownBlockMap == null) return;
-
-        if (_registeredManager.CountdownBlockMap.TryGetValue(_registeredPos, out GridCountdownBlock existing) && existing == this)
-        {
-            _registeredManager.CountdownBlockMap.Remove(_registeredPos);
-        }
-
-        _registeredManager = null;
+        UnregisterOccupant();
     }
 
     private void Unsubscribe()
     {
         if (!_isSubscribed) return;
 
-        if (_subscribedManager != null) _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+        if (_subscribedManager != null) _subscribedManager.UnregisterArrowExitListener(this);
         _subscribedManager = null;
         _isSubscribed = false;
     }
 
-    private void OnArrowExited()
+    public void OnArrowExited()
     {
         if (_isDestroyed) return;
 

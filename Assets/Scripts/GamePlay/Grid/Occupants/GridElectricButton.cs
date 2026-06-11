@@ -1,7 +1,7 @@
 using UnityEngine;
 using DG.Tweening;
 
-public class GridElectricButton : MonoBehaviour
+public class GridElectricButton : GridOccupantBehaviour, IGridTrigger
 {
     public Color buttonColor = Color.white;
 
@@ -17,8 +17,6 @@ public class GridElectricButton : MonoBehaviour
 
     private bool _isPressed;
     private bool _spawnPlayed;
-    private Coroutine _registerRoutine;
-    private GridManager _registeredManager;
     private SpriteRenderer _spriteRenderer;
     private SpriteRenderer[] _spriteRenderers;
     private Vector3 _baseScale = Vector3.one;
@@ -26,11 +24,13 @@ public class GridElectricButton : MonoBehaviour
     private Sequence _spawnSequence;
     private Sequence _pressSequence;
 
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !_isPressed;
+
     private void Start()
     {
         _hasStarted = true;
         CacheVisuals();
-        TryRegister();
+        RegisterOccupantOrWait();
         ApplyColor();
         if (Application.isPlaying) PlaySpawnEffect();
     }
@@ -38,7 +38,7 @@ public class GridElectricButton : MonoBehaviour
     private void OnEnable()
     {
         CacheVisuals();
-        TryRegister();
+        RegisterOccupantOrWait();
         ApplyColor();
         if (_hasStarted && Application.isPlaying) PlaySpawnEffect();
     }
@@ -49,12 +49,8 @@ public class GridElectricButton : MonoBehaviour
         KillSequences();
         KillRendererTweens();
 
-        if (_registerRoutine != null)
-        {
-            StopCoroutine(_registerRoutine);
-            _registerRoutine = null;
-        }
-        Unregister();
+        StopPendingOccupantRegistration();
+        UnregisterOccupant();
     }
 
     public void Press()
@@ -62,7 +58,7 @@ public class GridElectricButton : MonoBehaviour
         if (_isPressed) return;
         _isPressed = true;
 
-        Unregister();
+        UnregisterOccupant();
 
         if (GridManager.Instance != null)
             GridManager.Instance.RaiseElectricButtonPressed(buttonColor);
@@ -192,51 +188,14 @@ public class GridElectricButton : MonoBehaviour
         ApplyColor();
     }
 
-    private void TryRegister()
-    {
-        var manager = GridManager.Instance;
-        if (manager == null)
-        {
-            if (_registerRoutine == null) _registerRoutine = StartCoroutine(WaitAndRegister());
-            return;
-        }
-
-        if (_registeredManager != null && _registeredManager != manager)
-        {
-            UnregisterFromManager(_registeredManager);
-        }
-
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.ElectricButtonMap[pos] = this;
-        _registeredManager = manager;
-    }
-
-    private System.Collections.IEnumerator WaitAndRegister()
-    {
-        while (GridManager.Instance == null) yield return null;
-        _registerRoutine = null;
-        TryRegister();
-    }
-
-    private void Unregister()
-    {
-        if (_registeredManager == null) return;
-        UnregisterFromManager(_registeredManager);
-        _registeredManager = null;
-    }
-
-    private void UnregisterFromManager(GridManager manager)
-    {
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        if (manager.ElectricButtonMap != null && manager.ElectricButtonMap.TryGetValue(pos, out GridElectricButton existing) && existing == this)
-        {
-            manager.ElectricButtonMap.Remove(pos);
-        }
-    }
-
     private static Color WithAlpha(Color color, float alpha)
     {
         color.a = alpha;
         return color;
+    }
+
+    public void TriggerFromGrid()
+    {
+        Press();
     }
 }

@@ -2,60 +2,27 @@ using UnityEngine;
 using DG.Tweening;
 using System.Collections.Generic;
 
-public class GridKeycard : MonoBehaviour
+public class GridKeycard : GridOccupantBehaviour, IGridTrigger
 {
     public Color keyColor = Color.white;
     private bool _isCollected = false;
-    private Coroutine _registerRoutine;
-    private GridManager _registeredManager;
+
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !_isCollected;
 
     private void Start()
     {
-        TryRegister();
+        RegisterOccupantOrWait();
     }
 
     private void OnEnable()
     {
-        TryRegister();
+        RegisterOccupantOrWait();
     }
 
     private void OnDisable()
     {
-        if (_registerRoutine != null)
-        {
-            StopCoroutine(_registerRoutine);
-            _registerRoutine = null;
-        }
-    }
-
-    private void TryRegister()
-    {
-        var manager = GridManager.Instance;
-        if (manager == null)
-        {
-            if (_registerRoutine == null) _registerRoutine = StartCoroutine(WaitAndRegister());
-            return;
-        }
-
-        if (_registeredManager != null && _registeredManager != manager)
-        {
-            Vector2Int oldPos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-            if (_registeredManager.KeycardMap != null && _registeredManager.KeycardMap.TryGetValue(oldPos, out GridKeycard existing) && existing == this)
-            {
-                _registeredManager.KeycardMap.Remove(oldPos);
-            }
-        }
-
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.KeycardMap[pos] = this;
-        _registeredManager = manager;
-    }
-
-    private System.Collections.IEnumerator WaitAndRegister()
-    {
-        while (GridManager.Instance == null) yield return null;
-        _registerRoutine = null;
-        TryRegister();
+        StopPendingOccupantRegistration();
+        UnregisterOccupant();
     }
 
     public void Collect()
@@ -63,11 +30,7 @@ public class GridKeycard : MonoBehaviour
         if (_isCollected) return;
         _isCollected = true;
 
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        if (GridManager.Instance != null && GridManager.Instance.KeycardMap.ContainsKey(pos))
-        {
-            GridManager.Instance.KeycardMap.Remove(pos);
-        }
+        UnregisterOccupant();
 
     #if UNITY_EDITOR || DEVELOPMENT_BUILD
         Debug.LogWarning($"[GridKeycard] Collect color={keyColor} instanceId={GetInstanceID()} manager={(GridManager.Instance != null ? GridManager.Instance.GetInstanceID().ToString() : "null")}");
@@ -99,14 +62,19 @@ public class GridKeycard : MonoBehaviour
     private List<GridLaserGate> GetMatchingGates(GridManager manager)
     {
         List<GridLaserGate> matchingGates = new List<GridLaserGate>();
-        if (manager == null || manager.GateMap == null) return matchingGates;
+        if (manager == null) return matchingGates;
 
-        foreach (GridLaserGate gate in manager.GateMap.Values)
+        foreach (GridLaserGate gate in manager.Gates)
         {
             if (gate == null || !gate.isActiveAndEnabled) continue;
             if (gate.MatchesColor(keyColor) && !matchingGates.Contains(gate)) matchingGates.Add(gate);
         }
 
         return matchingGates;
+    }
+
+    public void TriggerFromGrid()
+    {
+        Collect();
     }
 }

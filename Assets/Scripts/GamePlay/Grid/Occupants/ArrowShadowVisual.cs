@@ -3,7 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 
 [RequireComponent(typeof(LineRenderer))]
-public class ArrowShadowVisual : MonoBehaviour
+public class ArrowShadowVisual : MonoBehaviour, IGridOccupant, IArrowExitListener
 {
     private const float DefaultFadeDuration = 0.18f;
 
@@ -26,6 +26,15 @@ public class ArrowShadowVisual : MonoBehaviour
 
     public bool IsCountingDown => _isCountingDown;
     public bool IsDestroyed => _isDestroyed;
+    public Vector2Int GridPosition
+    {
+        get
+        {
+            foreach (Vector2Int cell in _occupiedCells) return cell;
+            return ToGridCell(transform.position);
+        }
+    }
+    public bool IsActiveOccupant => this != null && gameObject != null && isActiveAndEnabled && !_isDestroyed;
 
     private void Awake()
     {
@@ -190,27 +199,17 @@ public class ArrowShadowVisual : MonoBehaviour
     {
         UnregisterFromGrid();
 
-        if (_isDestroyed || GridManager.Instance == null || GridManager.Instance.ArrowShadowMap == null) return;
+        if (_isDestroyed || GridManager.Instance == null) return;
 
         _registeredManager = GridManager.Instance;
-        foreach (Vector2Int cell in _occupiedCells)
-        {
-            _registeredManager.ArrowShadowMap[cell] = this;
-        }
+        _registeredManager.RegisterArrowShadowCells(this, _occupiedCells);
     }
 
     private void UnregisterFromGrid()
     {
-        if (_registeredManager == null || _registeredManager.ArrowShadowMap == null) return;
+        if (_registeredManager == null) return;
 
-        foreach (Vector2Int cell in _occupiedCells)
-        {
-            if (_registeredManager.ArrowShadowMap.TryGetValue(cell, out ArrowShadowVisual existing) && existing == this)
-            {
-                _registeredManager.ArrowShadowMap.Remove(cell);
-            }
-        }
-
+        _registeredManager.UnregisterArrowShadowCells(this, _occupiedCells);
         _registeredManager = null;
     }
 
@@ -267,18 +266,18 @@ public class ArrowShadowVisual : MonoBehaviour
         if (GridManager.Instance == null) return;
 
         _subscribedManager = GridManager.Instance;
-        _subscribedManager.OnArrowExitedEvent += OnArrowExited;
+        _subscribedManager.RegisterArrowExitListener(this);
     }
 
     private void Unsubscribe()
     {
         if (_subscribedManager == null) return;
 
-        _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+        _subscribedManager.UnregisterArrowExitListener(this);
         _subscribedManager = null;
     }
 
-    private void OnArrowExited()
+    public void OnArrowExited()
     {
         if (!_isCountingDown || _isDestroyed) return;
 

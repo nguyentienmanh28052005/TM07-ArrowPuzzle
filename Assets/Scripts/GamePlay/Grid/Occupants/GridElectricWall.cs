@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 
-public class GridElectricWall : MonoBehaviour
+public class GridElectricWall : MonoBehaviour, IGridOccupant
 {
     public Color wallColor = Color.white;
 
@@ -39,10 +39,14 @@ public class GridElectricWall : MonoBehaviour
     private Sequence _spawnSequence;
     private Sequence _despawnSequence;
     private bool _hasStarted;
+    private GridManager _registeredManager;
 
     private bool _isSubscribed;
     private Coroutine _subscribeRoutine;
     private GridManager _subscribedManager;
+
+    public Vector2Int GridPosition => _startCell;
+    public bool IsActiveOccupant => this != null && gameObject != null && isActiveAndEnabled && !_isDisabled;
 
     private void Awake()
     {
@@ -258,12 +262,11 @@ public class GridElectricWall : MonoBehaviour
         UnregisterCells();
         BuildCells();
 
-        if (GridManager.Instance == null) return;
+        GridManager manager = GridManager.Instance;
+        if (manager == null) return;
 
-        for (int i = 0; i < _cells.Count; i++)
-        {
-            GridManager.Instance.ElectricWallMap[_cells[i]] = this;
-        }
+        manager.RegisterElectricWallCells(this, _cells);
+        _registeredManager = manager;
     }
 
     private void BuildCells()
@@ -289,17 +292,13 @@ public class GridElectricWall : MonoBehaviour
 
     private void UnregisterCells()
     {
-        if (GridManager.Instance != null && GridManager.Instance.ElectricWallMap != null)
+        GridManager manager = _registeredManager != null ? _registeredManager : GridManager.Instance;
+        if (manager != null)
         {
-            for (int i = 0; i < _cells.Count; i++)
-            {
-                Vector2Int cell = _cells[i];
-                if (GridManager.Instance.ElectricWallMap.TryGetValue(cell, out GridElectricWall wall) && wall == this)
-                {
-                    GridManager.Instance.ElectricWallMap.Remove(cell);
-                }
-            }
+            manager.UnregisterElectricWallCells(this, _cells);
         }
+
+        _registeredManager = null;
         _cells.Clear();
     }
 
@@ -315,13 +314,13 @@ public class GridElectricWall : MonoBehaviour
 
         if (_subscribedManager != null && _subscribedManager != manager)
         {
-            _subscribedManager.OnElectricButtonPressedEvent -= TryDisableWall;
+            _subscribedManager.UnregisterElectricButtonPressedListener(TryDisableWall);
             _isSubscribed = false;
         }
 
         if (_isSubscribed && _subscribedManager == manager) return;
 
-        manager.OnElectricButtonPressedEvent += TryDisableWall;
+        manager.RegisterElectricButtonPressedListener(TryDisableWall);
         _subscribedManager = manager;
         _isSubscribed = true;
 
@@ -339,7 +338,7 @@ public class GridElectricWall : MonoBehaviour
     private void Unsubscribe()
     {
         if (!_isSubscribed) return;
-        if (_subscribedManager != null) _subscribedManager.OnElectricButtonPressedEvent -= TryDisableWall;
+        if (_subscribedManager != null) _subscribedManager.UnregisterElectricButtonPressedListener(TryDisableWall);
         _subscribedManager = null;
         _isSubscribed = false;
     }

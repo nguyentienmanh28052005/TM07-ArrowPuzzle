@@ -1,7 +1,7 @@
 using DG.Tweening;
 using UnityEngine;
 
-public class GridTurnStateBlock : MonoBehaviour
+public class GridTurnStateBlock : GridOccupantBehaviour, IArrowExitListener
 {
     [SerializeField] private bool startsRed = true;
     [SerializeField] private Color greenColor = new Color(0.1f, 0.95f, 0.35f, 1f);
@@ -11,14 +11,13 @@ public class GridTurnStateBlock : MonoBehaviour
     [SerializeField] private SpriteRenderer visualRenderer;
 
     private bool _isRed;
-    private GridManager _registeredManager;
     private GridManager _subscribedManager;
     private Coroutine _waitRoutine;
-    private Vector2Int _registeredPos;
 
     public bool IsRed => _isRed;
     public bool IsBlocking => _isRed;
     public bool IsDestroyed => this == null || gameObject == null;
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !IsDestroyed;
 
     private void Start()
     {
@@ -72,15 +71,12 @@ public class GridTurnStateBlock : MonoBehaviour
             return;
         }
 
-        if (_registeredManager != null && _registeredManager != manager) Unregister();
         if (_subscribedManager != null && _subscribedManager != manager) Unsubscribe();
 
-        _registeredPos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.TurnStateBlockMap[_registeredPos] = this;
-        _registeredManager = manager;
+        RegisterOccupantOrWait();
 
-        manager.OnArrowExitedEvent -= OnArrowExited;
-        manager.OnArrowExitedEvent += OnArrowExited;
+        manager.UnregisterArrowExitListener(this);
+        manager.RegisterArrowExitListener(this);
         _subscribedManager = manager;
     }
 
@@ -93,25 +89,18 @@ public class GridTurnStateBlock : MonoBehaviour
 
     private void Unregister()
     {
-        if (_registeredManager == null || _registeredManager.TurnStateBlockMap == null) return;
-
-        if (_registeredManager.TurnStateBlockMap.TryGetValue(_registeredPos, out GridTurnStateBlock existing) && existing == this)
-        {
-            _registeredManager.TurnStateBlockMap.Remove(_registeredPos);
-        }
-
-        _registeredManager = null;
+        UnregisterOccupant();
     }
 
     private void Unsubscribe()
     {
         if (_subscribedManager == null) return;
 
-        _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+        _subscribedManager.UnregisterArrowExitListener(this);
         _subscribedManager = null;
     }
 
-    private void OnArrowExited()
+    public void OnArrowExited()
     {
         _isRed = !_isRed;
         ApplyVisual(true);

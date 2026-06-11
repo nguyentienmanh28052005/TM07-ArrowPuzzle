@@ -2,7 +2,7 @@ using System.Collections;
 using DG.Tweening;
 using UnityEngine;
 
-public class GridBlackHole : MonoBehaviour
+public class GridBlackHole : GridOccupantBehaviour, IArrowExitListener
 {
     public ArrowDir direction = ArrowDir.Up;
 
@@ -18,13 +18,12 @@ public class GridBlackHole : MonoBehaviour
     [SerializeField] private float pulseScale = 1.18f;
     [SerializeField] private float pulseDuration = 0.12f;
 
-    private GridManager _registeredManager;
     private GridManager _subscribedManager;
     private Coroutine _waitRoutine;
-    private Vector2Int _registeredPos;
     private Vector3 _baseScale = Vector3.one;
 
     public bool IsDestroyed => this == null || gameObject == null;
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !IsDestroyed;
 
     private void Awake()
     {
@@ -102,15 +101,12 @@ public class GridBlackHole : MonoBehaviour
             return;
         }
 
-        if (_registeredManager != null && _registeredManager != manager) Unregister();
         if (_subscribedManager != null && _subscribedManager != manager) Unsubscribe();
 
-        _registeredPos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.BlackHoleMap[_registeredPos] = this;
-        _registeredManager = manager;
+        RegisterOccupantOrWait();
 
-        manager.OnArrowExitedEvent -= OnArrowExited;
-        manager.OnArrowExitedEvent += OnArrowExited;
+        manager.UnregisterArrowExitListener(this);
+        manager.RegisterArrowExitListener(this);
         _subscribedManager = manager;
     }
 
@@ -123,25 +119,18 @@ public class GridBlackHole : MonoBehaviour
 
     private void Unregister()
     {
-        if (_registeredManager == null || _registeredManager.BlackHoleMap == null) return;
-
-        if (_registeredManager.BlackHoleMap.TryGetValue(_registeredPos, out GridBlackHole existing) && existing == this)
-        {
-            _registeredManager.BlackHoleMap.Remove(_registeredPos);
-        }
-
-        _registeredManager = null;
+        UnregisterOccupant();
     }
 
     private void Unsubscribe()
     {
         if (_subscribedManager == null) return;
 
-        _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+        _subscribedManager.UnregisterArrowExitListener(this);
         _subscribedManager = null;
     }
 
-    private void OnArrowExited()
+    public void OnArrowExited()
     {
         direction = GetClockwiseDirection(direction);
         ApplyVisual(Application.isPlaying);

@@ -2,7 +2,7 @@ using UnityEngine;
 using DG.Tweening;
 using TMPro;
 
-public class GridStopBlock : MonoBehaviour
+public class GridStopBlock : GridOccupantBehaviour, IArrowExitListener
 {
     public int count = 3;
 
@@ -26,15 +26,14 @@ public class GridStopBlock : MonoBehaviour
     private bool _isActivated;
     private bool _isSubscribed;
     private Coroutine _waitForGridRoutine;
-    private GridManager _registeredManager;
     private GridManager _subscribedManager;
-    private Vector2Int _registeredPos;
     private SnakeBlock _heldSnake;
     private Color _idleColor = Color.white;
 
     public bool IsDestroyed => _isDestroyed;
     public bool IsActivated => _isActivated;
     public bool CanCapture => !_isDestroyed && !_isActivated && _heldSnake == null;
+    public override bool IsActiveOccupant => base.IsActiveOccupant && !_isDestroyed;
 
     private void Awake()
     {
@@ -61,6 +60,7 @@ public class GridStopBlock : MonoBehaviour
         }
 
         Unsubscribe();
+        StopPendingOccupantRegistration();
         UnregisterFromGrid();
     }
 
@@ -104,21 +104,7 @@ public class GridStopBlock : MonoBehaviour
 
     private void TryRegister()
     {
-        GridManager manager = GridManager.Instance;
-        if (manager == null)
-        {
-            if (_waitForGridRoutine == null) _waitForGridRoutine = StartCoroutine(WaitForGridAndRegister());
-            return;
-        }
-
-        if (_registeredManager != null && _registeredManager != manager)
-        {
-            UnregisterFromGrid();
-        }
-
-        _registeredPos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        manager.StopBlockMap[_registeredPos] = this;
-        _registeredManager = manager;
+        RegisterOccupantOrWait();
     }
 
     private System.Collections.IEnumerator WaitForGridAndRegister()
@@ -131,14 +117,7 @@ public class GridStopBlock : MonoBehaviour
 
     private void UnregisterFromGrid()
     {
-        if (_registeredManager == null || _registeredManager.StopBlockMap == null) return;
-
-        if (_registeredManager.StopBlockMap.TryGetValue(_registeredPos, out GridStopBlock existing) && existing == this)
-        {
-            _registeredManager.StopBlockMap.Remove(_registeredPos);
-        }
-
-        _registeredManager = null;
+        UnregisterOccupant();
     }
 
     private void TrySubscribe()
@@ -154,13 +133,13 @@ public class GridStopBlock : MonoBehaviour
 
         if (_subscribedManager != null && _subscribedManager != manager)
         {
-            _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+            _subscribedManager.UnregisterArrowExitListener(this);
             _isSubscribed = false;
         }
 
         if (_isSubscribed && _subscribedManager == manager) return;
 
-        manager.OnArrowExitedEvent += OnArrowExited;
+        manager.RegisterArrowExitListener(this);
         _subscribedManager = manager;
         _isSubscribed = true;
     }
@@ -169,12 +148,12 @@ public class GridStopBlock : MonoBehaviour
     {
         if (!_isSubscribed) return;
 
-        if (_subscribedManager != null) _subscribedManager.OnArrowExitedEvent -= OnArrowExited;
+        if (_subscribedManager != null) _subscribedManager.UnregisterArrowExitListener(this);
         _subscribedManager = null;
         _isSubscribed = false;
     }
 
-    private void OnArrowExited()
+    public void OnArrowExited()
     {
         if (_isDestroyed || !_isActivated) return;
 

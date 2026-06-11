@@ -1,7 +1,7 @@
 using UnityEngine;
 using DG.Tweening;
 
-public class GridLaserGate : MonoBehaviour
+public class GridLaserGate : GridOccupantBehaviour
 {
     public Color gateColor = Color.white;
     private bool _isOpen = false;
@@ -11,14 +11,13 @@ public class GridLaserGate : MonoBehaviour
 
     private void Start()
     {
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        if (GridManager.Instance != null) GridManager.Instance.GateMap[pos] = this;
-
+        RegisterOccupantOrWait();
         TrySubscribe();
     }
 
     private void OnEnable()
     {
+        RegisterOccupantOrWait();
         TrySubscribe();
     }
 
@@ -29,6 +28,8 @@ public class GridLaserGate : MonoBehaviour
             StopCoroutine(_subscribeRoutine);
             _subscribeRoutine = null;
         }
+        StopPendingOccupantRegistration();
+        UnregisterOccupant();
         Unsubscribe();
     }
 
@@ -43,13 +44,13 @@ public class GridLaserGate : MonoBehaviour
 
         if (_subscribedManager != null && _subscribedManager != manager)
         {
-            _subscribedManager.OnKeyCollectedEvent -= TryOpenGate;
+            _subscribedManager.UnregisterKeyCollectedListener(TryOpenGate);
             _isSubscribed = false;
         }
 
         if (_isSubscribed && _subscribedManager == manager) return;
 
-        manager.OnKeyCollectedEvent += TryOpenGate;
+        manager.RegisterKeyCollectedListener(TryOpenGate);
         _subscribedManager = manager;
         _isSubscribed = true;
 
@@ -69,7 +70,7 @@ public class GridLaserGate : MonoBehaviour
     {
         if (!_isSubscribed) return;
 
-        if (_subscribedManager != null) _subscribedManager.OnKeyCollectedEvent -= TryOpenGate;
+        if (_subscribedManager != null) _subscribedManager.UnregisterKeyCollectedListener(TryOpenGate);
         _subscribedManager = null;
         _isSubscribed = false;
     }
@@ -124,10 +125,6 @@ public class GridLaserGate : MonoBehaviour
 
     private void RemoveFromGateMap()
     {
-        Vector2Int pos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        if (GridManager.Instance != null && GridManager.Instance.GateMap.ContainsKey(pos))
-        {
-            GridManager.Instance.GateMap.Remove(pos);
-        }
+        UnregisterOccupant();
     }
 }
