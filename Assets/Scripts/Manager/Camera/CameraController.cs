@@ -32,11 +32,11 @@ public class CameraController : MonoBehaviour
     public float dragThreshold = 5f;
 
     [Header("Auto Limits From Level")]
-    [Tooltip("T? d?ng tính vùng gi?i h?n camera theo Bounds c?a màn choi (t? LevelDataV2).")]
+    [Tooltip("T? d?ng tï¿½nh vï¿½ng gi?i h?n camera theo Bounds c?a mï¿½n choi (t? LevelDataV2).")]
     public bool autoComputeLimitsFromLevel = true;
-    [Tooltip("M? r?ng vùng gi?i h?n l?n hon Bounds c?a màn choi (world units / grid units).")]
+    [Tooltip("M? r?ng vï¿½ng gi?i h?n l?n hon Bounds c?a mï¿½n choi (world units / grid units).")]
     public float limitsPadding = 6f;
-    [Tooltip("Clamp theo kích thu?c khung nhìn hi?n t?i (orthographicSize & aspect) d? không kéo camera vu?t kh?i bounds.")]
+    [Tooltip("Clamp theo kï¿½ch thu?c khung nhï¿½n hi?n t?i (orthographicSize & aspect) d? khï¿½ng kï¿½o camera vu?t kh?i bounds.")]
     public bool limitsConsiderCurrentZoom = true;
 
     private bool _hasLevelLimitBounds = false;
@@ -252,13 +252,13 @@ public class CameraController : MonoBehaviour
         cam.DOKill();
 
         // ==========================================
-        // KÍCH HO?T UI CINEMATIC Ð?NG B? V?I CAMERA
+        // Kï¿½CH HO?T UI CINEMATIC ï¿½?NG B? V?I CAMERA
         // ==========================================
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         bool shouldReturnToDefaultZoom = loader.levelToPlay.returnToDefaultZoomAfterIntro;
         if (canvas != null)
         {
-            // Tính toán th?i gian UI n?m trên màn hình:
+            // Tï¿½nh toï¿½n th?i gian UI n?m trï¿½n mï¿½n hï¿½nh:
             // = zoom to overview + hold overview + optional return to gameplay zoom.
             float totalHoldTime = 1f + overviewWaitTime + (shouldReturnToDefaultZoom ? returnToDefaultZoomDuration : 0f);
             
@@ -267,14 +267,14 @@ public class CameraController : MonoBehaviour
             canvas.PlayCinematicIntro(loader.levelToPlay.levelDifficulty, totalHoldTime);
         }
         
-        // 1. Camera Zoom ra nhìn toàn c?nh
+        // 1. Camera Zoom ra nhï¿½n toï¿½n c?nh
         Tween overviewTween = cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
         yield return overviewTween.WaitForCompletion();
 
-        // 2. Ch? ngu?i choi nhìn bao quát (Lúc này UI dang rung nhè nh?)
+        // 2. Ch? ngu?i choi nhï¿½n bao quï¿½t (Lï¿½c nï¿½y UI dang rung nhï¿½ nh?)
         yield return new WaitForSeconds(overviewWaitTime);
 
-        // 3. Quay l?i zoom gameplay m?c d?nh n?u level yêu c?u.
+        // 3. Quay l?i zoom gameplay m?c d?nh n?u level yï¿½u c?u.
         if (shouldReturnToDefaultZoom && returnToDefaultZoomDuration > 0f)
         {
             Tween defaultZoomTween = cam.DOOrthoSize(defaultGameplayZoom, returnToDefaultZoomDuration).SetEase(Ease.InOutSine);
@@ -314,8 +314,19 @@ public class CameraController : MonoBehaviour
 
     private void HandleInput()
     {
-        if (Input.touchCount > 0) HandleTouchInput();
-        else HandleMouseInput();
+        if (Input.touchCount > 0)
+        {
+            HandleTouchInput();
+        }
+        else
+        {
+            wasZoomingLastFrame = false;
+            if (!Input.GetMouseButton(1))
+            {
+                IsCameraGestureActive = false;
+            }
+            HandleMouseInput();
+        }
     }
 
     private void HandleMouseInput()
@@ -377,6 +388,7 @@ public class CameraController : MonoBehaviour
             {
                 lastPanScreenPos = touch.position;
                 wasZoomingLastFrame = false;
+                IsCameraGestureActive = false;
                 return;
             }
 

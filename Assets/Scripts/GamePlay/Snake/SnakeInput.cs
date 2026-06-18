@@ -8,10 +8,12 @@ public class SnakeInput : MonoBehaviour
     [Header("Effect Settings")]
     public float scaleFactor = 1.3f;
     public float duration = 0.2f;
+    public float colorChangeDuration = 0.2f;
     public float holdThreshold = 2f;
 
     [Header("Input Settings")]
     public float clickRadius = 0.8f;
+    public float clickRadiusCannotEscape = 0.8f;
     public bool useHaptics = true;
     [SerializeField] private bool boostMobileTouchArea = true;
     [SerializeField, Min(1f)] private float mobileTouchRadiusMultiplier = 1.6f;
@@ -149,7 +151,7 @@ public class SnakeInput : MonoBehaviour
 
         if (parentScript != null)
         {
-            parentScript.SetFocusColor(true, duration);
+            parentScript.SetFocusColor(true, colorChangeDuration);
         }
 
         if (_isMemoryMode)
@@ -178,7 +180,7 @@ public class SnakeInput : MonoBehaviour
         if (parentScript != null)
         {
             parentScript.SetFocusEffect(false, 1f, duration);
-            parentScript.SetFocusColor(false, duration); 
+            parentScript.SetFocusColor(false, colorChangeDuration); 
         }
 
         if (_guidelineCache != null)
@@ -236,12 +238,12 @@ public class SnakeInput : MonoBehaviour
             if (!isInside)
             {
                 if (_guidelineCache != null) _guidelineCache.SetLineActive(false);
-                if (parentScript != null) parentScript.SetFocusColor(false, duration);
+                if (parentScript != null) parentScript.SetFocusColor(false, colorChangeDuration);
             }
             else
             {
                 if (isHolding && _guidelineCache != null) _guidelineCache.SetLineActive(true);
-                if (parentScript != null) parentScript.SetFocusColor(true, duration);
+                if (parentScript != null) parentScript.SetFocusColor(true, colorChangeDuration);
             }
         }
     }
@@ -349,7 +351,9 @@ public class SnakeInput : MonoBehaviour
 
     private float GetActiveClickRadius()
     {
-        float radius = clickRadius;
+        bool canRelease = parentScript != null && parentScript.CanReleaseNow();
+        float radius = canRelease ? clickRadius : clickRadiusCannotEscape;
+        
         if (!boostMobileTouchArea || Input.touchCount <= 0) return radius;
 
         radius *= Mathf.Max(1f, mobileTouchRadiusMultiplier);

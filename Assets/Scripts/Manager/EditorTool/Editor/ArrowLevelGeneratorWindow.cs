@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -64,6 +64,8 @@ public class ArrowLevelGeneratorWindow : EditorWindow
     private int turnChancePercent = 65;
     private bool useRandomSeed = true;
     private int seed = 12345;
+    private bool useMonochromeColor = false;
+    private Color monochromeColor = Color.white;
 
     private string outputFolder = DefaultOutputFolder;
     private string filePrefix = "A";
@@ -483,6 +485,11 @@ public class ArrowLevelGeneratorWindow : EditorWindow
         {
             turnChancePercent = EditorGUILayout.IntSlider("Turn Chance", turnChancePercent, 0, 100);
         }
+        useMonochromeColor = EditorGUILayout.Toggle("Use Monochrome Color", useMonochromeColor);
+        if (useMonochromeColor)
+        {
+            monochromeColor = EditorGUILayout.ColorField("Monochrome Color", monochromeColor);
+        }
         useRandomSeed = EditorGUILayout.Toggle("Random Seed", useRandomSeed);
 
         using (new EditorGUI.DisabledScope(useRandomSeed))
@@ -572,7 +579,9 @@ public class ArrowLevelGeneratorWindow : EditorWindow
             seed = effectiveSeed,
             originX = originX,
             originY = originY,
-            placementMask = usePaintedPlacementArea ? (bool[])placementMask.Clone() : null
+            placementMask = usePaintedPlacementArea ? (bool[])placementMask.Clone() : null,
+            useMonochromeColor = useMonochromeColor,
+            monochromeColor = monochromeColor
         };
 
         lastResult = LevelGeneratorCore.Generate(settings);

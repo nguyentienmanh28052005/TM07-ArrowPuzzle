@@ -22,6 +22,9 @@ public class SnakeBlock : MonoBehaviour
     [SerializeField] private float exitTravelDistance = 150f;
     [SerializeField] private int maxPathScanCells = 180;
     [SerializeField] private float blackHoleConsumeShrinkDuration = 0.24f;
+    [SerializeField] private float consecutiveReleaseTimeout = 2.0f;
+    [SerializeField] private float hitFlashDuration = 0.3f;
+    [SerializeField] private float autoReleaseDelay = 0.25f;
 
     [Header("Movement: DASH EXIT")]
     [SerializeField] private float dashExitStartSpeed = 40f;
@@ -53,8 +56,10 @@ public class SnakeBlock : MonoBehaviour
     private SnakeMover _mover;
     private SnakeRenderer2D _renderer2D;
     private SnakeInteractions _interactions;
+    private float _autoReleaseTimer = 0f;
 
     public bool IsMoving => _runtime != null && _runtime.IsMoving;
+    public bool HasCollided => _runtime != null && _runtime.HasCollided;
     public string LastObstacleType => _runtime != null ? _runtime.LastObstacleType.ToString() : ObstacleHitType.None.ToString();
     public Vector2Int LastObstacleCell => _runtime != null ? _runtime.LastObstacleCell : new Vector2Int(int.MinValue, int.MinValue);
     public bool IsStoppedByStopBlock => _runtime != null && _runtime.IsStoppedByStopBlock;
@@ -72,6 +77,8 @@ public class SnakeBlock : MonoBehaviour
     internal float ExitTravelDistance => exitTravelDistance;
     internal int MaxPathScanCells => maxPathScanCells;
     internal float BlackHoleConsumeShrinkDuration => blackHoleConsumeShrinkDuration;
+    internal float ConsecutiveReleaseTimeout => consecutiveReleaseTimeout;
+    public float HitFlashDuration => hitFlashDuration;
     internal float DashExitStartSpeed => dashExitStartSpeed;
     internal float DashExitMaxSpeed => dashExitMaxSpeed;
     internal float DashExitAcceleration => dashExitAcceleration;
@@ -118,6 +125,41 @@ public class SnakeBlock : MonoBehaviour
         DOTween.Kill(GetInstanceID());
     }
 
+    private void Update()
+    {
+        if (Time.timeScale == 0f) return;
+        if (GameManager.Instance != null && GameManager.Instance.isGameOver) return;
+        if (CameraController.IsGameplayBlocking) return;
+        if (EraseManager.Instance != null && (EraseManager.Instance.IsEraseModeActive || EraseManager.Instance.IsExecutingErase)) return;
+
+        if (HasCollided)
+        {
+            if (CanReleaseNow())
+            {
+                _autoReleaseTimer += Time.deltaTime;
+                if (_autoReleaseTimer >= autoReleaseDelay)
+                {
+                    _autoReleaseTimer = 0f;
+                    if (OnHeadClicked())
+                    {
+                        if (AudioManager.Instance != null)
+                        {
+                            AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowTap, 0.8f);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                _autoReleaseTimer = 0f;
+            }
+        }
+        else
+        {
+            _autoReleaseTimer = 0f;
+        }
+    }
+
     private void LateUpdate()
     {
         _renderer2D?.RedrawIfNeeded();
@@ -147,6 +189,11 @@ public class SnakeBlock : MonoBehaviour
     public void SetColorImmediate(Color color)
     {
         _renderer2D?.SetColorImmediate(color);
+    }
+
+    public void FlashRed()
+    {
+        _renderer2D?.FlashRed(hitFlashDuration);
     }
 
     public void SetFocusEffect(bool isFocused, float scaleFactor, float duration)

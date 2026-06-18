@@ -278,6 +278,10 @@ MonoBehaviour:
   exitAcceleration: 160
   exitTravelDistance: 150
   maxPathScanCells: 180
+  blackHoleConsumeShrinkDuration: 0.24
+  consecutiveReleaseTimeout: 0.6
+  hitFlashDuration: 1.5
+  autoReleaseDelay: 0.25
   dashExitStartSpeed: 50
   dashExitMaxSpeed: 520
   dashExitAcceleration: 260
@@ -329,10 +333,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   scaleFactor: 1.3
   duration: 0.2
+  colorChangeDuration: 0.2
   holdThreshold: 2
-  clickRadius: 2
+  clickRadius: 3
+  clickRadiusCannotEscape: 1
   useHaptics: 1
   boostMobileTouchArea: 1
   mobileTouchRadiusMultiplier: 1
   mobileMinimumTouchRadiusPixels: 0
-  releasableInputDistanceDivisor: 2
+  releasableInputDistanceDivisor: 3.5
