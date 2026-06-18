@@ -5,7 +5,7 @@ using UnityEngine;
 public class LevelLoader : MonoBehaviour, IScreenLifecycle
 {
     [Header("Data")]
-    public LevelDataSO levelToPlay;
+    public LevelDataV2 levelToPlay;
 
     [Header("Prefabs (Data-Driven)")]
     public GameObject snakePrefab; 
@@ -43,7 +43,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     public bool editorMode = false;
 
     private List<SnakeBlock> _preloadedSnakes = new List<SnakeBlock>();
-    private List<SnakeSaveData> _preloadedSnakeSaveData = new List<SnakeSaveData>();
+    private List<ArrowEntityData> _preloadedArrowData = new List<ArrowEntityData>();
     private GameObject _dotsContainer; 
     private GridDotBatchRenderer _dotBatchRenderer;
     private GameObject _obstaclesContainer;
@@ -191,24 +191,26 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         ClearContainer();
         SpawnStaticObstacles();
         
-        if (levelToPlay != null && levelToPlay.snakes != null)
+        if (levelToPlay != null && levelToPlay.arrows != null)
         {
-            foreach (var snakeData in levelToPlay.snakes)
+            foreach (ArrowEntityData arrowData in LevelDataV2Queries.GetStandardArrows(levelToPlay))
             {
                 if (dotPrefab != null)
                 {
                     GridDotBatchRenderer dotBatchRenderer = EnsureDotBatchRenderer();
 
-                    for (int i = 0; i < snakeData.segmentPositions.Count; i++)
+                    if (arrowData.segmentPositions == null) continue;
+
+                    for (int i = 0; i < arrowData.segmentPositions.Count; i++)
                     {
                         if (i % 2 == 0)
                         {
-                            Vector2Int pos = snakeData.segmentPositions[i];
+                            Vector2Int pos = arrowData.segmentPositions[i];
                             dotBatchRenderer.RegisterDot(pos);
                         }
                     }
                 }
-                PreSpawnSingleSnake(snakeData);
+                PreSpawnSingleSnake(arrowData);
             }
         }
 
@@ -257,7 +259,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         }
 
         _preloadedSnakes.Clear();
-        _preloadedSnakeSaveData.Clear();
+        _preloadedArrowData.Clear();
     }
 
     private void SpawnStaticObstacles()
@@ -271,165 +273,59 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             _obstaclesContainer.SetActive(false); 
         }
 
-        if (levelToPlay.keycards != null)
+        LevelRuntimeFactoryV2 factory = CreateRuntimeFactory();
+
+        if (levelToPlay.cells != null)
         {
-            foreach (var k in levelToPlay.keycards)
+            foreach (CellEntityData cell in levelToPlay.cells)
             {
-                GameObject obj = Instantiate(keycardPrefab, new Vector3(k.position.x, k.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                if (obj.TryGetComponent(out GridKeycard script)) script.keyColor = k.color;
-                SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
-                if (sr != null) sr.color = k.color;
+                factory.CreateCell(cell, _obstaclesContainer.transform);
             }
         }
 
-        if (levelToPlay.gates != null)
+        if (levelToPlay.links != null)
         {
-            foreach (var g in levelToPlay.gates)
+            foreach (LinkEntityData link in levelToPlay.links)
             {
-                GameObject obj = Instantiate(gatePrefab, new Vector3(g.position.x, g.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                if (obj.TryGetComponent(out GridLaserGate script)) script.gateColor = g.color;
-                SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
-                if (sr != null) sr.color = g.color;
-            }
-        }
-
-        if (levelToPlay.electricButtons != null && electricButtonPrefab != null)
-        {
-            foreach (var b in levelToPlay.electricButtons)
-            {
-                GameObject obj = Instantiate(electricButtonPrefab, new Vector3(b.position.x, b.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                if (obj.TryGetComponent(out GridElectricButton script)) script.SetColor(b.color);
-            }
-        }
-
-        if (levelToPlay.revealWaveButtons != null && revealWaveButtonPrefab != null)
-        {
-            foreach (var b in levelToPlay.revealWaveButtons)
-            {
-                GameObject obj = Instantiate(revealWaveButtonPrefab, new Vector3(b.position.x, b.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                if (obj.TryGetComponent(out GridRevealWaveButton script)) script.SetColor(b.color);
-            }
-        }
-
-        if (levelToPlay.electricWalls != null && electricWallPrefab != null)
-        {
-            foreach (var w in levelToPlay.electricWalls)
-            {
-                GameObject obj = Instantiate(electricWallPrefab, Vector3.zero, Quaternion.identity, _obstaclesContainer.transform);
-                GridElectricWall wall = obj.GetComponent<GridElectricWall>();
-                if (wall != null) wall.Initialize(w.start, w.end, w.color, true);
-            }
-        }
-
-        if (levelToPlay.deflectors != null && deflectorPrefab != null)
-        {
-            foreach (var d in levelToPlay.deflectors)
-            {
-                GameObject obj = Instantiate(deflectorPrefab, new Vector3(d.position.x, d.position.y, 0), GetRotationForDir(d.direction), _obstaclesContainer.transform);
-                GridDeflector deflector = obj.GetComponentInChildren<GridDeflector>();
-                if (deflector != null) deflector.SetDirection(d.direction);
-                if (obj.GetComponent<GridDeflectorVisual>() == null) obj.AddComponent<GridDeflectorVisual>();
-            }
-        }
-
-        if (levelToPlay.countdownBlocks != null && countdownBlockPrefab != null)
-        {
-            foreach (var cb in levelToPlay.countdownBlocks)
-            {
-                GameObject obj = Instantiate(countdownBlockPrefab, new Vector3(cb.position.x, cb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                GridCountdownBlock script = obj.GetComponent<GridCountdownBlock>();
-                if (script != null) script.SetCount(cb.count);
-            }
-        }
-
-        if (levelToPlay.stopBlocks != null && stopBlockPrefab != null)
-        {
-            foreach (var sb in levelToPlay.stopBlocks)
-            {
-                GameObject obj = Instantiate(stopBlockPrefab, new Vector3(sb.position.x, sb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                GridStopBlock script = obj.GetComponent<GridStopBlock>();
-                if (script != null) script.SetCount(sb.count);
-            }
-        }
-
-        if (levelToPlay.turnStateBlocks != null && turnStateBlockPrefab != null)
-        {
-            foreach (var tb in levelToPlay.turnStateBlocks)
-            {
-                GameObject obj = Instantiate(turnStateBlockPrefab, new Vector3(tb.position.x, tb.position.y, 0), Quaternion.identity, _obstaclesContainer.transform);
-                GridTurnStateBlock script = obj.GetComponent<GridTurnStateBlock>();
-                if (script != null) script.SetInitialState(tb.startsRed);
-            }
-        }
-
-        if (levelToPlay.blackHoles != null && blackHolePrefab != null)
-        {
-            foreach (var blackHoleData in levelToPlay.blackHoles)
-            {
-                GameObject obj = Instantiate(blackHolePrefab, new Vector3(blackHoleData.position.x, blackHoleData.position.y, 0), GetRotationForDir(blackHoleData.direction), _obstaclesContainer.transform);
-                GridBlackHole script = obj.GetComponent<GridBlackHole>();
-                if (script != null) script.SetDirection(blackHoleData.direction);
-            }
-        }
-
-        if (levelToPlay.portals != null)
-        {
-            for (int i = 0; i < levelToPlay.portals.Count; i++)
-            {
-                var p = levelToPlay.portals[i];
-
-                if (GridManager.Instance != null)
-                {
-                    GridManager.Instance.RegisterPortalLink(p.entrance, p.exit, p.exitDir);
-                    GridManager.Instance.RegisterPortalLink(p.exit, p.entrance, p.entranceDir);
-                }
-
-                if (portalPrefab != null)
-                {
-                    GameObject inObj = Instantiate(portalPrefab, new Vector3(p.entrance.x, p.entrance.y, 0), GetRotationForDir(p.entranceDir), _obstaclesContainer.transform);
-                    ConfigurePortalVisual(inObj, p.portalColor);
-
-                    GameObject outObj = Instantiate(portalPrefab, new Vector3(p.exit.x, p.exit.y, 0), GetRotationForDir(p.exitDir), _obstaclesContainer.transform);
-                    ConfigurePortalVisual(outObj, p.portalColor);
-                }
+                factory.CreateLink(link, levelToPlay, _obstaclesContainer.transform);
             }
         }
     }
 
-    private void ConfigurePortalVisual(GameObject portalObject, Color portalColor)
+    private LevelRuntimeFactoryV2 CreateRuntimeFactory()
     {
-        if (portalObject == null) return;
-
-        GridPortalVisual portalVisual = portalObject.GetComponent<GridPortalVisual>();
-        if (portalVisual == null)
-        {
-            portalVisual = portalObject.AddComponent<GridPortalVisual>();
-        }
-
-        if (holeEffectMaterialOverride != null)
-        {
-            portalVisual.SetHoleEffectMaterial(holeEffectMaterialOverride);
-        }
-
-        SpriteRenderer spriteRenderer = portalObject.GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null) spriteRenderer.color = portalColor;
+        return new LevelRuntimeFactoryV2(
+            keycardPrefab,
+            gatePrefab,
+            electricButtonPrefab,
+            revealWaveButtonPrefab,
+            electricWallPrefab,
+            portalPrefab,
+            deflectorPrefab,
+            countdownBlockPrefab,
+            stopBlockPrefab,
+            turnStateBlockPrefab,
+            blackHolePrefab,
+            holeEffectMaterialOverride);
     }
 
     private IEnumerator PreSpawnDotsCoroutine()
     {
-        if (levelToPlay == null || levelToPlay.snakes == null || dotPrefab == null) yield break;
+        if (levelToPlay == null || levelToPlay.arrows == null || dotPrefab == null) yield break;
 
         GridDotBatchRenderer dotBatchRenderer = EnsureDotBatchRenderer();
 
         int dotsSpawnedThisFrame = 0;
 
-        foreach (var snakeData in levelToPlay.snakes)
+        foreach (ArrowEntityData arrowData in LevelDataV2Queries.GetStandardArrows(levelToPlay))
         {
-            for (int i = 0; i < snakeData.segmentPositions.Count; i++)
+            if (arrowData.segmentPositions == null) continue;
+
+            for (int i = 0; i < arrowData.segmentPositions.Count; i++)
             {
                 if (i % 2 == 0)
                 {
-                    Vector2Int pos = snakeData.segmentPositions[i];
+                    Vector2Int pos = arrowData.segmentPositions[i];
                     dotBatchRenderer.RegisterDot(pos);
 
                     IncrementLoadingProgress();
@@ -470,23 +366,25 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
     private IEnumerator PreSpawnSnakesCoroutine()
     {
-        if (levelToPlay == null || levelToPlay.snakes == null) yield break;
+        if (levelToPlay == null || levelToPlay.arrows == null) yield break;
 
-        for (int i = 0; i < levelToPlay.snakes.Count; i++)
+        int arrowIndex = 0;
+        foreach (ArrowEntityData arrowData in LevelDataV2Queries.GetStandardArrows(levelToPlay))
         {
-            PreSpawnSingleSnake(levelToPlay.snakes[i]);
+            PreSpawnSingleSnake(arrowData);
             IncrementLoadingProgress();
 
-            if (IsTransitionActive() && (i + 1) % snakesPerFrame == 0)
+            arrowIndex++;
+            if (IsTransitionActive() && arrowIndex % snakesPerFrame == 0)
             {
                 yield return null; 
             }
         }
     }
 
-    private void PreSpawnSingleSnake(SnakeSaveData SnakeSaveData)
+    private void PreSpawnSingleSnake(ArrowEntityData arrowData)
     {
-        if (SnakeSaveData.segmentPositions.Count == 0) return;
+        if (arrowData == null || arrowData.segmentPositions == null || arrowData.segmentPositions.Count == 0) return;
 
         GameObject snakeObj = Instantiate(snakePrefab, gameContainer);
         snakeObj.name = "Snake_Preloaded";
@@ -494,7 +392,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         SnakeBlock snakeScript = snakeObj.GetComponent<SnakeBlock>();
         
         _preloadedSnakes.Add(snakeScript);
-        _preloadedSnakeSaveData.Add(SnakeSaveData);
+        _preloadedArrowData.Add(arrowData);
     }
 
     private void ActivateAndInitializeSnakes()
@@ -504,9 +402,10 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         for (int i = 0; i < _preloadedSnakes.Count; i++)
         {
             SnakeBlock snakeScript = _preloadedSnakes[i];
-            SnakeSaveData data = _preloadedSnakeSaveData[i];
+            ArrowEntityData data = _preloadedArrowData[i];
+            StandardArrowPayload payload = data.payload as StandardArrowPayload;
 
-            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.arrowColor, false, data.hasArrowShadow);
+            snakeScript.Initialize(data.direction, data.segmentPositions, resolution, data.color, false, payload != null && payload.hasArrowShadow);
 
             if (GridManager.Instance != null) 
                 GridManager.Instance.RegisterSnake(snakeScript);
@@ -531,7 +430,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         }
 
         _preloadedSnakes.Clear();
-        _preloadedSnakeSaveData.Clear();
+        _preloadedArrowData.Clear();
     }
 
     private static Quaternion GetRotationForDir(ArrowDir dir)
@@ -552,14 +451,13 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         int dotsToSpawn = 0;
         int snakesToSpawn = 0;
 
-        if (levelToPlay != null && levelToPlay.snakes != null)
+        if (levelToPlay != null && levelToPlay.arrows != null)
         {
-            snakesToSpawn = levelToPlay.snakes.Count;
-            for (int i = 0; i < levelToPlay.snakes.Count; i++)
+            foreach (ArrowEntityData arrow in LevelDataV2Queries.GetStandardArrows(levelToPlay))
             {
-                var snake = levelToPlay.snakes[i];
-                if (snake == null || snake.segmentPositions == null) continue;
-                dotsToSpawn += (snake.segmentPositions.Count + 1) / 2;
+                snakesToSpawn++;
+                if (arrow == null || arrow.segmentPositions == null) continue;
+                dotsToSpawn += (arrow.segmentPositions.Count + 1) / 2;
             }
         }
 

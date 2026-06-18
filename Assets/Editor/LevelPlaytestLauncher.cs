@@ -32,10 +32,10 @@ public static class LevelPlaytestLauncher
                 return;
             }
 
-            LevelDataSO runtimeLevel = ResolveLevelData();
+            LevelDataV2 runtimeLevel = ResolveLevelData();
             if (runtimeLevel == null)
             {
-                Debug.LogWarning("[LevelPlaytestLauncher] No LevelEditor/current LevelDataSO found for playtest.");
+                Debug.LogWarning("[LevelPlaytestLauncher] No LevelEditor/current LevelDataV2 found for playtest.");
                 return;
             }
 
@@ -50,12 +50,12 @@ public static class LevelPlaytestLauncher
             return;
         }
 
-        LevelDataSO levelData = ResolveLevelData();
+        LevelDataV2 levelData = ResolveLevelData();
         if (levelData == null)
         {
             EditorUtility.DisplayDialog(
                 "Arrow Puzzle Playtest",
-                "Select a LevelDataSO asset, or open a scene with a LevelEditor that has currentData assigned.",
+                "Select a LevelDataV2 asset, or open a scene with a LevelEditor that has currentData assigned.",
                 "OK");
             return;
         }
@@ -101,9 +101,9 @@ public static class LevelPlaytestLauncher
         PlaytestSession.Clear();
     }
 
-    private static LevelDataSO ResolveLevelData()
+    private static LevelDataV2 ResolveLevelData()
     {
-        if (Selection.activeObject is LevelDataSO selectedLevel)
+        if (Selection.activeObject is LevelDataV2 selectedLevel)
         {
             return selectedLevel;
         }

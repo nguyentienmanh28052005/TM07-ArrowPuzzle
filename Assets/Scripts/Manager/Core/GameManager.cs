@@ -9,12 +9,12 @@ using Unity.Collections;
 
 public class GameManager : Singleton<GameManager>, IScreenLifecycle
 {
-    public List<LevelDataSO> levelDataSOs;
+    public List<LevelDataV2> levelDataV2s;
     public int level = 1;
     public int currentMaxLevel = 3;
     public bool isGameOver = false; 
 
-    public LevelDataSO CurrentLevelData => GetCurrentLevelData();
+    public LevelDataV2 CurrentLevelData => GetCurrentLevelData();
 
     private bool _hasInitialized = false;
 
@@ -129,7 +129,7 @@ public class GameManager : Singleton<GameManager>, IScreenLifecycle
 
     private int GetMaxPlayableLevel()
     {
-        int dataCount = levelDataSOs != null ? levelDataSOs.Count : 0;
+        int dataCount = levelDataV2s != null ? levelDataV2s.Count : 0;
         int configuredMaxLevel = currentMaxLevel > 0 ? currentMaxLevel : dataCount;
 
         if (dataCount > 0 && configuredMaxLevel > 0)
@@ -169,11 +169,11 @@ public class GameManager : Singleton<GameManager>, IScreenLifecycle
     /// <summary>
     /// Trích xuất dữ liệu bản đồ cấu hình cho Level hiện tại.
     /// </summary>
-    public LevelDataSO GetCurrentLevelData()
+    public LevelDataV2 GetCurrentLevelData()
     {
-        if (levelDataSOs == null || levelDataSOs.Count == 0) return null;
-        if (level < 1 || level >= levelDataSOs.Count + 1) return null;
-        return levelDataSOs[level-1];
+        if (levelDataV2s == null || levelDataV2s.Count == 0) return null;
+        if (level < 1 || level >= levelDataV2s.Count + 1) return null;
+        return levelDataV2s[level-1];
     }
 
     /// <summary>

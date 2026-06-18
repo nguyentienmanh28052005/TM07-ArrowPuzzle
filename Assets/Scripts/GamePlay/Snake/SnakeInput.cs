@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using DG.Tweening;
 using System.Collections.Generic;
 using Solo.MOST_IN_ONE;
@@ -75,7 +75,7 @@ public class SnakeInput : MonoBehaviour
         
         _levelEditor = FindObjectOfType<LevelEditor>();
 
-        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
+        LevelDataV2 currentLevelData = PlaytestSession.GetActiveLevelData();
         if (currentLevelData != null)
         {
             _isMemoryMode = currentLevelData.gameMode == GameMode.Memory;
@@ -83,7 +83,7 @@ public class SnakeInput : MonoBehaviour
     }
 
     // =========================================================
-    // LÕI TOÁN HỌC: ĐO KHOẢNG CÁCH TỪ CHUỘT ĐẾN TOÀN BỘ THÂN RẮN
+    // L�I TO�N H?C: �O KHO?NG C�CH T? CHU?T �?N TO�N B? TH�N R?N
     // =========================================================
     public float GetMinDistanceFromMouse(Vector2 mousePos)
     {
@@ -109,7 +109,7 @@ public class SnakeInput : MonoBehaviour
         if (sqrMag == 0) return Vector2.Distance(p, a);
 
         float t = Vector2.Dot(p - a, ab) / sqrMag;
-        t = Mathf.Clamp01(t); // Giới hạn hình chiếu nằm gọn trong đoạn thẳng AB
+        t = Mathf.Clamp01(t); // Gi?i h?n h�nh chi?u n?m g?n trong do?n th?ng AB
         Vector2 projection = a + t * ab;
         return Vector2.Distance(p, projection);
     }
@@ -126,7 +126,7 @@ public class SnakeInput : MonoBehaviour
 
         float activeClickRadius = GetActiveClickRadius();
         
-        // BẢN VÁ: Đo khoảng cách với toàn thân rắn thay vì chỉ Head
+        // B?N V�: �o kho?ng c�ch v?i to�n th�n r?n thay v� ch? Head
         float myDist = GetMinDistanceFromMouse(mousePos);
 
         if (myDist > activeClickRadius) return false;
@@ -189,7 +189,7 @@ public class SnakeInput : MonoBehaviour
         Vector2 mousePos = GetCurrentPointerWorldPosition();
         float activeClickRadius = GetActiveClickRadius();
         
-        // BẢN VÁ: Đo lại khoảng cách lúc nhả chuột với toàn thân
+        // B?N V�: �o l?i kho?ng c�ch l�c nh? chu?t v?i to�n th�n
         if (!isCanceledByCamera && !CameraController.IsCameraGestureActive && GetMinDistanceFromMouse(mousePos) <= activeClickRadius)
         {
             if (parentScript != null)

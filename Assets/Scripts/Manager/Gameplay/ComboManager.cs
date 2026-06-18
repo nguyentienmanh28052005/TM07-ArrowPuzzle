@@ -197,17 +197,17 @@ public class ComboManager : Singleton<ComboManager>
             return _maxComboForCurrentLevel;
         }
 
-        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
-        if (currentLevelData != null && currentLevelData.snakes != null)
+        LevelDataV2 currentLevelData = PlaytestSession.GetActiveLevelData();
+        if (currentLevelData != null)
         {
-            return currentLevelData.snakes.Count;
+            return LevelDataV2Queries.GetArrowCount(currentLevelData);
         }
         return 999;
     }
 
-    public void ResetForLevel(LevelDataSO levelData)
+    public void ResetForLevel(LevelDataV2 levelData)
     {
-        _maxComboForCurrentLevel = levelData != null && levelData.snakes != null ? levelData.snakes.Count : 999;
+        _maxComboForCurrentLevel = levelData != null ? LevelDataV2Queries.GetArrowCount(levelData) : 999;
         ResetComboImmediate();
     }
 

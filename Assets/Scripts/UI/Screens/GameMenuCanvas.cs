@@ -417,7 +417,7 @@ public class GameMenuCanvas : MonoBehaviour, IScreenLifecycle
 
         int currentLevel = gm.level;
         int maxUnlockedLevel = gm.currentMaxLevel;
-        int totalLevelsInGame = gm.levelDataSOs != null ? gm.levelDataSOs.Count : 999;
+        int totalLevelsInGame = gm.levelDataV2s != null ? gm.levelDataV2s.Count : 999;
 
         for (int i = 0; i < listLevelButtons.Count; i++)
         {

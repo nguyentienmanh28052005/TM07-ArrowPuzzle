@@ -1,4 +1,4 @@
-﻿using DG.Tweening;
+using DG.Tweening;
 using Solo.MOST_IN_ONE;
 using System.Collections;
 using System.Collections.Generic;
@@ -90,7 +90,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     private Vector2[] _heartOriginalAnchoredPositions;
     private Vector3 _pauseOriginalScale;
     private Vector3 _completeOriginalScale;
-    private Vector3 _gameOverOriginalScale; // Thêm biến lưu scale gốc của Game Over
+    private Vector3 _gameOverOriginalScale; // Th�m bi?n luu scale g?c c?a Game Over
     private bool _isTransitioning = false;
     
     private Vector2[] _starOriginalPositions;
@@ -189,14 +189,14 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     {
         if (healthContainer != null)
         {
-            // 1. Ép Unity tính toán và xếp thẳng hàng các trái tim NGAY LẬP TỨC
+            // 1. �p Unity t�nh to�n v� x?p th?ng h�ng c�c tr�i tim NGAY L?P T?C
             RectTransform containerRect = healthContainer.GetComponent<RectTransform>();
             if (containerRect != null)
             {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
             }
 
-            // 2. QUA CẦU RÚT VÁN: Tắt Component LayoutGroup đi để nó không bao giờ phá DOTween nữa!
+            // 2. QUA C?U R�T V�N: T?t Component LayoutGroup di d? n� kh�ng bao gi? ph� DOTween n?a!
             HorizontalLayoutGroup layout = healthContainer.GetComponent<HorizontalLayoutGroup>();
             if (layout != null) layout.enabled = false;
 
@@ -218,7 +218,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     private void ResetHeartsState()
     {
-        LevelDataSO currentLevel = PlaytestSession.GetActiveLevelData();
+        LevelDataV2 currentLevel = PlaytestSession.GetActiveLevelData();
         if (currentLevel != null)
         {
             SetupModeUI(currentLevel.gameMode);
@@ -275,7 +275,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void SetupLevelInfo()
     {
-        LevelDataSO currentLevel = PlaytestSession.GetActiveLevelData();
+        LevelDataV2 currentLevel = PlaytestSession.GetActiveLevelData();
         if (currentLevelText != null)
         {
             currentLevelText.text = PlaytestSession.IsPlaytesting ? "Playtest" : $"Level {GameManager.Instance.level}";
@@ -515,7 +515,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         HidePanelImmediate(overlayBg);
         HidePanelImmediate(pausePanel);
         HidePanelImmediate(completePanel);
-        HidePanelImmediate(gameOverPanel); // Đảm bảo tàng hình lúc mới vào game
+        HidePanelImmediate(gameOverPanel); // �?m b?o t�ng h�nh l�c m?i v�o game
 
         if (starFills != null)
         {
@@ -571,7 +571,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         if (cinematicIntroPanel == null) return;
 
         // ==========================================
-        // NGƯỜI GÁC CỔNG: CHỈ CHO PHÉP MÀN HARD ĐƯỢC DIỄN
+        // NGU?I G�C C?NG: CH? CHO PH�P M�N HARD �U?C DI?N
         // ==========================================
         if (difficulty != LevelDifficulty.Hard)
         {
@@ -580,7 +580,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             return;
         }
 
-        // Nếu là Hard, bắt đầu thiết lập kịch bản
+        // N?u l� Hard, b?t d?u thi?t l?p k?ch b?n
         if (cinematicTextComponent != null)
         {
             cinematicTextComponent.text = "HARD LEVEL";
@@ -590,7 +590,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         cinematicIntroPanel.gameObject.SetActive(true);
         cinematicIntroPanel.alpha = 0f;
 
-        // Dọn dẹp các Tween cũ để tránh xung đột
+        // D?n d?p c�c Tween cu d? tr�nh xung d?t
         cinematicIntroIcon.DOKill();
         cinematicIntroText.DOKill();
         cinematicIntroPanel.DOKill();
@@ -598,18 +598,18 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         cinematicIntroIcon.localScale = Vector3.zero;
         cinematicIntroText.localScale = Vector3.zero;
 
-        // Setup góc nghiêng lấy đà
+        // Setup g�c nghi�ng l?y d�
         cinematicIntroIcon.localRotation = Quaternion.Euler(0, 0, -25f);
         cinematicIntroText.localRotation = Quaternion.Euler(0, 0, 15f);
 
         Sequence seq = DOTween.Sequence();
         seq.SetUpdate(true); 
 
-        // 1. Nền tối hiện lên
+        // 1. N?n t?i hi?n l�n
         seq.Append(cinematicIntroPanel.DOFade(1f, 0.18f));
 
         // ==========================================
-        // NHỊP 1: BUNG LỤA (IMPACT)
+        // NH?P 1: BUNG L?A (IMPACT)
         // ==========================================
         seq.Insert(0f, cinematicIntroIcon.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack, 2.2f));
         seq.Insert(0f, cinematicIntroIcon.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack, 1.8f));
@@ -617,11 +617,11 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.Insert(0.04f, cinematicIntroText.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack, 2.2f));
         seq.Insert(0.04f, cinematicIntroText.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack, 1.8f));
 
-        // Giữ cú nhấn thị giác, chỉ bỏ haptic.
+        // Gi? c� nh?n th? gi�c, ch? b? haptic.
         seq.Insert(0.35f, cinematicIntroIcon.DOPunchScale(new Vector3(0.15f, -0.1f, 0), 0.25f, 5, 1));
 
         // ==========================================
-        // NHỊP 2: LƠ LỬNG (BREATHE)
+        // NH?P 2: LO L?NG (BREATHE)
         // ==========================================
         float breatheTime = holdDuration > 0.4f ? holdDuration - 0.4f : 0.5f;
 
@@ -630,7 +630,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.Join(cinematicIntroText.DOScale(Vector3.one * 1.05f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
 
         // ==========================================
-        // NHỊP 3: RÚT LẸ (EXIT)
+        // NH?P 3: R�T L? (EXIT)
         // ==========================================
         seq.Append(cinematicIntroIcon.DOScale(Vector3.one * 1.25f, 0.15f).SetEase(Ease.OutQuad));
         seq.Join(cinematicIntroIcon.DORotate(new Vector3(0, 0, 15f), 0.15f).SetEase(Ease.OutQuad));
@@ -706,7 +706,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
         if (data is object[] rewardData && rewardData.Length >= 2)
         {
-            LevelDataSO levelData = rewardData[0] as LevelDataSO;
+            LevelDataV2 levelData = rewardData[0] as LevelDataV2;
             bool isFullCombo = (bool)rewardData[1];
 
             if (levelData != null)
@@ -718,7 +718,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
                 if (diamondText != null) diamondText.text = $"x{earnedDiamonds}";
             }
         }
-        else if (data is LevelDataSO levelDataFallback)
+        else if (data is LevelDataV2 levelDataFallback)
         {
             earnedCoins = (int)levelDataFallback.rewardCoins;
             earnedDiamonds = (int)levelDataFallback.rewardDiamonds;
@@ -748,7 +748,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         PlayWinSequenceEffect(earnedCoins, earnedDiamonds, oldCoins, oldDiamonds);
     }
 
-    // ĐÃ HOÀN THIỆN: Logic Bung Popup Game Over chuẩn form
+    // �� HO�N THI?N: Logic Bung Popup Game Over chu?n form
     public void ShowLosePopup(object data)
     {
         if (_currentPopup != PopupState.None || _isTransitioning) return;
@@ -766,7 +766,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
         if (currentCoinTextLose != null) currentCoinTextLose.text = CurrencyManager.Instance.Coins.ToString();
     
-        // Rung nhẹ màn hình một phát để tăng độ cay cú khi thua (Game Feel)
+        // Rung nh? m�n h�nh m?t ph�t d? tang d? cay c� khi thua (Game Feel)
         if (SettingManager.Instance != null) 
         {
             SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
@@ -1008,7 +1008,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
         for (int i = 0; i < spawnCount; i++)
         {
-            // [BẢN VÁ] Nếu đã bấm Next/Replay, HỦY LUÔN việc đẻ thêm xu!
+            // [B?N V�] N?u d� b?m Next/Replay, H?Y LU�N vi?c d? th�m xu!
             if (_isTransitioning) yield break; 
 
             GameObject item = Instantiate(prefab, _flyingItemsRoot); 
@@ -1031,7 +1031,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             seq.Append(item.transform.DOMove(targetPos, 0.5f).SetEase(Ease.InOutSine));
 
             seq.OnComplete(() => {
-                // [BẢN VÁ] Chặn đứng tiếng Ting Ting của những đồng xu đang bay lở dở
+                // [B?N V�] Ch?n d?ng ti?ng Ting Ting c?a nh?ng d?ng xu dang bay l? d?
                 if (!_isTransitioning)
                 {
                     AudioManager.Instance.PlaySfx(AudioManager.Instance.coinHit, 0.5f);
@@ -1247,7 +1247,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         ShowText(message, Color.yellow);
     }
 
-    // Thêm tham số System.Action onComplete = null
+    // Th�m tham s? System.Action onComplete = null
     public void ShowText(string content, Color textColor, System.Action onComplete = null)
     {
         if (feedbackText != null)
@@ -1287,7 +1287,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     {
         if (PlaytestSession.IsActive) return;
 
-        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
+        LevelDataV2 currentLevelData = PlaytestSession.GetActiveLevelData();
         if (currentLevelData != null && currentLevelData.gameMode == GameMode.TimeAttack) return;
 
         if (countHeart <= 0 || _currentPopup != PopupState.None) return;
@@ -1388,7 +1388,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     private void OnReviveSuccess(int heartsToAdd, bool isFullTimeRevive)
     {
-        LevelDataSO currentLevelData = PlaytestSession.GetActiveLevelData();
+        LevelDataV2 currentLevelData = PlaytestSession.GetActiveLevelData();
 
         ResetScreenJuice();
 

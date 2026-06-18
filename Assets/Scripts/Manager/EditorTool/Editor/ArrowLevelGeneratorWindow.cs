@@ -588,7 +588,7 @@ public class ArrowLevelGeneratorWindow : EditorWindow
             CenterSnakesOnOrigin(lastResult.snakes);
         }
 
-        LevelDataSO level = CreateInstance<LevelDataSO>();
+        LevelDataV2 level = CreateInstance<LevelDataV2>();
         level.levelIndex = levelIndex;
         level.gameMode = gameMode;
         level.levelDifficulty = levelDifficulty;
@@ -596,15 +596,8 @@ public class ArrowLevelGeneratorWindow : EditorWindow
         level.timeLimit = Mathf.Max(0f, timeLimit);
         level.rewardCoins = Mathf.Max(0f, rewardCoins);
         level.rewardDiamonds = Mathf.Max(0f, rewardDiamonds);
-        level.snakes = lastResult.snakes;
-
-        level.keycards = new System.Collections.Generic.List<KeycardSaveData>();
-        level.gates = new System.Collections.Generic.List<GateSaveData>();
-        level.electricButtons = new System.Collections.Generic.List<ElectricButtonSaveData>();
-        level.electricWalls = new System.Collections.Generic.List<ElectricWallSaveData>();
-        level.portals = new System.Collections.Generic.List<PortalData>();
-        level.deflectors = new System.Collections.Generic.List<DeflectorSaveData>();
-        level.countdownBlocks = new System.Collections.Generic.List<CountdownBlockSaveData>();
+        LevelDataV2Writer.ClearContent(level);
+        LevelDataV2Writer.SetSnakes(level, lastResult.snakes);
 
         string folder = NormalizeAssetFolder(outputFolder);
         EnsureAssetFolder(folder);

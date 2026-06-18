@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using DG.Tweening; 
@@ -32,11 +32,11 @@ public class CameraController : MonoBehaviour
     public float dragThreshold = 5f;
 
     [Header("Auto Limits From Level")]
-    [Tooltip("Tự động tính vùng giới hạn camera theo Bounds của màn chơi (từ LevelDataSO).")]
+    [Tooltip("T? d?ng t�nh v�ng gi?i h?n camera theo Bounds c?a m�n choi (t? LevelDataV2).")]
     public bool autoComputeLimitsFromLevel = true;
-    [Tooltip("Mở rộng vùng giới hạn lớn hơn Bounds của màn chơi (world units / grid units).")]
+    [Tooltip("M? r?ng v�ng gi?i h?n l?n hon Bounds c?a m�n choi (world units / grid units).")]
     public float limitsPadding = 6f;
-    [Tooltip("Clamp theo kích thước khung nhìn hiện tại (orthographicSize & aspect) để không kéo camera vượt khỏi bounds.")]
+    [Tooltip("Clamp theo k�ch thu?c khung nh�n hi?n t?i (orthographicSize & aspect) d? kh�ng k�o camera vu?t kh?i bounds.")]
     public bool limitsConsiderCurrentZoom = true;
 
     private bool _hasLevelLimitBounds = false;
@@ -118,155 +118,9 @@ public class CameraController : MonoBehaviour
         return worldPos;
     }
 
-    private bool TryComputeLevelBoundsFromData(LevelDataSO data, out Bounds bounds)
+    private bool TryComputeLevelBoundsFromData(LevelDataV2 data, out Bounds bounds)
     {
-        bounds = default;
-        if (data == null) return false;
-
-        float minX = float.MaxValue;
-        float maxX = float.MinValue;
-        float minY = float.MaxValue;
-        float maxY = float.MinValue;
-        bool hasAny = false;
-
-        if (data.snakes != null)
-        {
-            foreach (var snakeData in data.snakes)
-            {
-                if (snakeData == null || snakeData.segmentPositions == null) continue;
-                foreach (Vector2Int gridPos in snakeData.segmentPositions)
-                {
-                    if (gridPos.x < minX) minX = gridPos.x;
-                    if (gridPos.x > maxX) maxX = gridPos.x;
-                    if (gridPos.y < minY) minY = gridPos.y;
-                    if (gridPos.y > maxY) maxY = gridPos.y;
-                    hasAny = true;
-                }
-            }
-        }
-
-        if (data.keycards != null)
-        {
-            foreach (var k in data.keycards)
-            {
-                if (k.position.x < minX) minX = k.position.x;
-                if (k.position.x > maxX) maxX = k.position.x;
-                if (k.position.y < minY) minY = k.position.y;
-                if (k.position.y > maxY) maxY = k.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.gates != null)
-        {
-            foreach (var g in data.gates)
-            {
-                if (g.position.x < minX) minX = g.position.x;
-                if (g.position.x > maxX) maxX = g.position.x;
-                if (g.position.y < minY) minY = g.position.y;
-                if (g.position.y > maxY) maxY = g.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.revealWaveButtons != null)
-        {
-            foreach (var b in data.revealWaveButtons)
-            {
-                if (b.position.x < minX) minX = b.position.x;
-                if (b.position.x > maxX) maxX = b.position.x;
-                if (b.position.y < minY) minY = b.position.y;
-                if (b.position.y > maxY) maxY = b.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.portals != null)
-        {
-            foreach (var p in data.portals)
-            {
-                if (p.entrance.x < minX) minX = p.entrance.x;
-                if (p.entrance.x > maxX) maxX = p.entrance.x;
-                if (p.entrance.y < minY) minY = p.entrance.y;
-                if (p.entrance.y > maxY) maxY = p.entrance.y;
-
-                if (p.exit.x < minX) minX = p.exit.x;
-                if (p.exit.x > maxX) maxX = p.exit.x;
-                if (p.exit.y < minY) minY = p.exit.y;
-                if (p.exit.y > maxY) maxY = p.exit.y;
-
-                hasAny = true;
-            }
-        }
-
-        if (data.deflectors != null)
-        {
-            foreach (var d in data.deflectors)
-            {
-                if (d.position.x < minX) minX = d.position.x;
-                if (d.position.x > maxX) maxX = d.position.x;
-                if (d.position.y < minY) minY = d.position.y;
-                if (d.position.y > maxY) maxY = d.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.countdownBlocks != null)
-        {
-            foreach (var block in data.countdownBlocks)
-            {
-                if (block.position.x < minX) minX = block.position.x;
-                if (block.position.x > maxX) maxX = block.position.x;
-                if (block.position.y < minY) minY = block.position.y;
-                if (block.position.y > maxY) maxY = block.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.stopBlocks != null)
-        {
-            foreach (var block in data.stopBlocks)
-            {
-                if (block.position.x < minX) minX = block.position.x;
-                if (block.position.x > maxX) maxX = block.position.x;
-                if (block.position.y < minY) minY = block.position.y;
-                if (block.position.y > maxY) maxY = block.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.turnStateBlocks != null)
-        {
-            foreach (var block in data.turnStateBlocks)
-            {
-                if (block.position.x < minX) minX = block.position.x;
-                if (block.position.x > maxX) maxX = block.position.x;
-                if (block.position.y < minY) minY = block.position.y;
-                if (block.position.y > maxY) maxY = block.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (data.blackHoles != null)
-        {
-            foreach (var block in data.blackHoles)
-            {
-                if (block.position.x < minX) minX = block.position.x;
-                if (block.position.x > maxX) maxX = block.position.x;
-                if (block.position.y < minY) minY = block.position.y;
-                if (block.position.y > maxY) maxY = block.position.y;
-                hasAny = true;
-            }
-        }
-
-        if (!hasAny) return false;
-
-        float width = Mathf.Max(0f, maxX - minX);
-        float height = Mathf.Max(0f, maxY - minY);
-        Vector3 center = new Vector3(minX + width / 2f, minY + height / 2f, 0f);
-        Vector3 size = new Vector3(Mathf.Max(1f, width), Mathf.Max(1f, height), 0f);
-        bounds = new Bounds(center, size);
-        return true;
+        return LevelDataV2Queries.TryGetBounds(data, out bounds);
     }
 
     public void FocusOnWorldPosition(Vector3 worldPosition, float duration = 0.35f, bool blockCameraInput = true, Ease ease = Ease.InOutSine)
@@ -303,7 +157,7 @@ public class CameraController : MonoBehaviour
         _introRoutine = StartCoroutine(CameraIntroSequence());
     }
 
-    public void PrepareDefaultForLevel(LevelDataSO levelData)
+    public void PrepareDefaultForLevel(LevelDataV2 levelData)
     {
         if (levelData == null) return;
         if (cam == null) cam = GetComponent<Camera>();
@@ -354,7 +208,7 @@ public class CameraController : MonoBehaviour
 
         LevelLoader loader = FindObjectOfType<LevelLoader>();
         
-        if (loader == null || loader.levelToPlay == null || loader.levelToPlay.snakes == null)
+        if (loader == null || loader.levelToPlay == null || LevelDataV2Queries.GetArrowCount(loader.levelToPlay) == 0)
         {
             if (cam == null) cam = GetComponent<Camera>();
             ResetEndGameState();
@@ -398,29 +252,29 @@ public class CameraController : MonoBehaviour
         cam.DOKill();
 
         // ==========================================
-        // KÍCH HOẠT UI CINEMATIC ĐỒNG BỘ VỚI CAMERA
+        // K�CH HO?T UI CINEMATIC �?NG B? V?I CAMERA
         // ==========================================
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         bool shouldReturnToDefaultZoom = loader.levelToPlay.returnToDefaultZoomAfterIntro;
         if (canvas != null)
         {
-            // Tính toán thời gian UI nằm trên màn hình:
+            // T�nh to�n th?i gian UI n?m tr�n m�n h�nh:
             // = zoom to overview + hold overview + optional return to gameplay zoom.
             float totalHoldTime = 1f + overviewWaitTime + (shouldReturnToDefaultZoom ? returnToDefaultZoomDuration : 0f);
             
-            // Nếu chỉ muốn hiện cho level Hard:
+            // N?u ch? mu?n hi?n cho level Hard:
             // if (loader.levelToPlay.levelDifficulty == LevelDifficulty.Hard)
             canvas.PlayCinematicIntro(loader.levelToPlay.levelDifficulty, totalHoldTime);
         }
         
-        // 1. Camera Zoom ra nhìn toàn cảnh
+        // 1. Camera Zoom ra nh�n to�n c?nh
         Tween overviewTween = cam.DOOrthoSize(gameZoom, 1f).SetEase(Ease.InOutSine);
         yield return overviewTween.WaitForCompletion();
 
-        // 2. Chờ người chơi nhìn bao quát (Lúc này UI đang rung nhè nhẹ)
+        // 2. Ch? ngu?i choi nh�n bao qu�t (L�c n�y UI dang rung nh� nh?)
         yield return new WaitForSeconds(overviewWaitTime);
 
-        // 3. Quay lại zoom gameplay mặc định nếu level yêu cầu.
+        // 3. Quay l?i zoom gameplay m?c d?nh n?u level y�u c?u.
         if (shouldReturnToDefaultZoom && returnToDefaultZoomDuration > 0f)
         {
             Tween defaultZoomTween = cam.DOOrthoSize(defaultGameplayZoom, returnToDefaultZoomDuration).SetEase(Ease.InOutSine);

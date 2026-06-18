@@ -22,13 +22,13 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
 
         if (PlaytestSession.IsPlaytesting)
         {
-            countArrowInGame = PlaytestSession.LevelData.snakes != null ? PlaytestSession.LevelData.snakes.Count : 0;
+            countArrowInGame = LevelDataV2Queries.GetArrowCount(PlaytestSession.LevelData);
             return;
         }
 
-        if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
+        if (GameManager.Instance != null && GameManager.Instance.levelDataV2s != null)
         {
-            countArrowInGame = GameManager.Instance.levelDataSOs[GameManager.Instance.level - 1].snakes.Count;
+            countArrowInGame = LevelDataV2Queries.GetArrowCount(GameManager.Instance.levelDataV2s[GameManager.Instance.level - 1]);
         }
     }
 
@@ -57,7 +57,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
 
             Debug.Log("Level Complete");
 
-            LevelDataSO currentLevelData = null;
+            LevelDataV2 currentLevelData = null;
             bool isFullCombo = false;
 
             
@@ -84,16 +84,16 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
     }
 
     // Đã thêm cờ isFullCombo vào Coroutine
-    public IEnumerator SequenceWinGame(float waitTime, LevelDataSO completedLevelData, bool isFullCombo)
+    public IEnumerator SequenceWinGame(float waitTime, LevelDataV2 completedLevelData, bool isFullCombo)
     {
         yield return new WaitForSeconds(waitTime);
 
         if (PlaytestSession.IsPlaytesting)
         {
             completedLevelData = PlaytestSession.LevelData;
-            if (completedLevelData != null && ComboManager.Instance != null && completedLevelData.snakes != null)
+            if (completedLevelData != null && ComboManager.Instance != null)
             {
-                isFullCombo = (ComboManager.Instance.currentCombo == completedLevelData.snakes.Count);
+                isFullCombo = (ComboManager.Instance.currentCombo == LevelDataV2Queries.GetArrowCount(completedLevelData));
             }
 
             if (completedLevelData != null && MessageManager.Instance != null)
@@ -105,9 +105,9 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
             yield break;
         }
 
-        if (GameManager.Instance != null && GameManager.Instance.levelDataSOs != null)
+        if (GameManager.Instance != null && GameManager.Instance.levelDataV2s != null)
             {
-                completedLevelData = GameManager.Instance.levelDataSOs[GameManager.Instance.level - 1];
+                completedLevelData = GameManager.Instance.levelDataV2s[GameManager.Instance.level - 1];
                 
                 // ==========================================
                 // KIỂM TRA ĐIỀU KIỆN FULL COMBO
@@ -115,7 +115,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
                 if (ComboManager.Instance != null)
                 {
                     // Nếu số combo hiện tại >= tổng số mũi tên ban đầu -> Người chơi đã đánh 1 mạch không lỗi
-                    isFullCombo = (ComboManager.Instance.currentCombo == completedLevelData.snakes.Count);
+                    isFullCombo = (ComboManager.Instance.currentCombo == LevelDataV2Queries.GetArrowCount(completedLevelData));
                 }
 
                 if (CurrencyManager.Instance != null)

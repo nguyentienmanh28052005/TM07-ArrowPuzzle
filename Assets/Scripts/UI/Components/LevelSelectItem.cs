@@ -6,10 +6,10 @@ public class LevelSelectItem : MonoBehaviour
 {
     public TextMeshProUGUI levelNameText;
     public Button selectButton;
-    private LevelDataSO linkedLevelData;
+    private LevelDataV2 linkedLevelData;
     private LevelEditor editorReference;
 
-    public void Setup(LevelDataSO data, LevelEditor editor)
+    public void Setup(LevelDataV2 data, LevelEditor editor)
     {
         linkedLevelData = data;
         editorReference = editor;

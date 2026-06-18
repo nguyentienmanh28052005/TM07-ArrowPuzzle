@@ -177,7 +177,7 @@ public class BoosterTutorialManager : MonoBehaviour
         StopTutorialImmediate();
     }
 
-    public void CheckAndStartBoosterTutorial(LevelDataSO levelData)
+    public void CheckAndStartBoosterTutorial(LevelDataV2 levelData)
     {
         if (levelData == null) return;
 
@@ -244,7 +244,7 @@ public class BoosterTutorialManager : MonoBehaviour
         StartBoosterTutorial(booster);
     }
 
-    private BoosterType GetBoosterForLevel(LevelDataSO levelData)
+    private BoosterType GetBoosterForLevel(LevelDataV2 levelData)
     {
         int levelIndex = levelData.levelIndex;
 

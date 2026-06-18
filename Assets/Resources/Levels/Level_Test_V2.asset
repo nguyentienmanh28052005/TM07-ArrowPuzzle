@@ -1,0 +1,200 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f901e9bb0a817474f89e91abc549e6a4, type: 3}
+  m_Name: Level_Test_V2
+  m_EditorClassIdentifier: 
+  levelIndex: 0
+  gameMode: 0
+  levelDifficulty: 2
+  returnToDefaultZoomAfterIntro: 1
+  timeLimit: 60
+  rewardCoins: 0
+  rewardDiamonds: 0
+  arrows:
+  - entityId: arrow.standard:0
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -4, y: 5}
+    - {x: -4, y: 6}
+    - {x: -3, y: 6}
+    - {x: -3, y: 7}
+    - {x: -3, y: 8}
+    - {x: -3, y: 9}
+    payload:
+      rid: 4888960156021555217
+  - entityId: arrow.standard:1
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -14, y: 7}
+    - {x: -14, y: 8}
+    - {x: -13, y: 8}
+    - {x: -13, y: 9}
+    - {x: -13, y: 10}
+    - {x: -12, y: 10}
+    - {x: -12, y: 11}
+    - {x: -11, y: 11}
+    - {x: -11, y: 12}
+    - {x: -10, y: 12}
+    - {x: -10, y: 13}
+    - {x: -9, y: 13}
+    - {x: -9, y: 14}
+    - {x: -8, y: 14}
+    - {x: -7, y: 14}
+    - {x: -7, y: 15}
+    payload:
+      rid: 4888960156021555218
+  - entityId: arrow.standard:2
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -10, y: 5}
+    - {x: -9, y: 5}
+    - {x: -9, y: 6}
+    - {x: -8, y: 6}
+    - {x: -8, y: 7}
+    payload:
+      rid: 4888960156021555219
+  - entityId: arrow.standard:3
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -4, y: 17}
+    - {x: -4, y: 18}
+    - {x: -4, y: 19}
+    - {x: -4, y: 20}
+    - {x: -5, y: 20}
+    - {x: -5, y: 21}
+    - {x: -5, y: 22}
+    - {x: -5, y: 23}
+    - {x: -4, y: 23}
+    - {x: -4, y: 24}
+    - {x: -3, y: 24}
+    - {x: -3, y: 25}
+    - {x: -2, y: 25}
+    - {x: -1, y: 25}
+    - {x: 0, y: 25}
+    - {x: 1, y: 25}
+    - {x: 2, y: 25}
+    - {x: 2, y: 24}
+    - {x: 1, y: 24}
+    - {x: 1, y: 23}
+    - {x: 1, y: 22}
+    - {x: 1, y: 21}
+    payload:
+      rid: 4888960156021555220
+  cells:
+  - entityId: cell.deflector:0
+    typeId: cell.deflector
+    position: {x: -14, y: 2}
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    payload:
+      rid: 4888960156021555221
+  - entityId: cell.portal:1
+    typeId: cell.portal
+    position: {x: -4, y: 1}
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    payload:
+      rid: 4888960156021555222
+  - entityId: cell.portal:2
+    typeId: cell.portal
+    position: {x: -15, y: 6}
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    payload:
+      rid: 4888960156021555223
+  - entityId: cell.portal:3
+    typeId: cell.portal
+    position: {x: -12, y: 5}
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    payload:
+      rid: 4888960156021555224
+  - entityId: cell.portal:4
+    typeId: cell.portal
+    position: {x: -4, y: 15}
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    payload:
+      rid: 4888960156021555225
+  links:
+  - linkId: link.portal_pair:0
+    typeId: link.portal_pair
+    fromEntityId: cell.portal:1
+    toEntityId: cell.portal:2
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 4888960156021555226
+  - linkId: link.portal_pair:1
+    typeId: link.portal_pair
+    fromEntityId: cell.portal:3
+    toEntityId: cell.portal:4
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 4888960156021555227
+  references:
+    version: 2
+    RefIds:
+    - rid: 4888960156021555217
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960156021555218
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960156021555219
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960156021555220
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960156021555221
+      type: {class: DirectionCellPayload, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 4888960156021555222
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 2
+    - rid: 4888960156021555223
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 2
+    - rid: 4888960156021555224
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 0
+    - rid: 4888960156021555225
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 1
+    - rid: 4888960156021555226
+      type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 1, g: 1, b: 1, a: 1}
+    - rid: 4888960156021555227
+      type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 1, g: 1, b: 1, a: 1}

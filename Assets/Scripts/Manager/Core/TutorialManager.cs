@@ -8,7 +8,7 @@ using Pixelplacement;
 
 public interface ITutorialCondition
 {
-    bool IsApplicable(LevelDataSO levelData);
+    bool IsApplicable(LevelDataV2 levelData);
 }
 
 public enum TutorialTrigger
@@ -71,7 +71,7 @@ public class TutorialManager : Singleton<TutorialManager>
     private bool _isWaitingForIntro = false;
     private bool _introFinished = false;
     private bool _completedByFirstPress = false;
-    private LevelDataSO _pendingLevelData;
+    private LevelDataV2 _pendingLevelData;
     private Coroutine _tutorialRoutine;
     private Sequence _handTapSequence;
     private Sequence _handHoldSequence;
@@ -135,7 +135,7 @@ public class TutorialManager : Singleton<TutorialManager>
         }
     }
 
-    public void CheckAndStartTutorial(LevelDataSO levelData)
+    public void CheckAndStartTutorial(LevelDataV2 levelData)
     {
         if (levelData == null || levelData.levelDifficulty != LevelDifficulty.Tutorial)
         {
@@ -183,7 +183,7 @@ public class TutorialManager : Singleton<TutorialManager>
         }
     }
 
-    private void StartTutorialNow(LevelDataSO levelData)
+    private void StartTutorialNow(LevelDataV2 levelData)
     {
         if (!_isTutorialActive || levelData == null) return;
 
@@ -202,7 +202,7 @@ public class TutorialManager : Singleton<TutorialManager>
         _tutorialRoutine = StartCoroutine(TutorialFlowRoutine(levelData));
     }
 
-    private IEnumerator TutorialFlowRoutine(LevelDataSO levelData)
+    private IEnumerator TutorialFlowRoutine(LevelDataV2 levelData)
     {
         // Give UI a frame to settle after intro, then optionally delay.
         yield return null;
@@ -213,7 +213,7 @@ public class TutorialManager : Singleton<TutorialManager>
         TryPlayConfiguredStep(levelData);
     }
 
-    private bool TryPlayConfiguredStep(LevelDataSO levelData)
+    private bool TryPlayConfiguredStep(LevelDataV2 levelData)
     {
         if (tutorialSteps == null || tutorialSteps.Count == 0 || levelData == null) return false;
 
@@ -232,7 +232,7 @@ public class TutorialManager : Singleton<TutorialManager>
         return false;
     }
 
-    private bool IsStepApplicable(TutorialStepConfig step, LevelDataSO levelData)
+    private bool IsStepApplicable(TutorialStepConfig step, LevelDataV2 levelData)
     {
         // Ưu tiên chạy Strategy Pattern nếu có
         if (step.conditionProvider != null)
@@ -249,13 +249,13 @@ public class TutorialManager : Singleton<TutorialManager>
             case TutorialTrigger.MemoryMode:
                 return levelData.gameMode == GameMode.Memory;
             case TutorialTrigger.HasPortals:
-                return levelData.portals != null && levelData.portals.Count > 0;
+                return LevelDataV2Queries.HasLink(levelData, LinkTypeIds.PortalPair);
             case TutorialTrigger.HasKeycards:
-                return levelData.keycards != null && levelData.keycards.Count > 0;
+                return LevelDataV2Queries.HasCell(levelData, CellTypeIds.Keycard);
             case TutorialTrigger.HasSnakes:
-                return levelData.snakes != null && levelData.snakes.Count > 0;
+                return LevelDataV2Queries.GetArrowCount(levelData) > 0;
             case TutorialTrigger.HasDeflectors:
-                return levelData.deflectors != null && levelData.deflectors.Count > 0;
+                return LevelDataV2Queries.HasCell(levelData, CellTypeIds.Deflector);
             default:
                 return false;
         }
