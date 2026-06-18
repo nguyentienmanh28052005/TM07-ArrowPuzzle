@@ -124,6 +124,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         if (GridManager.Instance != null)
         {
             GridManager.Instance.ClearLevelState();
+            GridManager.Instance.InitializeLevelGrid(levelToPlay);
         }
         GridPortalVisual.ClearAll();
         GridDeflectorVisual.ClearAll();
@@ -189,6 +190,10 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     public void LoadGame()
     {
         ClearContainer();
+        if (GridManager.Instance != null && levelToPlay != null)
+        {
+            GridManager.Instance.InitializeLevelGrid(levelToPlay);
+        }
         SpawnStaticObstacles();
         
         if (levelToPlay != null && levelToPlay.arrows != null)

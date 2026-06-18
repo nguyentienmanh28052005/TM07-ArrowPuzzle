@@ -12,19 +12,15 @@ public class GridManager : MonoBehaviour
         public ArrowDir exitDir;
     }
 
-    private readonly Dictionary<Vector2Int, SnakeBlock> _gridMap = new Dictionary<Vector2Int, SnakeBlock>();
-    private readonly Dictionary<Vector2Int, GridKeycard> _keycardMap = new Dictionary<Vector2Int, GridKeycard>();
-    private readonly Dictionary<Vector2Int, GridLaserGate> _gateMap = new Dictionary<Vector2Int, GridLaserGate>();
-    private readonly Dictionary<Vector2Int, GridElectricButton> _electricButtonMap = new Dictionary<Vector2Int, GridElectricButton>();
-    private readonly Dictionary<Vector2Int, GridRevealWaveButton> _revealWaveButtonMap = new Dictionary<Vector2Int, GridRevealWaveButton>();
-    private readonly Dictionary<Vector2Int, GridElectricWall> _electricWallMap = new Dictionary<Vector2Int, GridElectricWall>();
-    private readonly Dictionary<Vector2Int, PortalLink> _portalMap = new Dictionary<Vector2Int, PortalLink>();
-    private readonly Dictionary<Vector2Int, GridDeflector> _deflectorMap = new Dictionary<Vector2Int, GridDeflector>();
-    private readonly Dictionary<Vector2Int, GridCountdownBlock> _countdownBlockMap = new Dictionary<Vector2Int, GridCountdownBlock>();
-    private readonly Dictionary<Vector2Int, GridStopBlock> _stopBlockMap = new Dictionary<Vector2Int, GridStopBlock>();
-    private readonly Dictionary<Vector2Int, ArrowShadowVisual> _arrowShadowMap = new Dictionary<Vector2Int, ArrowShadowVisual>();
-    private readonly Dictionary<Vector2Int, GridTurnStateBlock> _turnStateBlockMap = new Dictionary<Vector2Int, GridTurnStateBlock>();
-    private readonly Dictionary<Vector2Int, GridBlackHole> _blackHoleMap = new Dictionary<Vector2Int, GridBlackHole>();
+    private List<IGridOccupant>[] _flatGrid;
+    private PortalLink[] _portalGrid;
+    private bool[] _hasPortalGrid;
+    private int _width;
+    private int _height;
+    private int _minX;
+    private int _maxX;
+    private int _minY;
+    private int _maxY;
 
     private readonly HashSet<IArrowExitListener> _arrowExitListeners = new HashSet<IArrowExitListener>();
     private readonly List<IArrowExitListener> _arrowExitDispatchBuffer = new List<IArrowExitListener>(16);
@@ -32,7 +28,29 @@ public class GridManager : MonoBehaviour
     private event Action<Color> _keyCollectedEvent;
     private event Action<Color> _electricButtonPressedEvent;
 
-    public IEnumerable<GridLaserGate> Gates => _gateMap.Values;
+    public IEnumerable<GridLaserGate> Gates
+    {
+        get
+        {
+            if (_flatGrid == null) yield break;
+            var yielded = new HashSet<GridLaserGate>();
+            for (int i = 0; i < _flatGrid.Length; i++)
+            {
+                List<IGridOccupant> cellOccupants = _flatGrid[i];
+                if (cellOccupants == null) continue;
+                for (int j = 0; j < cellOccupants.Count; j++)
+                {
+                    if (cellOccupants[j] is GridLaserGate gate && IsActiveEntry(gate))
+                    {
+                        if (yielded.Add(gate))
+                        {
+                            yield return gate;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     public void RaiseKeyCollected(Color keyColor)
     {
@@ -109,45 +127,88 @@ public class GridManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    public void InitializeLevelGrid(LevelDataV2 level)
+    {
+        if (level == null) return;
+
+        if (LevelDataV2Queries.TryGetBounds(level, out Bounds bounds))
+        {
+            _minX = Mathf.RoundToInt(bounds.min.x);
+            _maxX = Mathf.RoundToInt(bounds.max.x);
+            _minY = Mathf.RoundToInt(bounds.min.y);
+            _maxY = Mathf.RoundToInt(bounds.max.y);
+
+            _width = _maxX - _minX + 1;
+            _height = _maxY - _minY + 1;
+        }
+        else
+        {
+            _width = 1;
+            _height = 1;
+            _minX = 0;
+            _maxX = 0;
+            _minY = 0;
+            _maxY = 0;
+        }
+
+        int size = _width * _height;
+        _flatGrid = new List<IGridOccupant>[size];
+        for (int i = 0; i < size; i++)
+        {
+            _flatGrid[i] = new List<IGridOccupant>(4);
+        }
+
+        _portalGrid = new PortalLink[size];
+        _hasPortalGrid = new bool[size];
+    }
+
+    private int GetFlatIndex(Vector2Int pos)
+    {
+        if (_flatGrid == null || pos.x < _minX || pos.x > _maxX || pos.y < _minY || pos.y > _maxY)
+            return -1;
+        return (pos.y - _minY) * _width + (pos.x - _minX);
+    }
+
+    public void RegisterAt(Vector2Int cell, IGridOccupant occupant)
+    {
+        if (occupant == null) return;
+        int index = GetFlatIndex(cell);
+        if (index >= 0)
+        {
+            List<IGridOccupant> cellOccupants = _flatGrid[index];
+            if (!cellOccupants.Contains(occupant))
+            {
+                cellOccupants.Add(occupant);
+            }
+        }
+    }
+
+    public void UnregisterAt(Vector2Int cell, IGridOccupant occupant)
+    {
+        if (occupant == null) return;
+        int index = GetFlatIndex(cell);
+        if (index >= 0)
+        {
+            _flatGrid[index].Remove(occupant);
+        }
+    }
+
     public void Register(IGridOccupant occupant)
     {
         if (occupant == null) return;
-
-        Vector2Int position = occupant.GridPosition;
-        if (occupant is GridKeycard keycard) _keycardMap[position] = keycard;
-        else if (occupant is GridLaserGate gate) _gateMap[position] = gate;
-        else if (occupant is GridElectricButton button) _electricButtonMap[position] = button;
-        else if (occupant is GridRevealWaveButton revealButton) _revealWaveButtonMap[position] = revealButton;
-        else if (occupant is GridDeflector deflector) _deflectorMap[position] = deflector;
-        else if (occupant is GridCountdownBlock countdownBlock) _countdownBlockMap[position] = countdownBlock;
-        else if (occupant is GridStopBlock stopBlock) _stopBlockMap[position] = stopBlock;
-        else if (occupant is GridTurnStateBlock turnStateBlock) _turnStateBlockMap[position] = turnStateBlock;
-        else if (occupant is GridBlackHole blackHole) _blackHoleMap[position] = blackHole;
-        else
-        {
-            Debug.LogWarning($"[GridManager] Unsupported occupant type: {occupant.GetType().Name}");
-        }
+        RegisterAt(occupant.GridPosition, occupant);
     }
 
     public void Unregister(IGridOccupant occupant)
     {
         if (occupant == null) return;
-        Unregister(occupant, occupant.GridPosition);
+        UnregisterAt(occupant.GridPosition, occupant);
     }
 
     public void Unregister(IGridOccupant occupant, Vector2Int position)
     {
         if (occupant == null) return;
-
-        if (occupant is GridKeycard keycard) RemoveIfCurrent(_keycardMap, position, keycard);
-        else if (occupant is GridLaserGate gate) RemoveIfCurrent(_gateMap, position, gate);
-        else if (occupant is GridElectricButton button) RemoveIfCurrent(_electricButtonMap, position, button);
-        else if (occupant is GridRevealWaveButton revealButton) RemoveIfCurrent(_revealWaveButtonMap, position, revealButton);
-        else if (occupant is GridDeflector deflector) RemoveIfCurrent(_deflectorMap, position, deflector);
-        else if (occupant is GridCountdownBlock countdownBlock) RemoveIfCurrent(_countdownBlockMap, position, countdownBlock);
-        else if (occupant is GridStopBlock stopBlock) RemoveIfCurrent(_stopBlockMap, position, stopBlock);
-        else if (occupant is GridTurnStateBlock turnStateBlock) RemoveIfCurrent(_turnStateBlockMap, position, turnStateBlock);
-        else if (occupant is GridBlackHole blackHole) RemoveIfCurrent(_blackHoleMap, position, blackHole);
+        UnregisterAt(position, occupant);
     }
 
     public void RegisterSnake(SnakeBlock snake)
@@ -158,7 +219,7 @@ public class GridManager : MonoBehaviour
         {
             Vector3 nodePos = snake.LogicNodes[i];
             Vector2Int pos = new Vector2Int(Mathf.RoundToInt(nodePos.x), Mathf.RoundToInt(nodePos.y));
-            _gridMap[pos] = snake;
+            RegisterAt(pos, snake);
         }
     }
 
@@ -168,23 +229,17 @@ public class GridManager : MonoBehaviour
 
         foreach (Vector2Int cell in cells)
         {
-            _gridMap[cell] = snake;
+            RegisterAt(cell, snake);
         }
     }
 
     public void UnregisterSnake(SnakeBlock snake)
     {
-        if (snake == null) return;
+        if (snake == null || _flatGrid == null) return;
 
-        List<Vector2Int> keysToRemove = new List<Vector2Int>();
-        foreach (KeyValuePair<Vector2Int, SnakeBlock> kvp in _gridMap)
+        for (int i = 0; i < _flatGrid.Length; i++)
         {
-            if (kvp.Value == snake) keysToRemove.Add(kvp.Key);
-        }
-
-        for (int i = 0; i < keysToRemove.Count; i++)
-        {
-            _gridMap.Remove(keysToRemove[i]);
+            _flatGrid[i].Remove(snake);
         }
     }
 
@@ -194,7 +249,7 @@ public class GridManager : MonoBehaviour
 
         foreach (Vector2Int cell in cells)
         {
-            RemoveIfCurrent(_gridMap, cell, snake);
+            UnregisterAt(cell, snake);
         }
     }
 
@@ -206,98 +261,85 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetSnakeAt(Vector2Int pos, out SnakeBlock snake)
     {
-        return TryGetFromMap(_gridMap, pos, out snake);
+        return TryGetObstacle(pos, out snake);
     }
 
     public bool TryGetObstacle<T>(Vector2Int pos, out T obstacle) where T : class
     {
         obstacle = null;
-        object found = null;
+        int index = GetFlatIndex(pos);
+        if (index < 0) return false;
 
-        if (typeof(T) == typeof(SnakeBlock))
+        List<IGridOccupant> cellOccupants = _flatGrid[index];
+        for (int i = cellOccupants.Count - 1; i >= 0; i--)
         {
-            if (TryGetSnakeAt(pos, out SnakeBlock snake)) found = snake;
-        }
-        else if (typeof(T) == typeof(GridKeycard))
-        {
-            if (TryGetKeycardAt(pos, out GridKeycard keycard)) found = keycard;
-        }
-        else if (typeof(T) == typeof(GridLaserGate))
-        {
-            if (TryGetGateAt(pos, out GridLaserGate gate)) found = gate;
-        }
-        else if (typeof(T) == typeof(GridElectricButton))
-        {
-            if (TryGetElectricButtonAt(pos, out GridElectricButton button)) found = button;
-        }
-        else if (typeof(T) == typeof(GridRevealWaveButton))
-        {
-            if (TryGetRevealWaveButtonAt(pos, out GridRevealWaveButton revealButton)) found = revealButton;
-        }
-        else if (typeof(T) == typeof(GridElectricWall))
-        {
-            if (TryGetElectricWallAt(pos, out GridElectricWall wall)) found = wall;
-        }
-        else if (typeof(T) == typeof(GridDeflector))
-        {
-            if (TryGetDeflectorAt(pos, out GridDeflector deflector)) found = deflector;
-        }
-        else if (typeof(T) == typeof(GridCountdownBlock))
-        {
-            if (TryGetActiveCountdownBlockAt(pos, out GridCountdownBlock countdownBlock)) found = countdownBlock;
-        }
-        else if (typeof(T) == typeof(GridStopBlock))
-        {
-            if (TryGetActiveStopBlockAt(pos, out GridStopBlock stopBlock)) found = stopBlock;
-        }
-        else if (typeof(T) == typeof(ArrowShadowVisual))
-        {
-            if (TryGetActiveArrowShadowAt(pos, out ArrowShadowVisual shadow)) found = shadow;
-        }
-        else if (typeof(T) == typeof(GridTurnStateBlock))
-        {
-            if (TryGetTurnStateBlockAt(pos, out GridTurnStateBlock turnStateBlock)) found = turnStateBlock;
-        }
-        else if (typeof(T) == typeof(GridBlackHole))
-        {
-            if (TryGetBlackHoleAt(pos, out GridBlackHole blackHole)) found = blackHole;
+            IGridOccupant occ = cellOccupants[i];
+            if (occ is T target)
+            {
+                if (IsActiveEntry(occ))
+                {
+                    obstacle = target;
+                    return true;
+                }
+                else
+                {
+                    cellOccupants.RemoveAt(i);
+                }
+            }
         }
 
-        obstacle = found as T;
-        return obstacle != null;
+        return false;
     }
 
     public bool TryGetTriggerAt(Vector2Int pos, out IGridTrigger trigger)
     {
         trigger = null;
+        int index = GetFlatIndex(pos);
+        if (index < 0) return false;
 
-        if (TryGetKeycardAt(pos, out GridKeycard keycard)) trigger = keycard;
-        else if (TryGetElectricButtonAt(pos, out GridElectricButton electricButton)) trigger = electricButton;
-        else if (TryGetRevealWaveButtonAt(pos, out GridRevealWaveButton revealButton)) trigger = revealButton;
+        List<IGridOccupant> cellOccupants = _flatGrid[index];
+        for (int i = cellOccupants.Count - 1; i >= 0; i--)
+        {
+            IGridOccupant occ = cellOccupants[i];
+            if (occ is IGridTrigger target)
+            {
+                if (IsActiveEntry(occ))
+                {
+                    trigger = target;
+                    return true;
+                }
+                else
+                {
+                    cellOccupants.RemoveAt(i);
+                }
+            }
+        }
 
-        return trigger != null;
+        return false;
     }
 
     public int TriggerAt(Vector2Int pos)
     {
         int triggerCount = 0;
+        int index = GetFlatIndex(pos);
+        if (index < 0) return 0;
 
-        if (TryGetKeycardAt(pos, out GridKeycard keycard))
+        List<IGridOccupant> cellOccupants = _flatGrid[index];
+        for (int i = cellOccupants.Count - 1; i >= 0; i--)
         {
-            keycard.TriggerFromGrid();
-            triggerCount++;
-        }
-
-        if (TryGetElectricButtonAt(pos, out GridElectricButton electricButton))
-        {
-            electricButton.TriggerFromGrid();
-            triggerCount++;
-        }
-
-        if (TryGetRevealWaveButtonAt(pos, out GridRevealWaveButton revealButton))
-        {
-            revealButton.TriggerFromGrid();
-            triggerCount++;
+            IGridOccupant occ = cellOccupants[i];
+            if (occ is IGridTrigger trigger)
+            {
+                if (IsActiveEntry(occ))
+                {
+                    trigger.TriggerFromGrid();
+                    triggerCount++;
+                }
+                else
+                {
+                    cellOccupants.RemoveAt(i);
+                }
+            }
         }
 
         return triggerCount;
@@ -305,12 +347,12 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetKeycardAt(Vector2Int pos, out GridKeycard keycard)
     {
-        return TryGetFromMap(_keycardMap, pos, out keycard);
+        return TryGetObstacle(pos, out keycard);
     }
 
     public bool TryGetGateAt(Vector2Int pos, out GridLaserGate gate)
     {
-        return TryGetFromMap(_gateMap, pos, out gate);
+        return TryGetObstacle(pos, out gate);
     }
 
     public bool HasGateAt(Vector2Int pos)
@@ -320,17 +362,17 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetElectricButtonAt(Vector2Int pos, out GridElectricButton button)
     {
-        return TryGetFromMap(_electricButtonMap, pos, out button);
+        return TryGetObstacle(pos, out button);
     }
 
     public bool TryGetRevealWaveButtonAt(Vector2Int pos, out GridRevealWaveButton button)
     {
-        return TryGetFromMap(_revealWaveButtonMap, pos, out button);
+        return TryGetObstacle(pos, out button);
     }
 
     public bool TryGetElectricWallAt(Vector2Int pos, out GridElectricWall wall)
     {
-        return TryGetFromMap(_electricWallMap, pos, out wall);
+        return TryGetObstacle(pos, out wall);
     }
 
     public bool HasElectricWallAt(Vector2Int pos)
@@ -344,7 +386,7 @@ public class GridManager : MonoBehaviour
 
         foreach (Vector2Int cell in cells)
         {
-            _electricWallMap[cell] = wall;
+            RegisterAt(cell, wall);
         }
     }
 
@@ -354,28 +396,40 @@ public class GridManager : MonoBehaviour
 
         foreach (Vector2Int cell in cells)
         {
-            RemoveIfCurrent(_electricWallMap, cell, wall);
+            UnregisterAt(cell, wall);
         }
     }
 
     public void RegisterPortalLink(Vector2Int entrance, PortalLink link)
     {
-        _portalMap[entrance] = link;
+        int index = GetFlatIndex(entrance);
+        if (index >= 0)
+        {
+            _portalGrid[index] = link;
+            _hasPortalGrid[index] = true;
+        }
     }
 
     public void RegisterPortalLink(Vector2Int entrance, Vector2Int exit, ArrowDir exitDirection)
     {
-        _portalMap[entrance] = new PortalLink { exit = exit, exitDir = exitDirection };
+        RegisterPortalLink(entrance, new PortalLink { exit = exit, exitDir = exitDirection });
     }
 
     public bool TryGetPortalLink(Vector2Int pos, out PortalLink link)
     {
-        return _portalMap.TryGetValue(pos, out link);
+        int index = GetFlatIndex(pos);
+        if (index >= 0 && _hasPortalGrid[index])
+        {
+            link = _portalGrid[index];
+            return true;
+        }
+        link = default(PortalLink);
+        return false;
     }
 
     public bool TryGetDeflectorAt(Vector2Int pos, out GridDeflector deflector)
     {
-        return TryGetFromMap(_deflectorMap, pos, out deflector);
+        return TryGetObstacle(pos, out deflector);
     }
 
     public bool HasActiveCountdownBlockAt(Vector2Int pos)
@@ -385,7 +439,7 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetActiveCountdownBlockAt(Vector2Int pos, out GridCountdownBlock block)
     {
-        return TryGetFromMap(_countdownBlockMap, pos, out block);
+        return TryGetObstacle(pos, out block);
     }
 
     public bool HasActiveStopBlockAt(Vector2Int pos)
@@ -395,7 +449,7 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetActiveStopBlockAt(Vector2Int pos, out GridStopBlock block)
     {
-        return TryGetFromMap(_stopBlockMap, pos, out block);
+        return TryGetObstacle(pos, out block);
     }
 
     public bool HasActiveArrowShadowAt(Vector2Int pos)
@@ -405,7 +459,7 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetActiveArrowShadowAt(Vector2Int pos, out ArrowShadowVisual shadow)
     {
-        return TryGetFromMap(_arrowShadowMap, pos, out shadow);
+        return TryGetObstacle(pos, out shadow);
     }
 
     public void RegisterArrowShadowCells(ArrowShadowVisual shadow, IEnumerable<Vector2Int> cells)
@@ -414,7 +468,7 @@ public class GridManager : MonoBehaviour
 
         foreach (Vector2Int cell in cells)
         {
-            _arrowShadowMap[cell] = shadow;
+            RegisterAt(cell, shadow);
         }
     }
 
@@ -424,7 +478,7 @@ public class GridManager : MonoBehaviour
 
         foreach (Vector2Int cell in cells)
         {
-            RemoveIfCurrent(_arrowShadowMap, cell, shadow);
+            UnregisterAt(cell, shadow);
         }
     }
 
@@ -435,49 +489,30 @@ public class GridManager : MonoBehaviour
 
     public bool TryGetTurnStateBlockAt(Vector2Int pos, out GridTurnStateBlock block)
     {
-        return TryGetFromMap(_turnStateBlockMap, pos, out block);
+        return TryGetObstacle(pos, out block);
     }
 
     public bool TryGetBlackHoleAt(Vector2Int pos, out GridBlackHole blackHole)
     {
-        return TryGetFromMap(_blackHoleMap, pos, out blackHole);
+        return TryGetObstacle(pos, out blackHole);
     }
 
     public void ClearLevelState()
     {
-        _gridMap.Clear();
-        _keycardMap.Clear();
-        _gateMap.Clear();
-        _electricButtonMap.Clear();
-        _revealWaveButtonMap.Clear();
-        _electricWallMap.Clear();
-        _portalMap.Clear();
-        _deflectorMap.Clear();
-        _countdownBlockMap.Clear();
-        _stopBlockMap.Clear();
-        _arrowShadowMap.Clear();
-        _turnStateBlockMap.Clear();
-        _blackHoleMap.Clear();
+        _flatGrid = null;
+        _portalGrid = null;
+        _hasPortalGrid = null;
+        _width = 0;
+        _height = 0;
+        _minX = 0;
+        _maxX = 0;
+        _minY = 0;
+        _maxY = 0;
 
         _keyCollectedEvent = null;
         _electricButtonPressedEvent = null;
         _arrowExitListeners.Clear();
         _arrowExitDispatchBuffer.Clear();
-    }
-
-    private static bool TryGetFromMap<T>(Dictionary<Vector2Int, T> map, Vector2Int pos, out T value) where T : class
-    {
-        value = null;
-        if (map == null || !map.TryGetValue(pos, out value)) return false;
-
-        if (!IsActiveEntry(value))
-        {
-            map.Remove(pos);
-            value = null;
-            return false;
-        }
-
-        return true;
     }
 
     private static bool IsActiveEntry(object entry)
@@ -486,14 +521,5 @@ public class GridManager : MonoBehaviour
         if (entry is UnityEngine.Object unityObject && unityObject == null) return false;
         if (entry is IGridOccupant occupant) return occupant.IsActiveOccupant;
         return true;
-    }
-
-    private static void RemoveIfCurrent<T>(Dictionary<Vector2Int, T> map, Vector2Int pos, T expected) where T : class
-    {
-        if (map == null || expected == null) return;
-        if (map.TryGetValue(pos, out T existing) && ReferenceEquals(existing, expected))
-        {
-            map.Remove(pos);
-        }
     }
 }

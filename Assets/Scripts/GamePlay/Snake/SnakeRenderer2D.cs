@@ -130,11 +130,12 @@ public sealed class SnakeRenderer2D
         if (isFocusing)
         {
             _pendingUnfocus = false;
-            _isFocusingColorTweenRunning = true;
             SetLinePressedMaterial(true);
 
             if (_hasFocusVisualState && _isFocusVisualActive == isFocusing && _lastFocusTargetColor == targetColor)
                 return;
+
+            _isFocusingColorTweenRunning = true;
 
             _hasFocusVisualState = true;
             _isFocusVisualActive = isFocusing;

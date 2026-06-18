@@ -4,7 +4,7 @@ using UnityEngine.Serialization;
 using DG.Tweening;
 
 [RequireComponent(typeof(LineRenderer))]
-public class SnakeBlock : MonoBehaviour
+public class SnakeBlock : MonoBehaviour, IGridOccupant
 {
     public static IReadOnlyList<SnakeBlock> ActiveSnakes => SnakeRuntime.ActiveSnakes;
 
@@ -66,6 +66,8 @@ public class SnakeBlock : MonoBehaviour
     public bool HasArrowShadow => _runtime != null && _runtime.HasArrowShadow;
     public List<Vector3> LogicNodes => _runtime != null ? _runtime.LogicNodes : null;
     public Vector3 HeadPosition => _runtime != null ? _runtime.GetHeadPosition(transform.position, direction) : transform.position;
+    public Vector2Int GridPosition => new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
+    public bool IsActiveOccupant => this != null && gameObject != null && isActiveAndEnabled;
 
     internal float StartMoveSpeed => startMoveSpeed;
     internal float MaxMoveSpeed => maxMoveSpeed;
