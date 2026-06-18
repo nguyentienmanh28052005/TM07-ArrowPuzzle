@@ -273,11 +273,12 @@ MonoBehaviour:
   maxMoveSpeed: 100
   acceleration: 120
   returnMoveSpeed: 40
-  exitStartSpeed: 20
-  exitMaxSpeed: 300
-  exitAcceleration: 160
+  exitStartSpeed: 50
+  exitMaxSpeed: 350
+  exitAcceleration: 200
   exitTravelDistance: 150
   maxPathScanCells: 180
+  blackHoleConsumeShrinkDuration: 0.24
   dashExitStartSpeed: 50
   dashExitMaxSpeed: 520
   dashExitAcceleration: 260

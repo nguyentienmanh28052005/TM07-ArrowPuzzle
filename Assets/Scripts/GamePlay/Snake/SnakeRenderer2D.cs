@@ -30,6 +30,9 @@ public sealed class SnakeRenderer2D
     private ArrowShadowVisual _arrowShadowVisual;
     private Coroutine _transparentRevealFlashRoutine;
 
+    // KINH NGHIỆM THỰC CHIẾN: Ngưỡng an toàn tối đa cho DeltaTime để chống drop FPS quá nặng
+    private const float MAX_SAFE_DELTA_TIME = 0.1f;
+
     public SnakeRenderer2D(SnakeBlock owner, SnakeRuntime runtime)
     {
         _owner = owner;
@@ -71,7 +74,11 @@ public sealed class SnakeRenderer2D
     public void RedrawIfNeeded()
     {
         if (_runtime == null) return;
-        if (_runtime.IsMoving || _forceRedraw || _runtime.IsSpawning)
+        
+        // GIẢI PHÁP TỐI ƯU: Khi đang di chuyển (`IsMoving`), chính Sub-stepping của SnakeMover 
+        // sẽ chủ động gọi RedrawLine() sau khi tính toán xong logic, nên ta KHÔNG redraw trùng lặp ở đây nữa.
+        // Điều này tránh việc Mesh bị render 2 lần trong 1 frame gây khựng hình.
+        if (_forceRedraw || _runtime.IsSpawning)
         {
             RedrawLine();
             if (!_runtime.IsMoving && !_runtime.IsSpawning)
@@ -332,17 +339,27 @@ public sealed class SnakeRenderer2D
         float startTailTrackIdx = -_runtime.AccumulatedShift + (_runtime.TotalPoints - 1);
         _runtime.BlackHoleConsumeTailTrackIdx = startTailTrackIdx;
 
+        // ÁP DỤNG SUB-STEPS NỘI BỘ CHO HỐ ĐEN ĐỂ ĐUÔI CO LẠI MƯỢT MÀ
+        const int SUB_STEPS = 4;
+
         while (elapsed < duration)
         {
-            elapsed += Mathf.Min(Time.deltaTime, 0.033f);
-            float t = Mathf.Clamp01(elapsed / duration);
-            float eased = 1f - Mathf.Pow(1f - t, 2f);
+            float dt = Mathf.Min(Time.deltaTime, MAX_SAFE_DELTA_TIME);
+            float subDelta = dt / SUB_STEPS;
 
-            _runtime.BlackHoleConsumeTailTrackIdx = Mathf.Lerp(startTailTrackIdx, _runtime.BlackHoleConsumeHeadTrackIdx, eased);
-            if (arrowVisual != null)
-                arrowVisual.localScale = Vector3.Lerp(arrowStartScale, Vector3.zero, Mathf.Clamp01(eased * 1.35f));
+            for (int step = 0; step < SUB_STEPS; step++)
+            {
+                elapsed += subDelta;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = 1f - Mathf.Pow(1f - t, 2f);
 
-            RequestRedraw();
+                _runtime.BlackHoleConsumeTailTrackIdx = Mathf.Lerp(startTailTrackIdx, _runtime.BlackHoleConsumeHeadTrackIdx, eased);
+                
+                if (arrowVisual != null)
+                    arrowVisual.localScale = Vector3.Lerp(arrowStartScale, Vector3.zero, Mathf.Clamp01(eased * 1.35f));
+            }
+
+            // Vẽ mesh một lần duy nhất cuối Frame
             RedrawLine();
             yield return null;
         }
