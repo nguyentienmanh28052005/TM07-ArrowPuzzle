@@ -32,7 +32,7 @@ MonoBehaviour:
     - {x: -3, y: 8}
     - {x: -3, y: 9}
     payload:
-      rid: 8514278706972459956
+      rid: 4888960175329771520
   - entityId: arrow.standard:1
     typeId: arrow.standard
     direction: 1
@@ -55,7 +55,7 @@ MonoBehaviour:
     - {x: -7, y: 14}
     - {x: -7, y: 15}
     payload:
-      rid: 8514278706972459957
+      rid: 4888960175329771521
   - entityId: arrow.standard:2
     typeId: arrow.standard
     direction: 2
@@ -67,7 +67,7 @@ MonoBehaviour:
     - {x: -8, y: 6}
     - {x: -8, y: 7}
     payload:
-      rid: 8514278706972459958
+      rid: 4888960175329771522
   - entityId: arrow.standard:3
     typeId: arrow.standard
     direction: 1
@@ -96,7 +96,48 @@ MonoBehaviour:
     - {x: 1, y: 22}
     - {x: 1, y: 21}
     payload:
-      rid: 8514278706972459959
+      rid: 4888960175329771523
+  - entityId: arrow.standard:4
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 1, y: 12}
+    payload:
+      rid: 4888960175329771524
+  - entityId: arrow.standard:5
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -6, y: 12}
+    - {x: -7, y: 12}
+    - {x: -7, y: 11}
+    - {x: -7, y: 10}
+    - {x: -8, y: 10}
+    - {x: -8, y: 9}
+    - {x: -9, y: 9}
+    - {x: -9, y: 8}
+    - {x: -10, y: 8}
+    - {x: -11, y: 8}
+    - {x: -11, y: 9}
+    - {x: -10, y: 9}
+    - {x: -10, y: 10}
+    - {x: -9, y: 10}
+    - {x: -9, y: 11}
+    - {x: -8, y: 11}
+    - {x: -8, y: 12}
+    payload:
+      rid: 4888960175329771525
+  - entityId: arrow.standard:6
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -11, y: 15}
+    - {x: -10, y: 15}
+    payload:
+      rid: 4888960175329771526
   cells:
   - entityId: cell.deflector:0
     typeId: cell.deflector
@@ -104,35 +145,35 @@ MonoBehaviour:
     direction: 2
     color: {r: 1, g: 1, b: 1, a: 1}
     payload:
-      rid: 8514278706972459960
+      rid: 4888960175329771527
   - entityId: cell.portal:1
     typeId: cell.portal
     position: {x: -4, y: 1}
     direction: 2
     color: {r: 1, g: 1, b: 1, a: 1}
     payload:
-      rid: 8514278706972459961
+      rid: 4888960175329771528
   - entityId: cell.portal:2
     typeId: cell.portal
     position: {x: -15, y: 6}
     direction: 2
     color: {r: 1, g: 1, b: 1, a: 1}
     payload:
-      rid: 8514278706972459962
+      rid: 4888960175329771529
   - entityId: cell.portal:3
     typeId: cell.portal
     position: {x: -12, y: 5}
     direction: 0
     color: {r: 1, g: 1, b: 1, a: 1}
     payload:
-      rid: 8514278706972459963
+      rid: 4888960175329771530
   - entityId: cell.portal:4
     typeId: cell.portal
     position: {x: -4, y: 15}
     direction: 1
     color: {r: 1, g: 1, b: 1, a: 1}
     payload:
-      rid: 8514278706972459964
+      rid: 4888960175329771531
   links:
   - linkId: link.portal_pair:0
     typeId: link.portal_pair
@@ -142,7 +183,7 @@ MonoBehaviour:
     toPosition: {x: 0, y: 0}
     usesPositions: 0
     payload:
-      rid: 8514278706972459965
+      rid: 4888960175329771532
   - linkId: link.portal_pair:1
     typeId: link.portal_pair
     fromEntityId: cell.portal:3
@@ -151,50 +192,62 @@ MonoBehaviour:
     toPosition: {x: 0, y: 0}
     usesPositions: 0
     payload:
-      rid: 8514278706972459966
+      rid: 4888960175329771533
   references:
     version: 2
     RefIds:
-    - rid: 8514278706972459956
+    - rid: 4888960175329771520
       type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
       data:
         hasArrowShadow: 0
-    - rid: 8514278706972459957
+    - rid: 4888960175329771521
       type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
       data:
         hasArrowShadow: 0
-    - rid: 8514278706972459958
+    - rid: 4888960175329771522
       type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
       data:
         hasArrowShadow: 0
-    - rid: 8514278706972459959
+    - rid: 4888960175329771523
       type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
       data:
         hasArrowShadow: 0
-    - rid: 8514278706972459960
+    - rid: 4888960175329771524
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960175329771525
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960175329771526
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 4888960175329771527
       type: {class: DirectionCellPayload, ns: , asm: Assembly-CSharp}
       data: 
-    - rid: 8514278706972459961
+    - rid: 4888960175329771528
       type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
       data:
         exitDirection: 2
-    - rid: 8514278706972459962
+    - rid: 4888960175329771529
       type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
       data:
         exitDirection: 2
-    - rid: 8514278706972459963
+    - rid: 4888960175329771530
       type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
       data:
         exitDirection: 0
-    - rid: 8514278706972459964
+    - rid: 4888960175329771531
       type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
       data:
         exitDirection: 1
-    - rid: 8514278706972459965
+    - rid: 4888960175329771532
       type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
       data:
         color: {r: 1, g: 1, b: 1, a: 1}
-    - rid: 8514278706972459966
+    - rid: 4888960175329771533
       type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
       data:
         color: {r: 1, g: 1, b: 1, a: 1}
