@@ -1,0 +1,150 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f901e9bb0a817474f89e91abc549e6a4, type: 3}
+  m_Name: Tutorial_Electric
+  m_EditorClassIdentifier: 
+  levelIndex: 15
+  gameMode: 0
+  levelDifficulty: 0
+  returnToDefaultZoomAfterIntro: 0
+  timeLimit: 60
+  rewardCoins: 10
+  rewardDiamonds: 2
+  arrows:
+  - entityId: arrow.standard:0
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -3, y: 0}
+    - {x: -3, y: 1}
+    - {x: -3, y: 2}
+    - {x: -3, y: 3}
+    - {x: -3, y: 4}
+    - {x: -3, y: 5}
+    payload:
+      rid: 8514278728982593872
+  - entityId: arrow.standard:1
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -1, y: 5}
+    - {x: -1, y: 4}
+    - {x: -1, y: 3}
+    - {x: -1, y: 2}
+    - {x: -1, y: 1}
+    - {x: -1, y: 0}
+    - {x: -1, y: -1}
+    - {x: -1, y: -2}
+    payload:
+      rid: 8514278728982593873
+  - entityId: arrow.standard:2
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 1, y: 0}
+    - {x: 1, y: 1}
+    - {x: 1, y: 2}
+    - {x: 1, y: 3}
+    - {x: 1, y: 4}
+    - {x: 1, y: 5}
+    payload:
+      rid: 8514278728982593874
+  cells:
+  - entityId: cell.electric_button:0
+    typeId: cell.electric_button
+    position: {x: -3, y: -2}
+    direction: 0
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8514278728982593875
+  - entityId: cell.electric_button:1
+    typeId: cell.electric_button
+    position: {x: 1, y: -2}
+    direction: 0
+    color: {r: 1, g: 0, b: 0, a: 1}
+    payload:
+      rid: 8514278728982593876
+  - entityId: cell.electric_wall:2
+    typeId: cell.electric_wall
+    position: {x: 2, y: 7}
+    direction: 0
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8514278728982593877
+  - entityId: cell.electric_wall:3
+    typeId: cell.electric_wall
+    position: {x: -4, y: 9}
+    direction: 0
+    color: {r: 1, g: 0, b: 0, a: 1}
+    payload:
+      rid: 8514278728982593878
+  links:
+  - linkId: link.electric_button_wall:0
+    typeId: link.electric_button_wall
+    fromEntityId: cell.electric_button:0
+    toEntityId: cell.electric_wall:2
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 8514278728982593879
+  - linkId: link.electric_button_wall:1
+    typeId: link.electric_button_wall
+    fromEntityId: cell.electric_button:1
+    toEntityId: cell.electric_wall:3
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 8514278728982593880
+  references:
+    version: 2
+    RefIds:
+    - rid: 8514278728982593872
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982593873
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982593874
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982593875
+      type: {class: ColorCellPayload, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 8514278728982593876
+      type: {class: ColorCellPayload, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 8514278728982593877
+      type: {class: ElectricWallPayload, ns: , asm: Assembly-CSharp}
+      data:
+        start: {x: 2, y: 7}
+        end: {x: -4, y: 7}
+    - rid: 8514278728982593878
+      type: {class: ElectricWallPayload, ns: , asm: Assembly-CSharp}
+      data:
+        start: {x: -4, y: 9}
+        end: {x: 2, y: 9}
+    - rid: 8514278728982593879
+      type: {class: ElectricButtonWallPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    - rid: 8514278728982593880
+      type: {class: ElectricButtonWallPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 1, g: 0, b: 0, a: 1}

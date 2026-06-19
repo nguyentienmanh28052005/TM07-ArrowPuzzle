@@ -6,16 +6,30 @@ public static class PathScanner
     private const int DefaultScanLimit = 512;
     private const int DefaultBoundaryAbs = int.MaxValue;
 
+    private static readonly HashSet<Vector3Int> _visitedStatesPool = new HashSet<Vector3Int>();
+    private static readonly List<PathWarp> _tempWarps = new List<PathWarp>(16);
+
     public static MoveResult Scan(
         BoardState board,
         SnakeBlock self,
         Vector2Int startCell,
         ArrowDir startDirection,
         int scanLimit,
+        List<PathWarp> outWarps = null,
         bool stopAtBlockers = true,
         int boundaryAbs = DefaultBoundaryAbs)
     {
-        List<PathWarp> warps = new List<PathWarp>(8);
+        List<PathWarp> warps = outWarps;
+        if (warps == null)
+        {
+            warps = _tempWarps;
+            warps.Clear();
+        }
+        else
+        {
+            warps.Clear();
+        }
+
         if (board == null || !board.IsValid)
             return new MoveResult(float.MaxValue, ObstacleHit.None, warps);
 
@@ -25,12 +39,12 @@ public static class PathScanner
         if (step == Vector2Int.zero)
             return new MoveResult(float.MaxValue, ObstacleHit.None, warps);
 
-        HashSet<Vector3Int> visitedStates = new HashSet<Vector3Int>();
+        _visitedStatesPool.Clear();
 
         for (int distance = 1; distance <= safeLimit; distance++)
         {
             Vector3Int state = new Vector3Int(currentCell.x, currentCell.y, GetStepKey(step));
-            if (!visitedStates.Add(state))
+            if (!_visitedStatesPool.Add(state))
                 return new MoveResult(float.MaxValue, ObstacleHit.None, warps);
 
             Vector2Int checkCell = currentCell + step;
@@ -273,7 +287,7 @@ public static class PathScanner
             return true;
         }
 
-        result = null;
+        result = default;
         return false;
     }
 

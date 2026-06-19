@@ -226,7 +226,7 @@ public class TimeAttackManager : MonoBehaviour
         }
 
         _isRunning = false;
-        CameraController.IsGameplayBlocking = true; 
+        GameplayInputLock.SetLock(GameplayLockReason.TimeAttack, true); 
         
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
         if (canvas != null)

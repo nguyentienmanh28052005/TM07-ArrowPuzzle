@@ -1,0 +1,272 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f901e9bb0a817474f89e91abc549e6a4, type: 3}
+  m_Name: Tutorial_CardGate
+  m_EditorClassIdentifier: 
+  levelIndex: 9
+  gameMode: 0
+  levelDifficulty: 0
+  returnToDefaultZoomAfterIntro: 0
+  timeLimit: 60
+  rewardCoins: 10
+  rewardDiamonds: 2
+  arrows:
+  - entityId: arrow.standard:0
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -3, y: 5}
+    - {x: -4, y: 5}
+    - {x: -5, y: 5}
+    - {x: -5, y: 4}
+    - {x: -5, y: 3}
+    - {x: -5, y: 2}
+    - {x: -5, y: 1}
+    - {x: -5, y: 0}
+    - {x: -5, y: -1}
+    - {x: -5, y: -2}
+    - {x: -5, y: -3}
+    - {x: -4, y: -3}
+    - {x: -3, y: -3}
+    - {x: -3, y: -2}
+    - {x: -3, y: -1}
+    - {x: -3, y: 0}
+    - {x: -3, y: 1}
+    - {x: -3, y: 2}
+    - {x: -3, y: 3}
+    payload:
+      rid: 8514278728982069375
+  - entityId: arrow.standard:1
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -1, y: 7}
+    - {x: -1, y: 6}
+    - {x: -1, y: 5}
+    - {x: -1, y: 4}
+    - {x: -1, y: 3}
+    - {x: -1, y: 2}
+    - {x: -1, y: 1}
+    - {x: -1, y: 0}
+    - {x: -1, y: -1}
+    - {x: -1, y: -2}
+    - {x: -1, y: -3}
+    - {x: 0, y: -3}
+    - {x: 1, y: -3}
+    - {x: 1, y: -2}
+    - {x: 1, y: -1}
+    - {x: 1, y: 0}
+    - {x: 1, y: 1}
+    - {x: 1, y: 2}
+    - {x: 1, y: 3}
+    - {x: 1, y: 4}
+    - {x: 1, y: 5}
+    - {x: 1, y: 6}
+    - {x: 1, y: 7}
+    - {x: 1, y: 8}
+    - {x: 1, y: 9}
+    payload:
+      rid: 8514278728982069376
+  - entityId: arrow.standard:2
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 3, y: -5}
+    - {x: 3, y: -4}
+    - {x: 3, y: -3}
+    - {x: 3, y: -2}
+    - {x: 3, y: -1}
+    - {x: 3, y: 0}
+    - {x: 3, y: 1}
+    - {x: 3, y: 2}
+    - {x: 3, y: 3}
+    - {x: 3, y: 4}
+    - {x: 3, y: 5}
+    - {x: 3, y: 6}
+    - {x: 3, y: 7}
+    - {x: 3, y: 8}
+    - {x: 3, y: 9}
+    payload:
+      rid: 8514278728982069377
+  - entityId: arrow.standard:3
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -7, y: -9}
+    - {x: -6, y: -9}
+    - {x: -5, y: -9}
+    - {x: -4, y: -9}
+    - {x: -3, y: -9}
+    - {x: -2, y: -9}
+    - {x: -1, y: -9}
+    - {x: 0, y: -9}
+    - {x: 1, y: -9}
+    - {x: 2, y: -9}
+    - {x: 3, y: -9}
+    - {x: 4, y: -9}
+    - {x: 5, y: -9}
+    - {x: 6, y: -9}
+    - {x: 7, y: -9}
+    - {x: 7, y: -8}
+    - {x: 7, y: -7}
+    - {x: 7, y: -6}
+    - {x: 7, y: -5}
+    - {x: 7, y: -4}
+    - {x: 7, y: -3}
+    - {x: 7, y: -2}
+    - {x: 7, y: -1}
+    - {x: 7, y: 0}
+    - {x: 7, y: 1}
+    - {x: 7, y: 2}
+    - {x: 7, y: 3}
+    - {x: 7, y: 4}
+    - {x: 7, y: 5}
+    - {x: 7, y: 6}
+    - {x: 7, y: 7}
+    - {x: 7, y: 8}
+    - {x: 7, y: 9}
+    payload:
+      rid: 8514278728982069378
+  - entityId: arrow.standard:4
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -3, y: -7}
+    - {x: -4, y: -7}
+    - {x: -5, y: -7}
+    - {x: -6, y: -7}
+    - {x: -7, y: -7}
+    - {x: -7, y: -6}
+    - {x: -7, y: -5}
+    - {x: -7, y: -4}
+    - {x: -7, y: -3}
+    - {x: -7, y: -2}
+    - {x: -7, y: -1}
+    - {x: -7, y: 0}
+    - {x: -7, y: 1}
+    - {x: -7, y: 2}
+    - {x: -7, y: 3}
+    - {x: -7, y: 4}
+    - {x: -7, y: 5}
+    - {x: -7, y: 6}
+    - {x: -7, y: 7}
+    - {x: -7, y: 8}
+    - {x: -7, y: 9}
+    - {x: -6, y: 9}
+    - {x: -5, y: 9}
+    - {x: -4, y: 9}
+    - {x: -3, y: 9}
+    - {x: -3, y: 8}
+    - {x: -3, y: 7}
+    - {x: -4, y: 7}
+    - {x: -5, y: 7}
+    - {x: -6, y: 7}
+    payload:
+      rid: 8514278728982069379
+  - entityId: arrow.standard:5
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 5, y: 7}
+    - {x: 5, y: 6}
+    - {x: 5, y: 5}
+    - {x: 5, y: 4}
+    - {x: 5, y: 3}
+    - {x: 5, y: 2}
+    - {x: 5, y: 1}
+    - {x: 5, y: 0}
+    - {x: 5, y: -1}
+    - {x: 5, y: -2}
+    - {x: 5, y: -3}
+    - {x: 5, y: -4}
+    - {x: 5, y: -5}
+    - {x: 5, y: -6}
+    - {x: 5, y: -7}
+    - {x: 4, y: -7}
+    - {x: 3, y: -7}
+    - {x: 2, y: -7}
+    - {x: 1, y: -7}
+    - {x: 1, y: -6}
+    - {x: 1, y: -5}
+    - {x: 0, y: -5}
+    - {x: -1, y: -5}
+    - {x: -2, y: -5}
+    - {x: -3, y: -5}
+    - {x: -4, y: -5}
+    - {x: -5, y: -5}
+    payload:
+      rid: 8514278728982069380
+  cells:
+  - entityId: cell.keycard:0
+    typeId: cell.keycard
+    position: {x: -1, y: 9}
+    direction: 0
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8514278728982069381
+  - entityId: cell.gate:1
+    typeId: cell.gate
+    position: {x: -1, y: -7}
+    direction: 0
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8514278728982069382
+  - entityId: cell.gate:2
+    typeId: cell.gate
+    position: {x: 5, y: 9}
+    direction: 0
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8514278728982069383
+  links: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 8514278728982069375
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069376
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069377
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069378
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069379
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069380
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069381
+      type: {class: ColorCellPayload, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 8514278728982069382
+      type: {class: ColorCellPayload, ns: , asm: Assembly-CSharp}
+      data: 
+    - rid: 8514278728982069383
+      type: {class: ColorCellPayload, ns: , asm: Assembly-CSharp}
+      data: 

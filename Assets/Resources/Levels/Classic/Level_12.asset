@@ -1,0 +1,679 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f901e9bb0a817474f89e91abc549e6a4, type: 3}
+  m_Name: Level_12
+  m_EditorClassIdentifier: 
+  levelIndex: 15
+  gameMode: 0
+  levelDifficulty: 2
+  returnToDefaultZoomAfterIntro: 1
+  timeLimit: 60
+  rewardCoins: 100
+  rewardDiamonds: 2
+  arrows:
+  - entityId: arrow.standard:0
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 0, b: 0.64705884, a: 1}
+    segmentPositions:
+    - {x: 3, y: 17}
+    - {x: 2, y: 17}
+    - {x: 1, y: 17}
+    - {x: 0, y: 17}
+    - {x: -1, y: 17}
+    - {x: -2, y: 17}
+    - {x: -3, y: 17}
+    - {x: -4, y: 17}
+    - {x: -5, y: 17}
+    - {x: -6, y: 17}
+    - {x: -7, y: 17}
+    - {x: -8, y: 17}
+    - {x: -9, y: 17}
+    - {x: -10, y: 17}
+    - {x: -11, y: 17}
+    - {x: -11, y: 16}
+    - {x: -11, y: 15}
+    - {x: -11, y: 14}
+    - {x: -11, y: 13}
+    - {x: -10, y: 13}
+    - {x: -9, y: 13}
+    - {x: -8, y: 13}
+    - {x: -7, y: 13}
+    - {x: -6, y: 13}
+    - {x: -5, y: 13}
+    - {x: -4, y: 13}
+    - {x: -3, y: 13}
+    - {x: -2, y: 13}
+    - {x: -1, y: 13}
+    - {x: 0, y: 13}
+    - {x: 1, y: 13}
+    - {x: 2, y: 13}
+    - {x: 3, y: 13}
+    - {x: 3, y: 14}
+    - {x: 3, y: 15}
+    - {x: 2, y: 15}
+    - {x: 1, y: 15}
+    - {x: 0, y: 15}
+    - {x: -1, y: 15}
+    - {x: -2, y: 15}
+    - {x: -3, y: 15}
+    - {x: -4, y: 15}
+    - {x: -5, y: 15}
+    - {x: -6, y: 15}
+    - {x: -7, y: 15}
+    - {x: -8, y: 15}
+    - {x: -9, y: 15}
+    payload:
+      rid: 8514278728982069727
+  - entityId: arrow.standard:1
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0, g: 1, b: 0.9882353, a: 1}
+    segmentPositions:
+    - {x: -9, y: 9}
+    - {x: -10, y: 9}
+    - {x: -11, y: 9}
+    - {x: -11, y: 8}
+    - {x: -11, y: 7}
+    - {x: -10, y: 7}
+    - {x: -9, y: 7}
+    - {x: -9, y: 6}
+    - {x: -9, y: 5}
+    - {x: -10, y: 5}
+    - {x: -11, y: 5}
+    - {x: -11, y: 4}
+    - {x: -11, y: 3}
+    - {x: -10, y: 3}
+    - {x: -9, y: 3}
+    payload:
+      rid: 8514278728982069728
+  - entityId: arrow.standard:2
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 0, b: 0, a: 1}
+    segmentPositions:
+    - {x: 11, y: -15}
+    - {x: 10, y: -15}
+    - {x: 9, y: -15}
+    - {x: 9, y: -14}
+    - {x: 9, y: -13}
+    payload:
+      rid: 8514278728982069729
+  - entityId: arrow.standard:3
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0, g: 0.24313726, b: 1, a: 1}
+    segmentPositions:
+    - {x: 11, y: -17}
+    - {x: 10, y: -17}
+    - {x: 9, y: -17}
+    - {x: 8, y: -17}
+    - {x: 7, y: -17}
+    - {x: 7, y: -16}
+    - {x: 7, y: -15}
+    - {x: 7, y: -14}
+    - {x: 7, y: -13}
+    - {x: 7, y: -12}
+    - {x: 7, y: -11}
+    - {x: 8, y: -11}
+    - {x: 9, y: -11}
+    - {x: 10, y: -11}
+    - {x: 11, y: -11}
+    - {x: 11, y: -12}
+    - {x: 11, y: -13}
+    payload:
+      rid: 8514278728982069730
+  - entityId: arrow.standard:4
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0, g: 1, b: 0.30588236, a: 1}
+    segmentPositions:
+    - {x: 9, y: -3}
+    - {x: 8, y: -3}
+    - {x: 7, y: -3}
+    - {x: 6, y: -3}
+    - {x: 5, y: -3}
+    - {x: 4, y: -3}
+    - {x: 3, y: -3}
+    - {x: 2, y: -3}
+    - {x: 1, y: -3}
+    - {x: 0, y: -3}
+    - {x: -1, y: -3}
+    - {x: -2, y: -3}
+    - {x: -3, y: -3}
+    - {x: -3, y: -2}
+    - {x: -3, y: -1}
+    - {x: -3, y: 0}
+    - {x: -3, y: 1}
+    - {x: -3, y: 2}
+    - {x: -3, y: 3}
+    - {x: -4, y: 3}
+    - {x: -5, y: 3}
+    - {x: -6, y: 3}
+    - {x: -7, y: 3}
+    - {x: -7, y: 4}
+    - {x: -7, y: 5}
+    - {x: -7, y: 6}
+    - {x: -7, y: 7}
+    - {x: -7, y: 8}
+    - {x: -7, y: 9}
+    - {x: -6, y: 9}
+    - {x: -5, y: 9}
+    - {x: -5, y: 8}
+    - {x: -5, y: 7}
+    - {x: -5, y: 6}
+    - {x: -5, y: 5}
+    - {x: -4, y: 5}
+    - {x: -3, y: 5}
+    - {x: -3, y: 6}
+    - {x: -3, y: 7}
+    - {x: -3, y: 8}
+    - {x: -3, y: 9}
+    - {x: -2, y: 9}
+    - {x: -1, y: 9}
+    - {x: -1, y: 8}
+    - {x: -1, y: 7}
+    payload:
+      rid: 8514278728982069731
+  - entityId: arrow.standard:5
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0, g: 1, b: 0.9882353, a: 1}
+    segmentPositions:
+    - {x: 7, y: -5}
+    - {x: 6, y: -5}
+    - {x: 5, y: -5}
+    - {x: 4, y: -5}
+    - {x: 3, y: -5}
+    - {x: 2, y: -5}
+    - {x: 1, y: -5}
+    - {x: 0, y: -5}
+    - {x: -1, y: -5}
+    - {x: -2, y: -5}
+    - {x: -3, y: -5}
+    - {x: -3, y: -6}
+    - {x: -3, y: -7}
+    - {x: -3, y: -8}
+    - {x: -3, y: -9}
+    payload:
+      rid: 8514278728982069732
+  - entityId: arrow.standard:6
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0.8980392, g: 1, b: 0, a: 1}
+    segmentPositions:
+    - {x: 5, y: -7}
+    - {x: 4, y: -7}
+    - {x: 3, y: -7}
+    - {x: 2, y: -7}
+    - {x: 1, y: -7}
+    - {x: 0, y: -7}
+    - {x: -1, y: -7}
+    - {x: -1, y: -8}
+    - {x: -1, y: -9}
+    - {x: -1, y: -10}
+    - {x: -1, y: -11}
+    - {x: -2, y: -11}
+    - {x: -3, y: -11}
+    - {x: -4, y: -11}
+    - {x: -5, y: -11}
+    payload:
+      rid: 8514278728982069733
+  - entityId: arrow.standard:7
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0, g: 0.24313726, b: 1, a: 1}
+    segmentPositions:
+    - {x: -5, y: -9}
+    - {x: -6, y: -9}
+    - {x: -7, y: -9}
+    - {x: -7, y: -10}
+    - {x: -7, y: -11}
+    - {x: -8, y: -11}
+    - {x: -9, y: -11}
+    - {x: -10, y: -11}
+    - {x: -11, y: -11}
+    - {x: -11, y: -12}
+    - {x: -11, y: -13}
+    payload:
+      rid: 8514278728982069734
+  - entityId: arrow.standard:8
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0, g: 1, b: 0.9882353, a: 1}
+    segmentPositions:
+    - {x: 3, y: -17}
+    - {x: 2, y: -17}
+    - {x: 1, y: -17}
+    - {x: 1, y: -16}
+    - {x: 1, y: -15}
+    - {x: 2, y: -15}
+    - {x: 3, y: -15}
+    - {x: 3, y: -14}
+    - {x: 3, y: -13}
+    - {x: 3, y: -12}
+    - {x: 3, y: -11}
+    payload:
+      rid: 8514278728982069735
+  - entityId: arrow.standard:9
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 0, b: 0.64705884, a: 1}
+    segmentPositions:
+    - {x: 3, y: -9}
+    - {x: 2, y: -9}
+    - {x: 1, y: -9}
+    - {x: 1, y: -10}
+    - {x: 1, y: -11}
+    - {x: 1, y: -12}
+    - {x: 1, y: -13}
+    - {x: 0, y: -13}
+    - {x: -1, y: -13}
+    - {x: -1, y: -14}
+    - {x: -1, y: -15}
+    - {x: -1, y: -16}
+    - {x: -1, y: -17}
+    - {x: -2, y: -17}
+    - {x: -3, y: -17}
+    payload:
+      rid: 8514278728982069736
+  - entityId: arrow.standard:10
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 0.80784315, g: 0, b: 1, a: 1}
+    segmentPositions:
+    - {x: 5, y: 3}
+    - {x: 4, y: 3}
+    - {x: 3, y: 3}
+    payload:
+      rid: 8514278728982069737
+  - entityId: arrow.standard:11
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 0, g: 1, b: 0.68235296, a: 1}
+    segmentPositions:
+    - {x: 5, y: 15}
+    - {x: 5, y: 14}
+    - {x: 5, y: 13}
+    - {x: 5, y: 12}
+    - {x: 5, y: 11}
+    - {x: 4, y: 11}
+    - {x: 3, y: 11}
+    - {x: 3, y: 10}
+    - {x: 3, y: 9}
+    - {x: 3, y: 8}
+    - {x: 3, y: 7}
+    - {x: 4, y: 7}
+    - {x: 5, y: 7}
+    - {x: 6, y: 7}
+    - {x: 7, y: 7}
+    - {x: 8, y: 7}
+    - {x: 9, y: 7}
+    payload:
+      rid: 8514278728982069738
+  - entityId: arrow.standard:12
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 0, g: 1, b: 0.30588236, a: 1}
+    segmentPositions:
+    - {x: 7, y: 17}
+    - {x: 7, y: 16}
+    - {x: 7, y: 15}
+    - {x: 7, y: 14}
+    - {x: 7, y: 13}
+    - {x: 8, y: 13}
+    - {x: 9, y: 13}
+    - {x: 9, y: 12}
+    - {x: 9, y: 11}
+    - {x: 8, y: 11}
+    - {x: 7, y: 11}
+    - {x: 7, y: 10}
+    - {x: 7, y: 9}
+    - {x: 6, y: 9}
+    - {x: 5, y: 9}
+    payload:
+      rid: 8514278728982069739
+  - entityId: arrow.standard:13
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 0, b: 0, a: 1}
+    segmentPositions:
+    - {x: 11, y: 17}
+    - {x: 11, y: 16}
+    - {x: 11, y: 15}
+    - {x: 11, y: 14}
+    - {x: 11, y: 13}
+    - {x: 11, y: 12}
+    - {x: 11, y: 11}
+    - {x: 11, y: 10}
+    - {x: 11, y: 9}
+    - {x: 11, y: 8}
+    - {x: 11, y: 7}
+    - {x: 11, y: 6}
+    - {x: 11, y: 5}
+    - {x: 11, y: 4}
+    - {x: 11, y: 3}
+    - {x: 11, y: 2}
+    - {x: 11, y: 1}
+    - {x: 11, y: 0}
+    - {x: 11, y: -1}
+    - {x: 10, y: -1}
+    - {x: 9, y: -1}
+    - {x: 8, y: -1}
+    - {x: 7, y: -1}
+    - {x: 6, y: -1}
+    - {x: 5, y: -1}
+    - {x: 4, y: -1}
+    - {x: 3, y: -1}
+    - {x: 2, y: -1}
+    - {x: 1, y: -1}
+    - {x: 1, y: 0}
+    - {x: 1, y: 1}
+    - {x: 1, y: 2}
+    - {x: 1, y: 3}
+    - {x: 1, y: 4}
+    - {x: 1, y: 5}
+    - {x: 1, y: 6}
+    - {x: 1, y: 7}
+    - {x: 1, y: 8}
+    - {x: 1, y: 9}
+    - {x: 1, y: 10}
+    - {x: 1, y: 11}
+    - {x: 0, y: 11}
+    - {x: -1, y: 11}
+    - {x: -2, y: 11}
+    - {x: -3, y: 11}
+    - {x: -4, y: 11}
+    - {x: -5, y: 11}
+    - {x: -6, y: 11}
+    - {x: -7, y: 11}
+    - {x: -8, y: 11}
+    - {x: -9, y: 11}
+    - {x: -10, y: 11}
+    - {x: -11, y: 11}
+    payload:
+      rid: 8514278728982069740
+  - entityId: arrow.standard:14
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 0.80784315, g: 0, b: 1, a: 1}
+    segmentPositions:
+    - {x: 9, y: 5}
+    - {x: 9, y: 4}
+    - {x: 9, y: 3}
+    - {x: 9, y: 2}
+    - {x: 9, y: 1}
+    payload:
+      rid: 8514278728982069741
+  - entityId: arrow.standard:15
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 0, g: 0.24313726, b: 1, a: 1}
+    segmentPositions:
+    - {x: -1, y: 5}
+    - {x: -1, y: 4}
+    - {x: -1, y: 3}
+    - {x: -1, y: 2}
+    - {x: -1, y: 1}
+    - {x: -1, y: 0}
+    - {x: -1, y: -1}
+    payload:
+      rid: 8514278728982069742
+  - entityId: arrow.standard:16
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 0, b: 0, a: 1}
+    segmentPositions:
+    - {x: -5, y: 1}
+    - {x: -5, y: 0}
+    - {x: -5, y: -1}
+    - {x: -5, y: -2}
+    - {x: -5, y: -3}
+    - {x: -5, y: -4}
+    - {x: -5, y: -5}
+    - {x: -5, y: -6}
+    - {x: -5, y: -7}
+    - {x: -6, y: -7}
+    - {x: -7, y: -7}
+    - {x: -8, y: -7}
+    - {x: -9, y: -7}
+    - {x: -10, y: -7}
+    - {x: -11, y: -7}
+    - {x: -11, y: -8}
+    - {x: -11, y: -9}
+    - {x: -10, y: -9}
+    - {x: -9, y: -9}
+    payload:
+      rid: 8514278728982069743
+  - entityId: arrow.standard:17
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 0, g: 0.24313726, b: 1, a: 1}
+    segmentPositions:
+    - {x: 3, y: 1}
+    - {x: 4, y: 1}
+    - {x: 5, y: 1}
+    - {x: 6, y: 1}
+    - {x: 7, y: 1}
+    - {x: 7, y: 2}
+    - {x: 7, y: 3}
+    - {x: 7, y: 4}
+    - {x: 7, y: 5}
+    - {x: 6, y: 5}
+    - {x: 5, y: 5}
+    - {x: 4, y: 5}
+    - {x: 3, y: 5}
+    payload:
+      rid: 8514278728982069744
+  - entityId: arrow.standard:18
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 0.80784315, g: 0, b: 1, a: 1}
+    segmentPositions:
+    - {x: -5, y: -13}
+    - {x: -4, y: -13}
+    - {x: -3, y: -13}
+    - {x: -3, y: -14}
+    - {x: -3, y: -15}
+    - {x: -4, y: -15}
+    - {x: -5, y: -15}
+    - {x: -5, y: -16}
+    - {x: -5, y: -17}
+    payload:
+      rid: 8514278728982069745
+  - entityId: arrow.standard:19
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 0, b: 0, a: 1}
+    segmentPositions:
+    - {x: -9, y: -13}
+    - {x: -8, y: -13}
+    - {x: -7, y: -13}
+    - {x: -7, y: -14}
+    - {x: -7, y: -15}
+    - {x: -8, y: -15}
+    - {x: -9, y: -15}
+    - {x: -10, y: -15}
+    - {x: -11, y: -15}
+    - {x: -11, y: -16}
+    - {x: -11, y: -17}
+    - {x: -10, y: -17}
+    - {x: -9, y: -17}
+    - {x: -8, y: -17}
+    - {x: -7, y: -17}
+    payload:
+      rid: 8514278728982069746
+  - entityId: arrow.standard:20
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 0.8980392, g: 1, b: 0, a: 1}
+    segmentPositions:
+    - {x: -11, y: -5}
+    - {x: -10, y: -5}
+    - {x: -9, y: -5}
+    - {x: -8, y: -5}
+    - {x: -7, y: -5}
+    - {x: -7, y: -4}
+    - {x: -7, y: -3}
+    - {x: -8, y: -3}
+    - {x: -9, y: -3}
+    - {x: -10, y: -3}
+    - {x: -11, y: -3}
+    - {x: -11, y: -2}
+    - {x: -11, y: -1}
+    - {x: -10, y: -1}
+    - {x: -9, y: -1}
+    - {x: -8, y: -1}
+    - {x: -7, y: -1}
+    - {x: -7, y: 0}
+    - {x: -7, y: 1}
+    - {x: -8, y: 1}
+    - {x: -9, y: 1}
+    - {x: -10, y: 1}
+    - {x: -11, y: 1}
+    payload:
+      rid: 8514278728982069747
+  - entityId: arrow.standard:21
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 0.8980392, g: 1, b: 0, a: 1}
+    segmentPositions:
+    - {x: 5, y: -17}
+    - {x: 5, y: -16}
+    - {x: 5, y: -15}
+    - {x: 5, y: -14}
+    - {x: 5, y: -13}
+    - {x: 5, y: -12}
+    - {x: 5, y: -11}
+    - {x: 5, y: -10}
+    - {x: 5, y: -9}
+    - {x: 6, y: -9}
+    - {x: 7, y: -9}
+    - {x: 8, y: -9}
+    - {x: 9, y: -9}
+    payload:
+      rid: 8514278728982069748
+  - entityId: arrow.standard:22
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 0, g: 1, b: 0.68235296, a: 1}
+    segmentPositions:
+    - {x: 11, y: -9}
+    - {x: 11, y: -8}
+    - {x: 11, y: -7}
+    - {x: 11, y: -6}
+    - {x: 11, y: -5}
+    - {x: 10, y: -5}
+    - {x: 9, y: -5}
+    - {x: 9, y: -6}
+    - {x: 9, y: -7}
+    - {x: 8, y: -7}
+    - {x: 7, y: -7}
+    payload:
+      rid: 8514278728982069749
+  cells: []
+  links: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 8514278728982069727
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069728
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069729
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069730
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069731
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069732
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069733
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069734
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069735
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069736
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069737
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069738
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069739
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069740
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069741
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069742
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069743
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069744
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069745
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069746
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069747
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069748
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728982069749
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0

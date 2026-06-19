@@ -83,7 +83,7 @@ public class AutoPlayManager : MonoBehaviour
                 break;
             }
 
-            if (waitWhileGameplayBlocked && CameraController.IsGameplayBlocking)
+            if (waitWhileGameplayBlocked && GameplayInputLock.IsLocked)
             {
                 yield return null;
                 continue;
