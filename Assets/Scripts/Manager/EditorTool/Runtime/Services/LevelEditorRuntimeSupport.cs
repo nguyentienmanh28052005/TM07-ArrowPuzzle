@@ -38,15 +38,6 @@ public sealed class LevelEditorContext
 
     public ArrowDir currentDir;
     public Color currentColor;
-
-    public bool isPlacingPortalExit;
-    public Vector2Int draftPortalEntrance;
-    public ArrowDir draftPortalEntranceDir;
-    public Color draftPortalColor;
-
-    public bool isPlacingElectricWallEnd;
-    public Vector2Int draftElectricWallStart;
-    public Color draftElectricWallColor;
 }
 
 public static class LevelEditorRuntimeHelpers

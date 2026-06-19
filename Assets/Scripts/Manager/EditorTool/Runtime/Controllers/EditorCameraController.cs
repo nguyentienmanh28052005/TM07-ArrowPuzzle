@@ -57,19 +57,19 @@ public class EditorCameraController : MonoBehaviour
             targetZoom -= scroll * zoomSpeedPC;
         }
 
-        if (Input.GetMouseButtonDown(2))
+        if (Input.GetMouseButtonDown(1))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
             lastPanScreenPos = Input.mousePosition;
             IsCameraGestureActive = false;
         }
 
-        if (Input.GetMouseButton(2))
+        if (Input.GetMouseButton(1))
         {
             ProcessPan(Input.mousePosition);
         }
 
-        if (Input.GetMouseButtonUp(2))
+        if (Input.GetMouseButtonUp(1))
         {
             IsCameraGestureActive = false;
         }

@@ -3,7 +3,7 @@ using UnityEngine;
 
 public sealed class LevelEditorSerializer
 {
-    public void SyncToData(LevelEditorContext context)
+    public void Save(LevelEditorContext context)
     {
         if (context == null || context.currentData == null)
         {
@@ -25,12 +25,6 @@ public sealed class LevelEditorSerializer
             float.TryParse(context.inputRewardDiamonds.text, out context.currentData.rewardDiamonds);
         }
 
-        int? parsedIndex = ParseLevelIndexFromName(context.currentData.name);
-        if (parsedIndex.HasValue)
-        {
-            context.currentData.levelIndex = parsedIndex.Value;
-        }
-
         LevelDataV2Writer.ClearContent(context.currentData);
 
         List<CellEntityData> electricButtons = new List<CellEntityData>();
@@ -38,7 +32,6 @@ public sealed class LevelEditorSerializer
 
         foreach (Transform child in context.levelContainer)
         {
-            if (child == null) continue;
             EditorSnakeVisual snakeVisual = child.GetComponent<EditorSnakeVisual>();
             if (snakeVisual != null
                 && child.gameObject != context.currentSelectionGlowObj
@@ -125,11 +118,7 @@ public sealed class LevelEditorSerializer
                 LevelDataV2Writer.AddLink(context.currentData, LinkTypeIds.ElectricButtonWall, electricButtons[i].entityId, electricWalls[j].entityId, new ElectricButtonWallPayload { color = electricWalls[j].color });
             }
         }
-    }
 
-    public void Save(LevelEditorContext context)
-    {
-        SyncToData(context);
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(context.currentData);
         UnityEditor.AssetDatabase.SaveAssets();
@@ -342,42 +331,5 @@ public sealed class LevelEditorSerializer
             if (wallScript != null) wallScript.Initialize(wall.start, wall.end, wall.color, false);
             context.spawnedElectricWallVisuals.Add(wallObject);
         }
-    }
-
-    private int? ParseLevelIndexFromName(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return null;
-
-        if (!name.StartsWith("Level_", System.StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        string afterPrefix = name.Substring(6);
-        if (string.IsNullOrEmpty(afterPrefix) || !char.IsDigit(afterPrefix[0]))
-        {
-            return null;
-        }
-
-        string digitStr = "";
-        for (int i = 0; i < afterPrefix.Length; i++)
-        {
-            char c = afterPrefix[i];
-            if (char.IsDigit(c))
-            {
-                digitStr += c;
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        if (int.TryParse(digitStr, out int index))
-        {
-            return index;
-        }
-
-        return null;
     }
 }

@@ -31,7 +31,6 @@ public partial class LevelEditor : MonoBehaviour
 
     [Header("Data")]
     public LevelDataV2 currentData;
-    public LevelDataV2 editingData;
     public Transform levelContainer;
 
     [Header("Level Selector UI")]
@@ -92,9 +91,6 @@ public partial class LevelEditor : MonoBehaviour
 
     private Camera mainCam;
     private Vector2Int lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-    private EditorToolType previousToolBeforeRMB = EditorToolType.Draw;
-    private bool isRmbHoldingErase = false;
-    public EditorHistoryService HistoryService { get; set; }
     private float _nextDeadlockCheckTime;
     private bool _hasContinuousDeadlockState;
     private bool _lastContinuousDeadlockState;
@@ -150,7 +146,7 @@ public partial class LevelEditor : MonoBehaviour
     {
         return new LevelEditorContext
         {
-            currentData = editingData != null ? editingData : currentData,
+            currentData = currentData,
             levelContainer = levelContainer,
             snakePrefab = snakePrefab,
             portalPrefab = portalPrefab,
@@ -183,79 +179,45 @@ public partial class LevelEditor : MonoBehaviour
 
     private void Update()
     {
+        HandleKeyboardShortcuts();
         UpdatePreviewCursor();
         RunContinuousDeadlockCheck();
         HandleMouseInput();
     }
 
-    public void TriggerUndo()
+    private void HandleKeyboardShortcuts()
     {
-        bool isDrawingOrPlacingDraft = (currentSnakeObj != null && currentDraftNodes.Count > 0)
-            || (currentTool == EditorToolType.Portal && isPlacingPortalExit)
-            || (currentTool == EditorToolType.ElectricWall && isPlacingElectricWallEnd);
+        if (Input.GetKeyDown(KeyCode.F5)) UI_Playtest();
+        if (Input.GetKeyDown(KeyCode.F6)) UI_CheckDeadlock();
 
-        if (isDrawingOrPlacingDraft)
-        {
-            UndoLastSegment();
-        }
-        else if (HistoryService != null && HistoryService.CanUndo(this))
-        {
-            HistoryService.Undo(this);
-        }
-        else
-        {
-            UndoLastSegment();
-        }
+        if (Input.GetKeyDown(KeyCode.Alpha1)) UI_SetTool(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) UI_SetTool(1);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) UI_SetTool(2);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) UI_SetTool(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) UI_SetTool(4);
+        if (Input.GetKeyDown(KeyCode.Alpha6)) UI_SetTool(5);
+        if (Input.GetKeyDown(KeyCode.Alpha7)) UI_SetTool(6);
+        if (Input.GetKeyDown(KeyCode.Alpha8)) UI_SetTool(7);
+        if (Input.GetKeyDown(KeyCode.Alpha9)) UI_SetTool(8);
+        if (Input.GetKeyDown(KeyCode.Alpha0)) UI_SetTool((int)EditorToolType.StopBlock);
+        if (Input.GetKeyDown(KeyCode.B)) UI_SetTool((int)EditorToolType.ArrowShadow);
+        if (Input.GetKeyDown(KeyCode.T)) UI_SetTool((int)EditorToolType.TurnStateBlock);
+        if (Input.GetKeyDown(KeyCode.H)) UI_SetTool((int)EditorToolType.BlackHole);
+        if (Input.GetKeyDown(KeyCode.V)) UI_SetTool((int)EditorToolType.RevealWaveButton);
+
+        if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) UI_SetDirection(0);
+        if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) UI_SetDirection(1);
+        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow)) UI_SetDirection(2);
+        if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow)) UI_SetDirection(3);
+
+        if (Input.GetKeyDown(KeyCode.Space)) UI_FinishSnake();
+        if (Input.GetKeyDown(KeyCode.R)) RotateDirection();
+        if (Input.GetKeyDown(KeyCode.Z)) UndoLastSegment();
     }
-
-    public void TriggerRedo()
-    {
-        if (HistoryService != null && HistoryService.CanRedo(this))
-        {
-            HistoryService.Redo(this);
-        }
-    }
-
-    public void RotateDirectionPublic()
-    {
-        RotateDirection();
-    }
-
 
     private void HandleMouseInput()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-
-        // Right Mouse Button down (Erase start)
-        if (Input.GetMouseButtonDown(1))
-        {
-            previousToolBeforeRMB = currentTool;
-            isRmbHoldingErase = true;
-            UI_SetTool((int)EditorToolType.Erase);
-            HandleEraseClick();
-            return;
-        }
-
-        // Right Mouse Button hold (Erase drag)
-        if (Input.GetMouseButton(1))
-        {
-            if (isRmbHoldingErase)
-            {
-                HandleEraseClick();
-                return;
-            }
-        }
-
-        // Right Mouse Button up (Erase end)
-        if (Input.GetMouseButtonUp(1))
-        {
-            if (isRmbHoldingErase)
-            {
-                UI_SetTool((int)previousToolBeforeRMB);
-                isRmbHoldingErase = false;
-                return;
-            }
-        }
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -266,15 +228,6 @@ public partial class LevelEditor : MonoBehaviour
         if (Input.GetMouseButton(0))
         {
             HandlePrimaryMouseHold();
-        }
-
-        // Left Mouse Button up (Auto-finish snake drawing)
-        if (Input.GetMouseButtonUp(0))
-        {
-            if (currentTool == EditorToolType.Draw && currentSnakeObj != null && currentDraftNodes.Count > 0)
-            {
-                UI_FinishSnake();
-            }
         }
     }
 
@@ -296,16 +249,12 @@ public partial class LevelEditor : MonoBehaviour
         else if (currentTool == EditorToolType.TurnStateBlock) HandleTurnStateBlockPlacement();
         else if (currentTool == EditorToolType.BlackHole) HandleBlackHolePlacement();
         else if (currentTool == EditorToolType.RevealWaveButton) HandleObjectPlacement<GridRevealWaveButton>(revealWaveButtonPrefab);
-
-        OnManipulationComplete();
     }
 
     private void HandlePrimaryMouseHold()
     {
         if (currentTool == EditorToolType.Draw) HandleLeftDrag();
         else if (currentTool == EditorToolType.Erase) HandleEraseClick();
-
-        OnManipulationComplete();
     }
 
     public void UI_OpenLevelSelector()
@@ -331,61 +280,15 @@ public partial class LevelEditor : MonoBehaviour
 
     public void UI_SetTool(int toolIndex) 
     { 
-        EditorToolType newTool = (EditorToolType)toolIndex;
-
-        // Auto-finish current draft if switching away
-        if (currentTool == EditorToolType.Draw && newTool != EditorToolType.Draw)
-        {
-            if (currentSnakeObj != null && currentDraftNodes.Count > 0)
-            {
-                UI_FinishSnake();
-            }
-        }
-
-        // If switching to Draw tool and we have a selected snake, convert it to draft mode
-        if (newTool == EditorToolType.Draw && selectedSnakeToModify != null)
-        {
-            currentSnakeObj = selectedSnakeToModify.gameObject;
-            currentSnakeScript = selectedSnakeToModify;
-            currentDraftNodes = new List<Vector2Int>(selectedSnakeToModify.LogicNodes);
-            currentDir = selectedSnakeToModify.direction;
-            currentColor = selectedSnakeToModify.snakeColor;
-
-            RemoveFromFinishedHistory(currentSnakeObj);
-
-            selectedSnakeToModify = null;
-            ClearSelectionHighlight();
-
-            UpdateSnakeLinePreview();
-        }
-
-        currentTool = newTool; 
+        currentTool = (EditorToolType)toolIndex; 
         UpdateToolText(); 
         if (currentTool != EditorToolType.Select) ClearSelectionHighlight();
         if (currentTool != EditorToolType.Portal) isPlacingPortalExit = false;
         if (currentTool != EditorToolType.ElectricWall) isPlacingElectricWallEnd = false;
     }
 
-    private void RemoveFromFinishedHistory(GameObject obj)
-    {
-        if (finishedSnakesHistory == null || finishedSnakesHistory.Count == 0) return;
-
-        List<GameObject> temp = new List<GameObject>(finishedSnakesHistory);
-        temp.RemoveAll(item => item == obj || item == null);
-        
-        finishedSnakesHistory.Clear();
-        for (int i = temp.Count - 1; i >= 0; i--)
-        {
-            finishedSnakesHistory.Push(temp[i]);
-        }
-    }
-
     public void UI_SetDirection(int dirIndex)
     {
-        if (currentSnakeScript != null || (currentTool == EditorToolType.Select && selectedSnakeToModify != null))
-        {
-            HistoryService?.RecordState(CaptureSnapshot());
-        }
         currentDir = (ArrowDir)dirIndex; 
         UpdateToolText();
         if (currentSnakeScript != null)
@@ -403,15 +306,10 @@ public partial class LevelEditor : MonoBehaviour
                 currentSelectionGlowScript.UpdateVisualRotation();
             }
         }
-        OnManipulationComplete();
     }
 
     public void UI_SetColor(Color newColor)
     {
-        if (currentSnakeScript != null || (currentTool == EditorToolType.Select && selectedSnakeToModify != null))
-        {
-            HistoryService?.RecordState(CaptureSnapshot());
-        }
         currentColor = newColor;
         if (colorPreviewImage != null) colorPreviewImage.color = currentColor;
         if (currentSnakeScript != null) currentSnakeScript.SetColorImmediatePublic(currentColor);
@@ -420,18 +318,15 @@ public partial class LevelEditor : MonoBehaviour
             selectedSnakeToModify.SetColorImmediatePublic(currentColor);
             if (currentSelectionGlowScript != null) currentSelectionGlowScript.SetColorImmediatePublic(currentColor);
         }
-        OnManipulationComplete();
     }
 
     public void UI_FinishSnake()
     {
         if (currentSnakeObj == null || currentDraftNodes.Count == 0) return;
-        HistoryService?.RecordState(CaptureSnapshot());
         currentSnakeScript.Initialize(currentDir, new List<Vector2Int>(currentDraftNodes), currentColor);
         finishedSnakesHistory.Push(currentSnakeObj);
         currentSnakeObj = null; currentSnakeScript = null; currentDraftNodes.Clear();
         lastCalculatedGridPos = new Vector2Int(-9999, -9999); 
-        OnManipulationComplete();
     }
 
     private void RotateDirection()
@@ -511,29 +406,11 @@ public partial class LevelEditor : MonoBehaviour
     {
         Vector2Int gridPos = GetMouseGridPosition();
         if (IsPositionOccupied(gridPos) || IsTooCloseToOtherSnakes(gridPos)) return;
-        if (currentSnakeObj == null)
-        {
-            HistoryService?.RecordState(CaptureSnapshot());
-            CreateHead(gridPos);
-        }
+        if (currentSnakeObj == null) CreateHead(gridPos);
         else 
         {
-            Vector2Int headPos = currentDraftNodes[0];
             Vector2Int lastPos = currentDraftNodes[currentDraftNodes.Count - 1];
-
-            int distToTail = Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y);
-            int distToHead = Mathf.Abs(gridPos.x - headPos.x) + Mathf.Abs(gridPos.y - headPos.y);
-
-            if (distToTail == 1)
-            {
-                CreateBodySegment(gridPos);
-                UpdateAutoDirection();
-            }
-            else if (distToHead == 1)
-            {
-                CreateHeadSegment(gridPos);
-                UpdateAutoDirection();
-            }
+            if ((Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y)) == 1) CreateBodySegment(gridPos);
         }
         lastCalculatedGridPos = new Vector2Int(-9999, -9999); 
     }
@@ -542,144 +419,12 @@ public partial class LevelEditor : MonoBehaviour
     {
         if (currentSnakeObj == null || currentDraftNodes.Count == 0) return;
         Vector2Int gridPos = GetMouseGridPosition();
-        Vector2Int headPos = currentDraftNodes[0];
         Vector2Int lastPos = currentDraftNodes[currentDraftNodes.Count - 1];
-        if (gridPos == lastPos || gridPos == headPos) return; 
-
-        // 1. Check for Drag-to-Retract
-        if (currentDraftNodes.Count >= 2)
+        if (gridPos == lastPos) return; 
+        if ((Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y)) == 1 && !IsPositionOccupied(gridPos) && !IsTooCloseToOtherSnakes(gridPos))
         {
-            if (gridPos == currentDraftNodes[currentDraftNodes.Count - 2])
-            {
-                RetractTailSegment();
-                return;
-            }
-            if (gridPos == currentDraftNodes[1])
-            {
-                RetractHeadSegment();
-                return;
-            }
-        }
-
-        // 2. Otherwise, check for Drag-to-Extend (Head or Tail)
-        int distToTail = Mathf.Abs(gridPos.x - lastPos.x) + Mathf.Abs(gridPos.y - lastPos.y);
-        int distToHead = Mathf.Abs(gridPos.x - headPos.x) + Mathf.Abs(gridPos.y - headPos.y);
-
-        if (distToTail <= distToHead)
-        {
-            // Draw from tail
-            if (distToTail == 1)
-            {
-                if (!IsPositionOccupied(gridPos) && !IsTooCloseToOtherSnakes(gridPos))
-                {
-                    CreateBodySegment(gridPos);
-                    UpdateAutoDirection();
-                    lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-                }
-            }
-            else if (distToTail > 1)
-            {
-                List<Vector2Int> path = GetInterpolatedPath(lastPos, gridPos);
-                bool addedAny = false;
-                foreach (Vector2Int step in path)
-                {
-                    CreateBodySegment(step);
-                    addedAny = true;
-                }
-                if (addedAny)
-                {
-                    UpdateAutoDirection();
-                    lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-                }
-            }
-        }
-        else
-        {
-            // Draw from head
-            if (distToHead == 1)
-            {
-                if (!IsPositionOccupied(gridPos) && !IsTooCloseToOtherSnakes(gridPos))
-                {
-                    CreateHeadSegment(gridPos);
-                    UpdateAutoDirection();
-                    lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-                }
-            }
-            else if (distToHead > 1)
-            {
-                List<Vector2Int> path = GetInterpolatedPath(headPos, gridPos);
-                bool addedAny = false;
-                foreach (Vector2Int step in path)
-                {
-                    CreateHeadSegment(step);
-                    addedAny = true;
-                }
-                if (addedAny)
-                {
-                    UpdateAutoDirection();
-                    lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-                }
-            }
-        }
-    }
-
-    private List<Vector2Int> GetInterpolatedPath(Vector2Int start, Vector2Int end)
-    {
-        List<Vector2Int> path = new List<Vector2Int>();
-        Vector2Int current = start;
-        int maxSteps = 50;
-        int steps = 0;
-
-        while (current != end && steps < maxSteps)
-        {
-            steps++;
-            int dx = end.x - current.x;
-            int dy = end.y - current.y;
-
-            Vector2Int nextStep = current;
-            if (Mathf.Abs(dx) >= Mathf.Abs(dy))
-            {
-                nextStep.x += (int)Mathf.Sign(dx);
-            }
-            else
-            {
-                nextStep.y += (int)Mathf.Sign(dy);
-            }
-
-            if (IsPositionOccupied(nextStep) || IsTooCloseToOtherSnakes(nextStep))
-            {
-                break;
-            }
-
-            path.Add(nextStep);
-            current = nextStep;
-        }
-        return path;
-    }
-
-    private void UpdateAutoDirection()
-    {
-        if (currentDraftNodes == null || currentDraftNodes.Count < 2) return;
-
-        Vector2Int head = currentDraftNodes[0];
-        Vector2Int neck = currentDraftNodes[1];
-        Vector2Int diff = head - neck;
-
-        ArrowDir newDir = currentDir;
-        if (diff == Vector2Int.up) newDir = ArrowDir.Up;
-        else if (diff == Vector2Int.down) newDir = ArrowDir.Down;
-        else if (diff == Vector2Int.left) newDir = ArrowDir.Left;
-        else if (diff == Vector2Int.right) newDir = ArrowDir.Right;
-
-        if (newDir != currentDir)
-        {
-            currentDir = newDir;
-            UpdateToolText();
-            if (currentSnakeScript != null)
-            {
-                currentSnakeScript.direction = currentDir;
-                currentSnakeScript.UpdateVisualRotation();
-            }
+            CreateBodySegment(gridPos);
+            lastCalculatedGridPos = new Vector2Int(-9999, -9999); 
         }
     }
 
@@ -688,7 +433,6 @@ public partial class LevelEditor : MonoBehaviour
         Vector2Int gridPos = GetMouseGridPosition();
         if (IsPositionOccupied(gridPos) || prefab == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         GameObject obj = Instantiate(prefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
         SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
         if (sr != null) sr.color = currentColor;
@@ -706,7 +450,6 @@ public partial class LevelEditor : MonoBehaviour
         Vector2Int gridPos = GetMouseGridPosition();
         if (IsPositionOccupied(gridPos) || deflectorPrefab == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         GameObject obj = Instantiate(deflectorPrefab, new Vector3(gridPos.x, gridPos.y, 0), GetRotationForDir(currentDir), levelContainer);
         GridDeflector deflector = obj.GetComponentInChildren<GridDeflector>();
         if (deflector != null) deflector.SetDirection(currentDir);
@@ -719,7 +462,6 @@ public partial class LevelEditor : MonoBehaviour
         Vector2Int gridPos = GetMouseGridPosition();
         if (IsPositionOccupied(gridPos) || countdownBlockPrefab == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         if (inputCountdownValue != null)
             int.TryParse(inputCountdownValue.text, out editorCountdownValue);
         if (editorCountdownValue < 1) editorCountdownValue = 1;
@@ -736,7 +478,6 @@ public partial class LevelEditor : MonoBehaviour
         Vector2Int gridPos = GetMouseGridPosition();
         if (IsPositionOccupied(gridPos) || stopBlockPrefab == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         if (inputCountdownValue != null)
             int.TryParse(inputCountdownValue.text, out editorCountdownValue);
         if (editorCountdownValue < 1) editorCountdownValue = 1;
@@ -754,7 +495,6 @@ public partial class LevelEditor : MonoBehaviour
         EditorSnakeVisual snake = GetSnakeAtGridPos(gridPos);
         if (snake == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         snake.SetArrowShadowEnabled(!snake.HasArrowShadow);
         lastCalculatedGridPos = new Vector2Int(-9999, -9999);
     }
@@ -764,7 +504,6 @@ public partial class LevelEditor : MonoBehaviour
         Vector2Int gridPos = GetMouseGridPosition();
         if (IsPositionOccupied(gridPos) || turnStateBlockPrefab == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         GameObject obj = Instantiate(turnStateBlockPrefab, new Vector3(gridPos.x, gridPos.y, 0), Quaternion.identity, levelContainer);
         GridTurnStateBlock block = obj.GetComponent<GridTurnStateBlock>();
         if (block != null) block.SetInitialState(ShouldUseRedTurnState());
@@ -782,7 +521,6 @@ public partial class LevelEditor : MonoBehaviour
                 && Mathf.RoundToInt(child.position.x) == gridPos.x
                 && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
-                HistoryService?.RecordState(CaptureSnapshot());
                 existingBlackHole.SetDirection(currentDir);
                 child.rotation = GetRotationForDir(currentDir);
                 lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -792,7 +530,6 @@ public partial class LevelEditor : MonoBehaviour
 
         if (IsPositionOccupied(gridPos) || blackHolePrefab == null) return;
 
-        HistoryService?.RecordState(CaptureSnapshot());
         GameObject obj = Instantiate(blackHolePrefab, new Vector3(gridPos.x, gridPos.y, 0), GetRotationForDir(currentDir), levelContainer);
         GridBlackHole blackHole = obj.GetComponent<GridBlackHole>();
         if (blackHole != null) blackHole.SetDirection(currentDir);
@@ -830,7 +567,6 @@ public partial class LevelEditor : MonoBehaviour
             int draftIndex = currentDraftNodes.FindIndex(n => n == gridPos);
             if (draftIndex >= 0)
             {
-                HistoryService?.RecordState(CaptureSnapshot());
                 if (trimFromHead)
                 {
                     currentDraftNodes.RemoveRange(0, draftIndex + 1);
@@ -873,7 +609,6 @@ public partial class LevelEditor : MonoBehaviour
                 int index = sb.LogicNodes.FindIndex(n => n == gridPos);
                 if (index >= 0)
                 {
-                    HistoryService?.RecordState(CaptureSnapshot());
                     if (trimFromHead)
                     {
                         sb.LogicNodes.RemoveRange(0, index + 1);
@@ -916,7 +651,6 @@ public partial class LevelEditor : MonoBehaviour
             if ((child.GetComponent<GridKeycard>() != null || child.GetComponent<GridLaserGate>() != null || child.GetComponent<GridElectricButton>() != null || child.GetComponent<GridRevealWaveButton>() != null || deflector != null || child.GetComponent<GridCountdownBlock>() != null || child.GetComponent<GridStopBlock>() != null || child.GetComponent<GridTurnStateBlock>() != null || child.GetComponent<GridBlackHole>() != null)
                 && Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
-                HistoryService?.RecordState(CaptureSnapshot());
                 Destroy(child.gameObject);
                 lastCalculatedGridPos = new Vector2Int(-9999, -9999);
                 return;
@@ -933,7 +667,6 @@ public partial class LevelEditor : MonoBehaviour
         {
             if (currentDraftPortals[i].entrance == gridPos || currentDraftPortals[i].exit == gridPos)
             {
-                HistoryService?.RecordState(CaptureSnapshot());
                 currentDraftPortals.RemoveAt(i);
                 RefreshPortalVisuals();
                 lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -950,46 +683,6 @@ public partial class LevelEditor : MonoBehaviour
 
         bool hasLinkedGroupColor = false;
         Color linkedGroupColor = Color.white;
-
-        bool willPaint = sb != null;
-        if (!willPaint)
-        {
-            foreach (Transform child in levelContainer)
-            {
-                if (Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
-                {
-                    willPaint = true;
-                    break;
-                }
-            }
-        }
-        if (!willPaint)
-        {
-            for (int i = 0; i < currentDraftPortals.Count; i++)
-            {
-                if (currentDraftPortals[i].entrance == gridPos || currentDraftPortals[i].exit == gridPos)
-                {
-                    willPaint = true;
-                    break;
-                }
-            }
-        }
-        if (!willPaint)
-        {
-            for (int i = 0; i < currentDraftElectricWalls.Count; i++)
-            {
-                if (IsCellOnElectricWall(gridPos, currentDraftElectricWalls[i]))
-                {
-                    willPaint = true;
-                    break;
-                }
-            }
-        }
-
-        if (willPaint)
-        {
-            HistoryService?.RecordState(CaptureSnapshot());
-        }
 
         foreach (Transform child in levelContainer)
         {
@@ -1103,8 +796,6 @@ public partial class LevelEditor : MonoBehaviour
     private void HandleSelectClick()
     {
         Vector2Int gridPos = GetMouseGridPosition();
-
-        // 1. Check if it's a snake/arrow
         EditorSnakeVisual sb = GetSnakeAtGridPos(gridPos);
         if (sb != null)
         {
@@ -1114,60 +805,8 @@ public partial class LevelEditor : MonoBehaviour
             UpdateToolText();
             if (colorPreviewImage != null) colorPreviewImage.color = currentColor;
             UpdateSelectionHighlight(sb);
-            
-            // Automatically switch to Draw tool for editing!
-            UI_SetTool((int)EditorToolType.Draw);
-            return;
         }
-
-        // 2. Check other object types under levelContainer
-        foreach (Transform child in levelContainer)
-        {
-            if (Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
-            {
-                if (child.GetComponent<GridKeycard>() != null) { UI_SetTool((int)EditorToolType.Keycard); return; }
-                if (child.GetComponent<GridLaserGate>() != null) { UI_SetTool((int)EditorToolType.Gate); return; }
-                if (child.GetComponentInChildren<GridDeflector>() != null) { UI_SetTool((int)EditorToolType.Deflector); return; }
-                if (child.GetComponent<GridCountdownBlock>() != null) { UI_SetTool((int)EditorToolType.CountdownBlock); return; }
-                if (child.GetComponent<GridElectricButton>() != null) { UI_SetTool((int)EditorToolType.ElectricButton); return; }
-                if (child.GetComponent<GridStopBlock>() != null) { UI_SetTool((int)EditorToolType.StopBlock); return; }
-                if (child.GetComponent<GridTurnStateBlock>() != null) { UI_SetTool((int)EditorToolType.TurnStateBlock); return; }
-                if (child.GetComponent<GridBlackHole>() != null) { UI_SetTool((int)EditorToolType.BlackHole); return; }
-                if (child.GetComponent<GridRevealWaveButton>() != null) { UI_SetTool((int)EditorToolType.RevealWaveButton); return; }
-            }
-
-            // ElectricWall check
-            GridElectricWall ew = child.GetComponent<GridElectricWall>();
-            if (ew != null && ew.ContainsCell(gridPos))
-            {
-                UI_SetTool((int)EditorToolType.ElectricWall);
-                return;
-            }
-        }
-
-        // 3. Check Portals (Draft)
-        for (int i = 0; i < currentDraftPortals.Count; i++)
-        {
-            if (currentDraftPortals[i].entrance == gridPos || currentDraftPortals[i].exit == gridPos)
-            {
-                UI_SetTool((int)EditorToolType.Portal);
-                return;
-            }
-        }
-
-        // 4. Check ElectricWalls (Draft)
-        for (int i = 0; i < currentDraftElectricWalls.Count; i++)
-        {
-            if (IsCellOnElectricWall(gridPos, currentDraftElectricWalls[i]))
-            {
-                UI_SetTool((int)EditorToolType.ElectricWall);
-                return;
-            }
-        }
-
-        // If clicked on empty space, deselect
-        selectedSnakeToModify = null; 
-        ClearSelectionHighlight();
+        else { selectedSnakeToModify = null; ClearSelectionHighlight(); }
     }
 
     private void HandlePortalClick()
@@ -1185,7 +824,6 @@ public partial class LevelEditor : MonoBehaviour
         else
         {
             if (gridPos == draftPortalEntrance) return;
-            HistoryService?.RecordState(CaptureSnapshot());
             PortalData newPortal = new PortalData();
             newPortal.entrance = draftPortalEntrance;
             newPortal.entranceDir = draftPortalEntranceDir;
@@ -1235,7 +873,6 @@ public partial class LevelEditor : MonoBehaviour
             if (!IsElectricWallAligned(draftElectricWallStart, gridPos)) { isPlacingElectricWallEnd = false; return; }
             if (!IsElectricWallPathClear(draftElectricWallStart, gridPos)) { isPlacingElectricWallEnd = false; return; }
 
-            HistoryService?.RecordState(CaptureSnapshot());
             ElectricWallSaveData newWall = new ElectricWallSaveData
             {
                 start = draftElectricWallStart,
@@ -1273,7 +910,6 @@ public partial class LevelEditor : MonoBehaviour
         {
             if (IsCellOnElectricWall(gridPos, currentDraftElectricWalls[i]))
             {
-                HistoryService?.RecordState(CaptureSnapshot());
                 currentDraftElectricWalls.RemoveAt(i);
                 RefreshElectricWallVisuals();
                 return true;
@@ -1353,67 +989,6 @@ public partial class LevelEditor : MonoBehaviour
     }
 
     private void CreateBodySegment(Vector2Int pos) { currentDraftNodes.Add(pos); UpdateSnakeLinePreview(); }
-
-    private void CreateHeadSegment(Vector2Int pos)
-    {
-        currentDraftNodes.Insert(0, pos);
-        if (currentSnakeScript != null)
-        {
-            currentSnakeScript.SetArrowWorldPosition(pos);
-        }
-        if (currentSnakeObj != null)
-        {
-            currentSnakeObj.transform.position = new Vector3(pos.x, pos.y, 0f);
-        }
-        UpdateSnakeLinePreview();
-    }
-
-    private void RetractHeadSegment()
-    {
-        if (currentDraftNodes == null || currentDraftNodes.Count == 0) return;
-
-        currentDraftNodes.RemoveAt(0);
-        if (currentDraftNodes.Count == 0)
-        {
-            if (currentSnakeObj != null) Destroy(currentSnakeObj);
-            currentSnakeObj = null;
-            currentSnakeScript = null;
-        }
-        else
-        {
-            Vector2Int newHead = currentDraftNodes[0];
-            if (currentSnakeScript != null)
-            {
-                currentSnakeScript.SetArrowWorldPosition(newHead);
-            }
-            if (currentSnakeObj != null)
-            {
-                currentSnakeObj.transform.position = new Vector3(newHead.x, newHead.y, 0f);
-            }
-            UpdateSnakeLinePreview();
-            UpdateAutoDirection();
-        }
-        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-    }
-
-    private void RetractTailSegment()
-    {
-        if (currentDraftNodes == null || currentDraftNodes.Count == 0) return;
-
-        currentDraftNodes.RemoveAt(currentDraftNodes.Count - 1);
-        if (currentDraftNodes.Count == 0)
-        {
-            if (currentSnakeObj != null) Destroy(currentSnakeObj);
-            currentSnakeObj = null;
-            currentSnakeScript = null;
-        }
-        else
-        {
-            UpdateSnakeLinePreview();
-            UpdateAutoDirection();
-        }
-        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-    }
 
     public void UndoLastSegment()
     {
@@ -1575,27 +1150,12 @@ public partial class LevelEditor : MonoBehaviour
     private void SaveLevel()
     {
         ClearSelectionHighlight();
-        if (editingData != null && currentData != null)
-        {
-            serializer.SyncToData(CreateContext());
-            LevelDataV2Cloner.CopyData(editingData, currentData);
-        }
-        LevelEditorContext saveContext = CreateContext();
-        saveContext.currentData = currentData;
-        serializer.Save(saveContext);
+        serializer.Save(CreateContext());
     }
 
     private void LoadLevelToEdit()
     {
         ClearSelectionHighlight();
-        if (currentData != null)
-        {
-            editingData = LevelDataV2Cloner.Clone(currentData);
-        }
-        else
-        {
-            editingData = null;
-        }
         serializer.Load(CreateContext());
         FrameLevelInEditorCamera();
     }
@@ -1661,263 +1221,5 @@ public partial class LevelEditor : MonoBehaviour
 
         min = Vector2.Min(min, point);
         max = Vector2.Max(max, point);
-    }
-
-    public void SetCurrentDataAndLoad(LevelDataV2 data)
-    {
-        currentData = data;
-        LoadLevelToEdit();
-    }
-
-    public string BuildEditorStateDigest()
-    {
-        return LevelEditorStateDigest.Build(CreateContext(), editingData != null ? editingData : currentData);
-    }
-
-    public LevelDataV2 GetCurrentLevelData()
-    {
-        return currentData;
-    }
-
-    public void SetCurrentLevelKey(string key)
-    {
-        if (editingData != null)
-        {
-            editingData.name = key;
-        }
-        if (currentData != null)
-        {
-            currentData.name = key;
-        }
-    }
-
-    public void ClearCurrentLevelData()
-    {
-        if (levelContainer != null)
-        {
-            foreach (Transform child in levelContainer)
-            {
-                Destroy(child.gameObject);
-            }
-        }
-        currentDraftNodes.Clear();
-        finishedSnakesHistory.Clear();
-        currentDraftPortals.Clear();
-        spawnedPortalVisuals.Clear();
-        currentDraftElectricWalls.Clear();
-        spawnedElectricWallVisuals.Clear();
-        isPlacingPortalExit = false;
-        isPlacingElectricWallEnd = false;
-        selectedSnakeToModify = null;
-        ClearSelectionHighlight();
-        currentSnakeObj = null;
-        currentSnakeScript = null;
-        
-        if (editingData != null)
-        {
-            editingData.timeLimit = 0f;
-            editingData.rewardCoins = 0f;
-            editingData.rewardDiamonds = 0f;
-            editingData.arrows.Clear();
-            editingData.cells.Clear();
-            editingData.links.Clear();
-        }
-    }
-
-    public void SetCurrentDifficulty(LevelDifficulty difficulty)
-    {
-        if (editingData != null)
-        {
-            editingData.levelDifficulty = difficulty;
-        }
-        if (currentData != null)
-        {
-            currentData.levelDifficulty = difficulty;
-        }
-        OnManipulationComplete();
-    }
-
-    public bool HasEditableContent()
-    {
-        if (levelContainer != null && levelContainer.childCount > 0)
-        {
-            foreach (Transform child in levelContainer)
-            {
-                if (currentSelectionGlowObj != null && child.gameObject == currentSelectionGlowObj) continue;
-                return true;
-            }
-        }
-        if (currentDraftNodes != null && currentDraftNodes.Count > 0) return true;
-        if (currentDraftPortals != null && currentDraftPortals.Count > 0) return true;
-        if (currentDraftElectricWalls != null && currentDraftElectricWalls.Count > 0) return true;
-        return false;
-    }
-
-    public EditorSnapshot CaptureSnapshot()
-    {
-        serializer.SyncToData(CreateContext());
-
-        EditorSnapshot snapshot = new EditorSnapshot();
-        if (editingData != null)
-        {
-            snapshot.levelDataClone = LevelDataV2Cloner.Clone(editingData);
-            snapshot.levelKey = editingData.name;
-            snapshot.difficulty = editingData.levelDifficulty;
-        }
-        else if (currentData != null)
-        {
-            snapshot.levelDataClone = LevelDataV2Cloner.Clone(currentData);
-            snapshot.levelKey = currentData.name;
-            snapshot.difficulty = currentData.levelDifficulty;
-        }
-
-        snapshot.currentTool = currentTool;
-        snapshot.currentDir = currentDir;
-        snapshot.currentColor = currentColor;
-
-        snapshot.currentDraftNodes = new List<Vector2Int>(currentDraftNodes);
-        
-        snapshot.currentDraftPortals = new List<PortalData>();
-        if (currentDraftPortals != null)
-        {
-            foreach (var p in currentDraftPortals)
-            {
-                snapshot.currentDraftPortals.Add(new PortalData
-                {
-                    entrance = p.entrance,
-                    entranceDir = p.entranceDir,
-                    exit = p.exit,
-                    exitDir = p.exitDir,
-                    portalColor = p.portalColor
-                });
-            }
-        }
-
-        snapshot.currentDraftElectricWalls = new List<ElectricWallSaveData>();
-        if (currentDraftElectricWalls != null)
-        {
-            foreach (var w in currentDraftElectricWalls)
-            {
-                snapshot.currentDraftElectricWalls.Add(new ElectricWallSaveData
-                {
-                    start = w.start,
-                    end = w.end,
-                    color = w.color
-                });
-            }
-        }
-
-        snapshot.isPlacingPortalExit = isPlacingPortalExit;
-        snapshot.draftPortalEntrance = draftPortalEntrance;
-        snapshot.draftPortalEntranceDir = draftPortalEntranceDir;
-        snapshot.draftPortalColor = draftPortalColor;
-
-        snapshot.isPlacingElectricWallEnd = isPlacingElectricWallEnd;
-        snapshot.draftElectricWallStart = draftElectricWallStart;
-        snapshot.draftElectricWallColor = draftElectricWallColor;
-
-        return snapshot;
-    }
-
-    public void RestoreSnapshot(EditorSnapshot snapshot)
-    {
-        if (snapshot == null) return;
-
-        if (snapshot.levelDataClone != null && editingData != null)
-        {
-            LevelDataV2Cloner.CopyData(snapshot.levelDataClone, editingData);
-            editingData.name = snapshot.levelKey;
-            editingData.levelDifficulty = snapshot.difficulty;
-        }
-
-        currentTool = snapshot.currentTool;
-        currentDir = snapshot.currentDir;
-        currentColor = snapshot.currentColor;
-
-        currentDraftNodes = new List<Vector2Int>(snapshot.currentDraftNodes);
-
-        currentDraftPortals = new List<PortalData>();
-        if (snapshot.currentDraftPortals != null)
-        {
-            foreach (var p in snapshot.currentDraftPortals)
-            {
-                currentDraftPortals.Add(new PortalData
-                {
-                    entrance = p.entrance,
-                    entranceDir = p.entranceDir,
-                    exit = p.exit,
-                    exitDir = p.exitDir,
-                    portalColor = p.portalColor
-                });
-            }
-        }
-
-        currentDraftElectricWalls = new List<ElectricWallSaveData>();
-        if (snapshot.currentDraftElectricWalls != null)
-        {
-            foreach (var w in snapshot.currentDraftElectricWalls)
-            {
-                currentDraftElectricWalls.Add(new ElectricWallSaveData
-                {
-                    start = w.start,
-                    end = w.end,
-                    color = w.color
-                });
-            }
-        }
-
-        isPlacingPortalExit = snapshot.isPlacingPortalExit;
-        draftPortalEntrance = snapshot.draftPortalEntrance;
-        draftPortalEntranceDir = snapshot.draftPortalEntranceDir;
-        draftPortalColor = snapshot.draftPortalColor;
-
-        isPlacingElectricWallEnd = snapshot.isPlacingElectricWallEnd;
-        draftElectricWallStart = snapshot.draftElectricWallStart;
-        draftElectricWallColor = snapshot.draftElectricWallColor;
-
-        if (currentSnakeObj != null)
-        {
-            Destroy(currentSnakeObj);
-            currentSnakeObj = null;
-            currentSnakeScript = null;
-        }
-
-        ClearSelectionHighlight();
-        serializer.Load(CreateContext());
-        RefreshPortalVisuals();
-        RefreshElectricWallVisuals();
-
-        if (currentDraftNodes.Count > 0)
-        {
-            List<Vector2Int> tempNodes = new List<Vector2Int>(currentDraftNodes);
-            CreateHead(tempNodes[0]);
-            for (int i = 1; i < tempNodes.Count; i++)
-            {
-                CreateBodySegment(tempNodes[i]);
-            }
-        }
-
-        if (colorPreviewImage != null) colorPreviewImage.color = currentColor;
-        UpdateToolText();
-        lastCalculatedGridPos = new Vector2Int(-9999, -9999);
-    }
-
-    public bool TryValidateCurrentEditorLevel(out string message)
-    {
-        bool hasDeadlock = CheckDeadlockInCurrentEditorLevel(false, out message);
-        return !hasDeadlock;
-    }
-
-    public void SaveCurrentEditorLevel()
-    {
-        SaveLevel();
-    }
-
-    private void OnManipulationComplete()
-    {
-        if (serializer != null)
-        {
-            serializer.SyncToData(CreateContext());
-        }
     }
 }
