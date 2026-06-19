@@ -10,6 +10,26 @@ public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, 
 
 public partial class LevelEditor : MonoBehaviour
 {
+    public static LevelEditor Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
     private const string BootstrapScenePath = "Assets/Scenes/Boostrap.unity";
     private const string GameScenePath = "Assets/Scenes/GameScene.unity";
 

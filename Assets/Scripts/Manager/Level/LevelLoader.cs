@@ -98,6 +98,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
     private IEnumerator LoadRoutine()
     {
+        GameplayInputLock.ClearAll();
         editorMode = PlaytestSession.IsPlaytesting;
 
         if (PlaytestSession.IsPlaytesting)
@@ -112,7 +113,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         if (levelToPlay == null)
         {
             ReleaseTransitionHold();
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.LevelLoading, false);
             yield break;
         }
 
@@ -130,7 +131,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         GridDeflectorVisual.ClearAll();
         GridDot.GridMap.Clear();
 
-        CameraController.IsGameplayBlocking = true;
+        GameplayInputLock.SetLock(GameplayLockReason.LevelLoading, true);
         RequestTransitionHold();
         PrepareLoadingProgress();
 
@@ -176,8 +177,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             yield return null;
         }
 
-        if (camController == null) 
-            CameraController.IsGameplayBlocking = false;
+        GameplayInputLock.SetLock(GameplayLockReason.LevelLoading, false);
 
         if (TutorialManager.Instance != null) 
             TutorialManager.Instance.CheckAndStartTutorial(levelToPlay);
@@ -189,6 +189,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     [ContextMenu("Reload Level (Instant)")]
     public void LoadGame()
     {
+        GameplayInputLock.ClearAll();
         ClearContainer();
         if (GridManager.Instance != null && levelToPlay != null)
         {

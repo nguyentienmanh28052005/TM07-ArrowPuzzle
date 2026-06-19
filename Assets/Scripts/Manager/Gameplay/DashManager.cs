@@ -27,7 +27,7 @@ public class DashManager : MonoBehaviour
 
     public void ExecuteDash(ArrowDir targetDir)
     {
-        if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+        if (GameplayInputLock.IsLocked || Time.timeScale == 0f) return;
 
         PrepareDashRelease(targetDir);
 
@@ -38,7 +38,7 @@ public class DashManager : MonoBehaviour
 
     public void ExecuteDashFromDirectionUI(ArrowDir targetDir)
     {
-        if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+        if (GameplayInputLock.IsLocked || Time.timeScale == 0f) return;
 
         PrepareDashRelease(targetDir);
         if (BoosterTutorialManager.Instance != null)
@@ -49,7 +49,7 @@ public class DashManager : MonoBehaviour
 
     public void TriggerDash()
     {
-        if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+        if (GameplayInputLock.IsLocked || Time.timeScale == 0f) return;
         if (BoosterTutorialManager.Instance != null &&
             (BoosterTutorialManager.Instance.IsWaitingForBoosterRewardClaim || !BoosterTutorialManager.Instance.IsDashUnlocked)) return;
 
@@ -80,7 +80,7 @@ public class DashManager : MonoBehaviour
 
     private void PrepareDashRelease(ArrowDir targetDir)
     {
-        CameraController.IsGameplayBlocking = true;
+        GameplayInputLock.SetLock(GameplayLockReason.BoosterActive, true);
         _queuedDashSnakes = null;
 
         SnakeBlock[] allSnakes = FindObjectsOfType<SnakeBlock>();
@@ -97,7 +97,7 @@ public class DashManager : MonoBehaviour
         if (matchingSnakes.Count == 0)
         {
             Debug.Log($"<color=yellow>DASH: No arrow points {targetDir} on the board.</color>");
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.BoosterActive, false);
             return;
         }
 
@@ -113,7 +113,7 @@ public class DashManager : MonoBehaviour
         yield return StartCoroutine(PlayReleaseHighlightAndLaunchRoutine(matchingSnakes));
 
         yield return new WaitForSeconds(0.5f);
-        CameraController.IsGameplayBlocking = false;
+        GameplayInputLock.SetLock(GameplayLockReason.BoosterActive, false);
         _dashReleaseRoutine = null;
     }
 

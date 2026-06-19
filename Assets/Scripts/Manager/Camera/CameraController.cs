@@ -6,7 +6,6 @@ using DG.Tweening;
 [RequireComponent(typeof(Camera))]
 public class CameraController : MonoBehaviour
 {
-    public static bool IsGameplayBlocking = false;
     public static bool IsCameraInputBlocked = false;
     
     public static bool IsCameraGestureActive = false; 
@@ -151,6 +150,7 @@ public class CameraController : MonoBehaviour
         if (_introRoutine != null)
         {
             StopCoroutine(_introRoutine);
+            GameplayInputLock.SetLock(GameplayLockReason.CameraIntro, false);
         }
 
         ResetEndGameState();
@@ -204,7 +204,7 @@ public class CameraController : MonoBehaviour
 
     private IEnumerator CameraIntroSequence()
     {
-        IsGameplayBlocking = true; 
+        GameplayInputLock.SetLock(GameplayLockReason.CameraIntro, true); 
 
         LevelLoader loader = FindObjectOfType<LevelLoader>();
         
@@ -214,7 +214,7 @@ public class CameraController : MonoBehaviour
             ResetEndGameState();
             if (cam != null) cam.orthographicSize = defaultGameplayZoom;
             targetZoom = defaultGameplayZoom;
-            IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.CameraIntro, false);
             OnIntroFinished?.Invoke();
             yield break;
         }
@@ -226,7 +226,7 @@ public class CameraController : MonoBehaviour
             ResetEndGameState();
             if (cam != null) cam.orthographicSize = defaultGameplayZoom;
             targetZoom = defaultGameplayZoom;
-            IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.CameraIntro, false);
             OnIntroFinished?.Invoke();
             yield break;
         }
@@ -289,13 +289,13 @@ public class CameraController : MonoBehaviour
         cam.orthographicSize = targetZoom;
         zoomVelocity = 0f;
 
-        IsGameplayBlocking = false;
+        GameplayInputLock.SetLock(GameplayLockReason.CameraIntro, false);
         OnIntroFinished?.Invoke();
     }
     
     void LateUpdate() 
     {
-        if (IsGameplayBlocking || IsCameraInputBlocked)
+        if (GameplayInputLock.IsLocked || IsCameraInputBlocked)
         {
             IsCameraGestureActive = false;
             return; 

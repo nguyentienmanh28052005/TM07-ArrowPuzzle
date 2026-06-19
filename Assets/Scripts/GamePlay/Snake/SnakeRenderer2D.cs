@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
@@ -791,10 +791,11 @@ public sealed class SnakeRenderer2D
             {
                 float distIn = dirIn.magnitude;
                 float distOut = dirOut.magnitude;
-                float r = Mathf.Min(_owner.CornerRadius, distIn * 0.4f, distOut * 0.4f);
+                float r = Mathf.Min(_owner.CornerRadius, distIn * 0.48f, distOut * 0.48f);
 
                 Vector3 p0 = curr - dirIn.normalized * r;
-                Vector3 p1 = curr;
+                Vector3 inwardDir = (dirOut.normalized - dirIn.normalized).normalized;
+                Vector3 p1 = curr + inwardDir * (r * 0.25f);
                 Vector3 p2 = curr + dirOut.normalized * r;
 
                 if (output.Count > 0 && Vector3.SqrMagnitude(output[output.Count - 1] - p0) < 0.001f)

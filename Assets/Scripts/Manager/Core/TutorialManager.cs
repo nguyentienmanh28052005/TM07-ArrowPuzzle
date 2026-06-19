@@ -172,7 +172,7 @@ public class TutorialManager : Singleton<TutorialManager>
         if (instructionText != null) instructionText.gameObject.SetActive(false);
 
         // If intro is still running, wait for CameraController.OnIntroFinished.
-        _introFinished = !CameraController.IsGameplayBlocking;
+        _introFinished = !GameplayInputLock.IsLocked;
         if (_introFinished)
         {
             StartTutorialNow(levelData);

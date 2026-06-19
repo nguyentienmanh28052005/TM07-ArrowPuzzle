@@ -79,7 +79,7 @@ public class SpinManager : MonoBehaviour
         if (shouldCompleteSpinTutorialOnPress)
             BoosterTutorialManager.Instance.NotifySpinTriggered();
 
-        if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+        if (GameplayInputLock.IsLocked || Time.timeScale == 0f) return;
         if (!HasLaunchableArrow()) return;
 
         if (CurrencyManager.Instance != null && !CurrencyManager.Instance.SpendSpinTool(1))
@@ -93,7 +93,7 @@ public class SpinManager : MonoBehaviour
 
     public void ExecuteSpin()
     {
-        if (CameraController.IsGameplayBlocking || Time.timeScale == 0f) return;
+        if (GameplayInputLock.IsLocked || Time.timeScale == 0f) return;
         if (_spinRoutine != null) return;
 
         _spinRoutine = StartCoroutine(SpinRoutine());
@@ -116,12 +116,12 @@ public class SpinManager : MonoBehaviour
 
     private IEnumerator SpinRoutine()
     {
-        CameraController.IsGameplayBlocking = true;
+        GameplayInputLock.SetLock(GameplayLockReason.BoosterActive, true);
 
         List<SnakeBlock> targets = PickRandomTargets(arrowsPerSpin);
         if (targets.Count == 0)
         {
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.BoosterActive, false);
             _spinRoutine = null;
             yield break;
         }
@@ -207,7 +207,7 @@ public class SpinManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(0.2f);
-        CameraController.IsGameplayBlocking = false;
+        GameplayInputLock.SetLock(GameplayLockReason.BoosterActive, false);
         _spinRoutine = null;
     }
 

@@ -131,7 +131,7 @@ public class SnakeBlock : MonoBehaviour, IGridOccupant
     {
         if (Time.timeScale == 0f) return;
         if (GameManager.Instance != null && GameManager.Instance.isGameOver) return;
-        if (CameraController.IsGameplayBlocking) return;
+        if (GameplayInputLock.IsLocked) return;
         if (EraseManager.Instance != null && (EraseManager.Instance.IsEraseModeActive || EraseManager.Instance.IsExecutingErase)) return;
 
         if (HasCollided)

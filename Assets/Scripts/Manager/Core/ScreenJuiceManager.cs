@@ -17,6 +17,13 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
     [SerializeField] private Color dmgFlashColor = new Color(1f, 0f, 0f, 0.4f);
     [SerializeField] private float dmgFlashDuration = 0.3f;
 
+    [Header("Last Damage Profile")]
+    [SerializeField] private float lastDmgShakeDuration = 0.5f;
+    [SerializeField] private float lastDmgShakeStrength = 1.5f;
+    [SerializeField] private float lastDmgHitStop = 0.25f;
+    [SerializeField] private Color lastDmgFlashColor = new Color(1f, 0f, 0f, 0.75f);
+    [SerializeField] private float lastDmgFlashDuration = 0.5f;
+
     [Header("Combo Profile")]
     [SerializeField] private float comboShakeDuration = 0.15f;
     [SerializeField] private float comboShakeBaseStrength = 0.2f;
@@ -43,13 +50,13 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
 
     private void OnEnable()
     {
-        MessageManager.Instance.AddSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
+        // MessageManager.Instance.AddSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
         //MessageManager.Instance.AddSubscriber(ManhMessageType.OnPlayComboJuice, HandlePlayComboJuice);
     }
 
     private void OnDisable()
     {
-        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
+        // MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
         //MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnPlayComboJuice, HandlePlayComboJuice);
         ClearJuiceImmediate(true);
     }
@@ -58,6 +65,13 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
     {
         PlayCustomJuice(dmgShakeDuration, dmgShakeStrength, dmgHitStop, dmgFlashColor, dmgFlashDuration);
     }
+
+    public void PlayLastDamageJuice()
+    {
+        PlayCustomJuice(lastDmgShakeDuration, lastDmgShakeStrength, lastDmgHitStop, lastDmgFlashColor, lastDmgFlashDuration);
+    }
+
+    public float LastDamageJuiceDuration => Mathf.Max(lastDmgShakeDuration, lastDmgFlashDuration, lastDmgHitStop);
 
     public void PlayComboJuice(int comboCount = 2)
     {

@@ -120,9 +120,9 @@ public sealed class SnakeRuntime
             self,
             currentPos,
             direction,
-            scanLimit);
+            scanLimit,
+            ActiveWarps);
 
-        ActiveWarps.AddRange(result.Warps);
         LastObstacleType = result.Hit.Type;
         LastObstacleCell = result.Hit.Cell;
         LastHitSnake = result.Hit.Snake;
