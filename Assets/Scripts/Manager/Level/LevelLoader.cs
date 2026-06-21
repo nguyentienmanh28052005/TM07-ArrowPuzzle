@@ -209,11 +209,10 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
                     for (int i = 0; i < arrowData.segmentPositions.Count; i++)
                     {
-                        if (i % 2 == 0)
-                        {
+                        
                             Vector2Int pos = arrowData.segmentPositions[i];
                             dotBatchRenderer.RegisterDot(pos);
-                        }
+                        
                     }
                 }
                 PreSpawnSingleSnake(arrowData);
@@ -329,8 +328,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
             for (int i = 0; i < arrowData.segmentPositions.Count; i++)
             {
-                if (i % 2 == 0)
-                {
+                
                     Vector2Int pos = arrowData.segmentPositions[i];
                     dotBatchRenderer.RegisterDot(pos);
 
@@ -343,7 +341,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                         dotsSpawnedThisFrame = 0;
                         yield return null; 
                     }
-                }
+                
             }
         }
 

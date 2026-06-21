@@ -26,6 +26,7 @@ public sealed class SnakeRenderer2D
     private bool _forceRedraw;
     private SpriteRenderer _arrowSpriteRenderer;
     private Material _originalLineMaterial;
+    private Material _originalArrowMaterial;
     private bool _isFocusingColorTweenRunning;
     private bool _pendingUnfocus;
     private float _pendingUnfocusDuration;
@@ -353,6 +354,18 @@ public sealed class SnakeRenderer2D
         foreach (LineRenderer lr in _lineRenderers)
         {
             if (lr != null) lr.sharedMaterial = targetMaterial;
+        }
+
+        CacheArrowRenderer();
+        if (_arrowSpriteRenderer != null)
+        {
+            Material targetArrowMaterial = shouldUsePressedMaterial ? _owner.LinePressedMaterial : _originalArrowMaterial;
+            _arrowSpriteRenderer.sharedMaterial = targetArrowMaterial;
+            Debug.Log($"[SnakeRenderer2D] SetLinePressedMaterial({isPressed}) -> Applied {targetArrowMaterial?.name} to {_arrowSpriteRenderer.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[SnakeRenderer2D] _arrowSpriteRenderer is NULL during SetLinePressedMaterial({isPressed})!");
         }
 
         _isLinePressedMaterialActive = shouldUsePressedMaterial;
@@ -795,7 +808,7 @@ public sealed class SnakeRenderer2D
 
                 Vector3 p0 = curr - dirIn.normalized * r;
                 Vector3 inwardDir = (dirOut.normalized - dirIn.normalized).normalized;
-                Vector3 p1 = curr + inwardDir * (r * 0.25f);
+                Vector3 p1 = curr + inwardDir * (r * 0f);
                 Vector3 p2 = curr + dirOut.normalized * r;
 
                 if (output.Count > 0 && Vector3.SqrMagnitude(output[output.Count - 1] - p0) < 0.001f)
@@ -878,6 +891,15 @@ public sealed class SnakeRenderer2D
         if (_arrowSpriteRenderer != null || _owner.ArrowVisual == null) return;
 
         _arrowSpriteRenderer = _owner.ArrowVisual.GetComponentInChildren<SpriteRenderer>(true);
+        if (_arrowSpriteRenderer != null)
+        {
+            _originalArrowMaterial = _arrowSpriteRenderer.sharedMaterial;
+            Debug.Log($"[SnakeRenderer2D] Cached arrow SpriteRenderer: {_arrowSpriteRenderer.name}, original material: {_originalArrowMaterial?.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[SnakeRenderer2D] Failed to find SpriteRenderer in ArrowVisual: {_owner.ArrowVisual.name}");
+        }
     }
 
     private IEnumerator TransparentRevealFlashRoutine(float flashAlpha, float duration, Color flashTint)
