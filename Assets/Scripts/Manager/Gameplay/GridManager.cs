@@ -223,16 +223,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    public void RegisterSnakeCells(SnakeBlock snake, IEnumerable<Vector2Int> cells)
-    {
-        if (snake == null || cells == null) return;
-
-        foreach (Vector2Int cell in cells)
-        {
-            RegisterAt(cell, snake);
-        }
-    }
-
     public void UnregisterSnake(SnakeBlock snake)
     {
         if (snake == null || _flatGrid == null) return;
@@ -240,16 +230,6 @@ public class GridManager : MonoBehaviour
         for (int i = 0; i < _flatGrid.Length; i++)
         {
             _flatGrid[i].Remove(snake);
-        }
-    }
-
-    public void UnregisterSnakeCells(SnakeBlock snake, IEnumerable<Vector2Int> cells)
-    {
-        if (snake == null || cells == null) return;
-
-        foreach (Vector2Int cell in cells)
-        {
-            UnregisterAt(cell, snake);
         }
     }
 
@@ -380,7 +360,7 @@ public class GridManager : MonoBehaviour
         return TryGetElectricWallAt(pos, out _);
     }
 
-    public void RegisterElectricWallCells(GridElectricWall wall, IEnumerable<Vector2Int> cells)
+    public void RegisterElectricWallCells(GridElectricWall wall, List<Vector2Int> cells)
     {
         if (wall == null || cells == null) return;
 
@@ -390,7 +370,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    public void UnregisterElectricWallCells(GridElectricWall wall, IEnumerable<Vector2Int> cells)
+    public void UnregisterElectricWallCells(GridElectricWall wall, List<Vector2Int> cells)
     {
         if (wall == null || cells == null) return;
 
@@ -462,7 +442,27 @@ public class GridManager : MonoBehaviour
         return TryGetObstacle(pos, out shadow);
     }
 
-    public void RegisterArrowShadowCells(ArrowShadowVisual shadow, IEnumerable<Vector2Int> cells)
+    public void RegisterSnakeCells(SnakeBlock snake, HashSet<Vector2Int> cells)
+    {
+        if (snake == null || cells == null) return;
+
+        foreach (Vector2Int cell in cells)
+        {
+            RegisterAt(cell, snake);
+        }
+    }
+
+    public void UnregisterSnakeCells(SnakeBlock snake, HashSet<Vector2Int> cells)
+    {
+        if (snake == null || cells == null) return;
+
+        foreach (Vector2Int cell in cells)
+        {
+            UnregisterAt(cell, snake);
+        }
+    }
+
+    public void RegisterArrowShadowCells(ArrowShadowVisual shadow, HashSet<Vector2Int> cells)
     {
         if (shadow == null || cells == null) return;
 
@@ -472,7 +472,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    public void UnregisterArrowShadowCells(ArrowShadowVisual shadow, IEnumerable<Vector2Int> cells)
+    public void UnregisterArrowShadowCells(ArrowShadowVisual shadow, HashSet<Vector2Int> cells)
     {
         if (shadow == null || cells == null) return;
 

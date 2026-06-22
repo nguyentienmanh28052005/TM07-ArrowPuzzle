@@ -117,7 +117,7 @@ public class SnakeInput : MonoBehaviour
 
     public bool TryHandleInputDown(Vector2 mousePos)
     {
-        if (!PlaytestSession.IsActive && LevelEditor.Instance != null && LevelEditor.Instance.gameObject.activeInHierarchy) return false;
+        if (!PlaytestSession.IsActive && LevelEditorWorkspace.Instance != null && LevelEditorWorkspace.Instance.gameObject.activeInHierarchy) return false;
         if (GameplayInputLock.IsLocked) return false;
         if (BoosterTutorialManager.Instance != null && BoosterTutorialManager.Instance.IsBlockingArrowInput) return false;
         if (parentScript != null && parentScript.IsMoving) return false;

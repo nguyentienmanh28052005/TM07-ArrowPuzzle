@@ -48,6 +48,7 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
         if (countArrowInGame <= 0)
         {
             _isLevelComplete = true;
+            GameplayInputLock.SetLock(GameplayLockReason.GameOverSequence, true);
             StopGameplayMusic(fadeOutMusicOnEnd);
 
             if (TimeAttackManager.Instance != null)
@@ -132,10 +133,15 @@ public class LevelController : MonoBehaviour, IScreenLifecycle
 
             }
 
-            if (GameManager.Instance != null && GameManager.Instance.level < GameManager.Instance.currentMaxLevel)
+            if (GameManager.Instance != null)
             {
-                GameManager.Instance.level++;
-                SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
+                int maxLevelCount = GameManager.Instance.levelDataV2s != null ? GameManager.Instance.levelDataV2s.Count : 0;
+                int limit = Mathf.Min(GameManager.Instance.currentMaxLevel, maxLevelCount);
+                if (GameManager.Instance.level < limit)
+                {
+                    GameManager.Instance.level++;
+                    SaveDataPlayer.Instance.Save(1, GameManager.Instance.level);
+                }
             }
 
         GameCanvas canvas = FindObjectOfType<GameCanvas>();
