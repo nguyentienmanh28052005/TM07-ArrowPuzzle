@@ -189,7 +189,7 @@ public class BoosterTutorialManager : MonoBehaviour
         BoosterType boosterToPlay = GetBoosterForLevel(levelData);
         if (boosterToPlay == BoosterType.None) return;
 
-        if (CameraController.IsGameplayBlocking)
+        if (GameplayInputLock.IsLocked)
         {
             _pendingBooster = boosterToPlay;
             _isWaitingForIntro = true;

@@ -98,6 +98,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
     private IEnumerator LoadRoutine()
     {
+        GameplayInputLock.ClearAll();
         editorMode = PlaytestSession.IsPlaytesting;
 
         if (PlaytestSession.IsPlaytesting)
@@ -112,7 +113,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         if (levelToPlay == null)
         {
             ReleaseTransitionHold();
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.LevelLoading, false);
             yield break;
         }
 
@@ -124,12 +125,13 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
         if (GridManager.Instance != null)
         {
             GridManager.Instance.ClearLevelState();
+            GridManager.Instance.InitializeLevelGrid(levelToPlay);
         }
         GridPortalVisual.ClearAll();
         GridDeflectorVisual.ClearAll();
         GridDot.GridMap.Clear();
 
-        CameraController.IsGameplayBlocking = true;
+        GameplayInputLock.SetLock(GameplayLockReason.LevelLoading, true);
         RequestTransitionHold();
         PrepareLoadingProgress();
 
@@ -175,8 +177,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
             yield return null;
         }
 
-        if (camController == null) 
-            CameraController.IsGameplayBlocking = false;
+        GameplayInputLock.SetLock(GameplayLockReason.LevelLoading, false);
 
         if (TutorialManager.Instance != null) 
             TutorialManager.Instance.CheckAndStartTutorial(levelToPlay);
@@ -188,7 +189,12 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
     [ContextMenu("Reload Level (Instant)")]
     public void LoadGame()
     {
+        GameplayInputLock.ClearAll();
         ClearContainer();
+        if (GridManager.Instance != null && levelToPlay != null)
+        {
+            GridManager.Instance.InitializeLevelGrid(levelToPlay);
+        }
         SpawnStaticObstacles();
         
         if (levelToPlay != null && levelToPlay.arrows != null)
@@ -203,11 +209,10 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
                     for (int i = 0; i < arrowData.segmentPositions.Count; i++)
                     {
-                        if (i % 2 == 0)
-                        {
+                        
                             Vector2Int pos = arrowData.segmentPositions[i];
                             dotBatchRenderer.RegisterDot(pos);
-                        }
+                        
                     }
                 }
                 PreSpawnSingleSnake(arrowData);
@@ -323,8 +328,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
 
             for (int i = 0; i < arrowData.segmentPositions.Count; i++)
             {
-                if (i % 2 == 0)
-                {
+                
                     Vector2Int pos = arrowData.segmentPositions[i];
                     dotBatchRenderer.RegisterDot(pos);
 
@@ -337,7 +341,7 @@ public class LevelLoader : MonoBehaviour, IScreenLifecycle
                         dotsSpawnedThisFrame = 0;
                         yield return null; 
                     }
-                }
+                
             }
         }
 

@@ -48,9 +48,9 @@ public readonly struct PathSegment
     }
 }
 
-public sealed class MoveResult
+public readonly struct MoveResult
 {
-    public static readonly MoveResult Clear = new MoveResult(float.MaxValue, ObstacleHit.None, new List<PathWarp>(0));
+    public static readonly MoveResult Clear = new MoveResult(float.MaxValue, ObstacleHit.None, null);
 
     public float DistanceToObstacle { get; }
     public ObstacleHit Hit { get; }
@@ -63,6 +63,7 @@ public sealed class MoveResult
     {
         DistanceToObstacle = distanceToObstacle;
         Hit = hit;
-        Warps = warps ?? new List<PathWarp>(0);
+        Warps = warps;
     }
 }
+

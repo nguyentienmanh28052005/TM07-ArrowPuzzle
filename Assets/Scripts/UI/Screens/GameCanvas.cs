@@ -18,6 +18,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     [Header("Core UI")]
     [SerializeField] private GameObject gameContainer;
     [SerializeField] private Transform healthContainer;
+    [SerializeField] private List<GameObject> hearts;
     [SerializeField] private TextMeshProUGUI feedbackText;
     [SerializeField] private CanvasGroup overlayBg;
     [SerializeField] private TextMeshProUGUI currentLevelText;
@@ -85,12 +86,12 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     [SerializeField] private TextMeshProUGUI cinematicTextComponent;
 
     private bool _isShowing = false;
-    private List<GameObject> hearts;
     private int countHeart;
     private Vector2[] _heartOriginalAnchoredPositions;
+    private Vector3[] _heartOriginalScales;
     private Vector3 _pauseOriginalScale;
     private Vector3 _completeOriginalScale;
-    private Vector3 _gameOverOriginalScale; // ThÍm bi?n luu scale g?c c?a Game Over
+    private Vector3 _gameOverOriginalScale; // Th√™m bi?n luu scale g?c c?a Game Over
     private bool _isTransitioning = false;
     
     private Vector2[] _starOriginalPositions;
@@ -187,33 +188,50 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     private void InitializeHearts()
     {
-        if (healthContainer != null)
+        if (hearts != null && hearts.Count > 0)
         {
-            // 1. …p Unity tÌnh to·n v‡ x?p th?ng h‡ng c·c tr·i tim NGAY L?P T?C
-            RectTransform containerRect = healthContainer.GetComponent<RectTransform>();
-            if (containerRect != null)
+            Transform container = healthContainer;
+            if (container == null && hearts[0] != null)
             {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+                container = hearts[0].transform.parent;
             }
 
-            // 2. QUA C?U R⁄T V¡N: T?t Component LayoutGroup di d? nÛ khÙng bao gi? ph· DOTween n?a!
-            HorizontalLayoutGroup layout = healthContainer.GetComponent<HorizontalLayoutGroup>();
-            if (layout != null) layout.enabled = false;
-
-            countHeart = healthContainer.childCount;
-            hearts = new List<GameObject>(countHeart);
-            _heartOriginalAnchoredPositions = new Vector2[countHeart];
-
-            int idx = 0;
-            foreach (Transform child in healthContainer)
+            if (container != null)
             {
-                hearts.Add(child.gameObject);
+                RectTransform containerRect = container.GetComponent<RectTransform>();
+                if (containerRect != null)
+                {
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+                }
 
-                RectTransform rect = child.GetComponent<RectTransform>();
+                HorizontalLayoutGroup layout = container.GetComponent<HorizontalLayoutGroup>();
+                if (layout != null) layout.enabled = false;
+            }
+
+            countHeart = hearts.Count;
+            _heartOriginalAnchoredPositions = new Vector2[countHeart];
+            _heartOriginalScales = new Vector3[countHeart];
+
+            for (int idx = 0; idx < countHeart; idx++)
+            {
+                GameObject heart = hearts[idx];
+                if (heart == null) continue;
+
+                RectTransform rect = heart.GetComponent<RectTransform>();
                 _heartOriginalAnchoredPositions[idx] = rect != null ? rect.anchoredPosition : Vector2.zero;
-                idx++;
+                _heartOriginalScales[idx] = rect != null ? rect.localScale : Vector3.one;
             }
         }
+    }
+
+    private Vector3 GetHeartOriginalScale(int index, RectTransform rect = null)
+    {
+        if (_heartOriginalScales != null && index >= 0 && index < _heartOriginalScales.Length)
+        {
+            return _heartOriginalScales[index];
+        }
+
+        return rect != null ? rect.localScale : Vector3.one;
     }
 
     private void ResetHeartsState()
@@ -224,9 +242,9 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             SetupModeUI(currentLevel.gameMode);
         }
 
-        if (healthContainer == null) return;
+        if (hearts == null || hearts.Count == 0) return;
 
-        if (hearts == null || hearts.Count == 0 || hearts.Count != healthContainer.childCount)
+        if (_heartOriginalAnchoredPositions == null || _heartOriginalAnchoredPositions.Length != hearts.Count)
         {
             InitializeHearts();
         }
@@ -246,7 +264,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             if (rect != null)
             {
                 rect.DOKill();
-                rect.localScale = Vector3.one;
+                rect.localScale = GetHeartOriginalScale(i, rect);
                 if (_heartOriginalAnchoredPositions != null && i < _heartOriginalAnchoredPositions.Length)
                 {
                     rect.anchoredPosition = _heartOriginalAnchoredPositions[i];
@@ -299,9 +317,20 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
     public void SetupModeUI(GameMode mode)
     {
         SetReviveButtonsForLoseReason(LoseReason.OutOfHearts);
+        bool showHearts = mode == GameMode.Classic || mode == GameMode.Memory;
         if (healthContainer != null)
         {
-            healthContainer.gameObject.SetActive(mode == GameMode.Classic || mode == GameMode.Memory);
+            healthContainer.gameObject.SetActive(showHearts);
+        }
+        else if (hearts != null)
+        {
+            foreach (var heart in hearts)
+            {
+                if (heart != null)
+                {
+                    heart.SetActive(showHearts);
+                }
+            }
         }
     }
 
@@ -515,7 +544,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         HidePanelImmediate(overlayBg);
         HidePanelImmediate(pausePanel);
         HidePanelImmediate(completePanel);
-        HidePanelImmediate(gameOverPanel); // –?m b?o t‡ng hÏnh l˙c m?i v‡o game
+        HidePanelImmediate(gameOverPanel); // √ê?m b?o t√†ng h√¨nh l√∫c m?i v√†o game
 
         if (starFills != null)
         {
@@ -571,7 +600,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         if (cinematicIntroPanel == null) return;
 
         // ==========================================
-        // NGU?I G¡C C?NG: CH? CHO PH…P M¿N HARD –U?C DI?N
+        // NGU?I G√ÅC C?NG: CH? CHO PH√âP M√ÄN HARD √êU?C DI?N
         // ==========================================
         if (difficulty != LevelDifficulty.Hard)
         {
@@ -580,7 +609,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             return;
         }
 
-        // N?u l‡ Hard, b?t d?u thi?t l?p k?ch b?n
+        // N?u l√† Hard, b?t d?u thi?t l?p k?ch b?n
         if (cinematicTextComponent != null)
         {
             cinematicTextComponent.text = "HARD LEVEL";
@@ -590,7 +619,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         cinematicIntroPanel.gameObject.SetActive(true);
         cinematicIntroPanel.alpha = 0f;
 
-        // D?n d?p c·c Tween cu d? tr·nh xung d?t
+        // D?n d?p c√°c Tween cu d? tr√°nh xung d?t
         cinematicIntroIcon.DOKill();
         cinematicIntroText.DOKill();
         cinematicIntroPanel.DOKill();
@@ -598,14 +627,14 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         cinematicIntroIcon.localScale = Vector3.zero;
         cinematicIntroText.localScale = Vector3.zero;
 
-        // Setup gÛc nghiÍng l?y d‡
+        // Setup g√≥c nghi√™ng l?y d√†
         cinematicIntroIcon.localRotation = Quaternion.Euler(0, 0, -25f);
         cinematicIntroText.localRotation = Quaternion.Euler(0, 0, 15f);
 
         Sequence seq = DOTween.Sequence();
         seq.SetUpdate(true); 
 
-        // 1. N?n t?i hi?n lÍn
+        // 1. N?n t?i hi?n l√™n
         seq.Append(cinematicIntroPanel.DOFade(1f, 0.18f));
 
         // ==========================================
@@ -617,7 +646,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.Insert(0.04f, cinematicIntroText.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack, 2.2f));
         seq.Insert(0.04f, cinematicIntroText.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack, 1.8f));
 
-        // Gi? c˙ nh?n th? gi·c, ch? b? haptic.
+        // Gi? c√∫ nh?n th? gi√°c, ch? b? haptic.
         seq.Insert(0.35f, cinematicIntroIcon.DOPunchScale(new Vector3(0.15f, -0.1f, 0), 0.25f, 5, 1));
 
         // ==========================================
@@ -630,7 +659,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.Join(cinematicIntroText.DOScale(Vector3.one * 1.05f, breatheTime * 0.5f).SetEase(Ease.InOutSine).SetLoops(2, LoopType.Yoyo));
 
         // ==========================================
-        // NH?P 3: R⁄T L? (EXIT)
+        // NH?P 3: R√öT L? (EXIT)
         // ==========================================
         seq.Append(cinematicIntroIcon.DOScale(Vector3.one * 1.25f, 0.15f).SetEase(Ease.OutQuad));
         seq.Join(cinematicIntroIcon.DORotate(new Vector3(0, 0, 15f), 0.15f).SetEase(Ease.OutQuad));
@@ -748,7 +777,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         PlayWinSequenceEffect(earnedCoins, earnedDiamonds, oldCoins, oldDiamonds);
     }
 
-    // –√ HO¿N THI?N: Logic Bung Popup Game Over chu?n form
+    // √ê√É HO√ÄN THI?N: Logic Bung Popup Game Over chu?n form
     public void ShowLosePopup(object data)
     {
         if (_currentPopup != PopupState.None || _isTransitioning) return;
@@ -766,7 +795,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
         if (currentCoinTextLose != null) currentCoinTextLose.text = CurrencyManager.Instance.Coins.ToString();
     
-        // Rung nh? m‡n hÏnh m?t ph·t d? tang d? cay c˙ khi thua (Game Feel)
+        // Rung nh? m√†n h√¨nh m?t ph√°t d? tang d? cay c√∫ khi thua (Game Feel)
         if (SettingManager.Instance != null) 
         {
             SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.HeavyImpact);
@@ -1008,7 +1037,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
         for (int i = 0; i < spawnCount; i++)
         {
-            // [B?N V¡] N?u d„ b?m Next/Replay, H?Y LU‘N vi?c d? thÍm xu!
+            // [B?N V√Å] N?u d√£ b?m Next/Replay, H?Y LU√îN vi?c d? th√™m xu!
             if (_isTransitioning) yield break; 
 
             GameObject item = Instantiate(prefab, _flyingItemsRoot); 
@@ -1031,7 +1060,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             seq.Append(item.transform.DOMove(targetPos, 0.5f).SetEase(Ease.InOutSine));
 
             seq.OnComplete(() => {
-                // [B?N V¡] Ch?n d?ng ti?ng Ting Ting c?a nh?ng d?ng xu dang bay l? d?
+                // [B?N V√Å] Ch?n d?ng ti?ng Ting Ting c?a nh?ng d?ng xu dang bay l? d?
                 if (!_isTransitioning)
                 {
                     AudioManager.Instance.PlaySfx(AudioManager.Instance.coinHit, 0.5f);
@@ -1247,7 +1276,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         ShowText(message, Color.yellow);
     }
 
-    // ThÍm tham s? System.Action onComplete = null
+    // Th√™m tham s? System.Action onComplete = null
     public void ShowText(string content, Color textColor, System.Action onComplete = null)
     {
         if (feedbackText != null)
@@ -1285,10 +1314,18 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
 
     public void DecreaseHeart(object data)
     {
-        if (PlaytestSession.IsActive) return;
-
+        bool isPlaytest = PlaytestSession.IsActive;
         LevelDataV2 currentLevelData = PlaytestSession.GetActiveLevelData();
-        if (currentLevelData != null && currentLevelData.gameMode == GameMode.TimeAttack) return;
+        bool isTimeAttack = currentLevelData != null && currentLevelData.gameMode == GameMode.TimeAttack;
+
+        if (isPlaytest || isTimeAttack)
+        {
+            if (ScreenJuiceManager.Instance != null)
+            {
+                ScreenJuiceManager.Instance.PlayDamageJuice(null);
+            }
+            return;
+        }
 
         if (countHeart <= 0 || _currentPopup != PopupState.None) return;
 
@@ -1296,23 +1333,35 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         GameObject heartObj = hearts[countHeart];
         PlayHeartLossEffect(heartObj);
 
+        if (ScreenJuiceManager.Instance != null)
+        {
+            if (countHeart <= 0)
+            {
+                ScreenJuiceManager.Instance.PlayLastDamageJuice();
+            }
+            else
+            {
+                ScreenJuiceManager.Instance.PlayDamageJuice(null);
+            }
+        }
+
         if (countHeart <= 0)
         {
             if (data is SnakeBlock sb) sb.ForceResetToOrigin();
-            CameraController.IsGameplayBlocking = true;
+            GameplayInputLock.SetLock(GameplayLockReason.GameOverSequence, true);
             StartCoroutine(SequenceGameOver());
         }
     }
 
     private IEnumerator SequenceGameOver()
     {
-        yield return new WaitForSeconds(0.1f);
-    
-        // ShowOverlay(true); 
+        float delay = 0.1f;
+        if (ScreenJuiceManager.Instance != null)
+        {
+            delay = ScreenJuiceManager.Instance.LastDamageJuiceDuration;
+        }
 
-        // ShowText("Game Over", Color.yellow);
-        
-        // yield return new WaitForSeconds(2f);
+        yield return new WaitForSecondsRealtime(delay);
         ShowLosePopup(LoseReason.OutOfHearts); 
     }
 
@@ -1323,14 +1372,18 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         DOTween.Kill(heart);
         RectTransform rect = heart.GetComponent<RectTransform>();
         Image img = heart.GetComponent<Image>();
+        if (rect == null) return;
+
+        int heartIndex = hearts != null ? hearts.IndexOf(heart) : -1;
         Vector2 originalPos = rect.anchoredPosition;
+        Vector3 originalScale = GetHeartOriginalScale(heartIndex, rect);
 
         rect.DOKill();
         if (img != null) img.DOKill();
 
         Sequence seq = DOTween.Sequence();
-    seq.SetId(heart);
-    seq.SetLink(heart);
+        seq.SetId(heart);
+        seq.SetLink(heart);
         seq.Append(rect.DOShakeAnchorPos(0.4f, 15f, 20, 90, false));
         if (img != null) seq.Join(img.DOColor(Color.gray, 0.2f));
         
@@ -1340,7 +1393,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         seq.OnComplete(() =>
         {
             heart.SetActive(false);
-            rect.localScale = Vector3.one;
+            rect.localScale = originalScale;
             rect.anchoredPosition = originalPos;
             if (img != null) img.color = Color.white;
         });
@@ -1403,7 +1456,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             {
                 _currentPopup = PopupState.None;
                 ShowOverlay(false);
-                CameraController.IsGameplayBlocking = false;
+                GameplayInputLock.SetLock(GameplayLockReason.GameOverSequence, false);
                 if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.ResumeTimer();
             });
             return;
@@ -1451,14 +1504,15 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
             {
                 if (isNewlyRestored)
                 {
+                    Vector3 originalScale = GetHeartOriginalScale(i, rect);
                     rect.localScale = Vector3.zero;
-                    rect.DOScale(Vector3.one, 0.4f)
+                    rect.DOScale(originalScale, 0.4f)
                         .SetEase(Ease.OutBack)
                         .SetDelay(i * 0.5f)
                         .SetUpdate(true)
                         .SetLink(heart);
                 }
-                else rect.localScale = Vector3.one;
+                else rect.localScale = GetHeartOriginalScale(i, rect);
             }
 
             if (img != null)
@@ -1481,7 +1535,7 @@ public class GameCanvas : MonoBehaviour, IScreenLifecycle
         {
             _currentPopup = PopupState.None;
             ShowOverlay(false);
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.GameOverSequence, false);
             if (TimeAttackManager.Instance != null) TimeAttackManager.Instance.ResumeTimer();
         });
     }

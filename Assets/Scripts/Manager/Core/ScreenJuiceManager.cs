@@ -15,12 +15,21 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
     [SerializeField] private float dmgShakeStrength = 0.8f;
     [SerializeField] private float dmgHitStop = 0.1f;
     [SerializeField] private Color dmgFlashColor = new Color(1f, 0f, 0f, 0.4f);
+    [SerializeField] private float dmgFlashDuration = 0.3f;
+
+    [Header("Last Damage Profile")]
+    [SerializeField] private float lastDmgShakeDuration = 0.5f;
+    [SerializeField] private float lastDmgShakeStrength = 1.5f;
+    [SerializeField] private float lastDmgHitStop = 0.25f;
+    [SerializeField] private Color lastDmgFlashColor = new Color(1f, 0f, 0f, 0.75f);
+    [SerializeField] private float lastDmgFlashDuration = 0.5f;
 
     [Header("Combo Profile")]
     [SerializeField] private float comboShakeDuration = 0.15f;
     [SerializeField] private float comboShakeBaseStrength = 0.2f;
     [SerializeField] private float comboHitStop = 0f;
     [SerializeField] private Color comboFlashColor = new Color(1f, 1f, 1f, 0f);
+    [SerializeField] private float comboFlashDuration = 0.15f;
 
     private Vector3 _preShakePos;
     private DG.Tweening.Tween _shakeTween;
@@ -41,29 +50,36 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
 
     private void OnEnable()
     {
-        MessageManager.Instance.AddSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
+        // MessageManager.Instance.AddSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
         //MessageManager.Instance.AddSubscriber(ManhMessageType.OnPlayComboJuice, HandlePlayComboJuice);
     }
 
     private void OnDisable()
     {
-        MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
+        // MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnTakeDamage, PlayDamageJuice);
         //MessageManager.Instance.RemoveSubscriber(ManhMessageType.OnPlayComboJuice, HandlePlayComboJuice);
         ClearJuiceImmediate(true);
     }
 
     public void PlayDamageJuice(object data)
     {
-        PlayCustomJuice(dmgShakeDuration, dmgShakeStrength, dmgHitStop, dmgFlashColor);
+        PlayCustomJuice(dmgShakeDuration, dmgShakeStrength, dmgHitStop, dmgFlashColor, dmgFlashDuration);
     }
+
+    public void PlayLastDamageJuice()
+    {
+        PlayCustomJuice(lastDmgShakeDuration, lastDmgShakeStrength, lastDmgHitStop, lastDmgFlashColor, lastDmgFlashDuration);
+    }
+
+    public float LastDamageJuiceDuration => Mathf.Max(lastDmgShakeDuration, lastDmgFlashDuration, lastDmgHitStop);
 
     public void PlayComboJuice(int comboCount = 2)
     {
         float dynamicStrength = Mathf.Clamp(comboShakeBaseStrength + (comboCount * 0.05f), 0.2f, 0.6f);
-        PlayCustomJuice(comboShakeDuration, dynamicStrength, comboHitStop, comboFlashColor);
+        PlayCustomJuice(comboShakeDuration, dynamicStrength, comboHitStop, comboFlashColor, comboFlashDuration);
     }
 
-    public void PlayCustomJuice(float duration, float strength, float hitStop, Color flashColor)
+    public void PlayCustomJuice(float duration, float strength, float hitStop, Color flashColor, float flashDuration = 0.15f)
     {
         if (_hitStopRoutine != null)
         {
@@ -90,7 +106,7 @@ public class ScreenJuiceManager : Singleton<ScreenJuiceManager>
                 .OnComplete(() => mainCamera.transform.localPosition = _preShakePos);
         }
 
-        PlayFlashOverlay(flashColor);
+        PlayFlashOverlay(flashColor, flashDuration);
     }
 
     public void PlayFlashOverlay(Color flashColor, float fadeDuration = 0.15f)

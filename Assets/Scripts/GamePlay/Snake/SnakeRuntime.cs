@@ -34,6 +34,8 @@ public sealed class SnakeRuntime
 
     public ObstacleHitType LastObstacleType { get; private set; } = ObstacleHitType.None;
     public Vector2Int LastObstacleCell { get; private set; } = new Vector2Int(int.MinValue, int.MinValue);
+    public SnakeBlock LastHitSnake { get; private set; }
+    public bool HasCollided { get; set; }
 
     public List<PathWarp> ActiveWarps { get; } = new List<PathWarp>(8);
     public int LastPassedPortalIndex { get; set; } = -1;
@@ -65,6 +67,7 @@ public sealed class SnakeRuntime
         HoldingStopBlock = null;
         HasDealtDamage = false;
         ArrowShadowReleased = false;
+        HasCollided = false;
         ResetHit();
         ClearWarps();
     }
@@ -117,11 +120,12 @@ public sealed class SnakeRuntime
             self,
             currentPos,
             direction,
-            scanLimit);
+            scanLimit,
+            ActiveWarps);
 
-        ActiveWarps.AddRange(result.Warps);
         LastObstacleType = result.Hit.Type;
         LastObstacleCell = result.Hit.Cell;
+        LastHitSnake = result.Hit.Snake;
         return result.DistanceToObstacle;
     }
 
@@ -268,7 +272,13 @@ public sealed class SnakeRuntime
     public static void Register(SnakeBlock snake)
     {
         if (snake != null && !ActiveSnakeBuffer.Contains(snake))
+        {
+            if (ActiveSnakeBuffer.Count == 0)
+            {
+                SnakeMover.ResetConsecutiveReleases();
+            }
             ActiveSnakeBuffer.Add(snake);
+        }
     }
 
     public static void Unregister(SnakeBlock snake)
@@ -403,6 +413,7 @@ public sealed class SnakeRuntime
     {
         LastObstacleType = ObstacleHitType.None;
         LastObstacleCell = new Vector2Int(int.MinValue, int.MinValue);
+        LastHitSnake = null;
     }
 
     private static Vector2Int NormalizeGridStep(Vector2Int step)

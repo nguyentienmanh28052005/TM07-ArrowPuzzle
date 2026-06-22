@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public static class LevelGeneratorCore
@@ -25,6 +25,8 @@ public static class LevelGeneratorCore
         public int originY;
         public bool[] placementMask;
         public Color[] colorPalette;
+        public bool useMonochromeColor;
+        public Color monochromeColor;
     }
 
     public sealed class Result
@@ -2252,7 +2254,7 @@ public static class LevelGeneratorCore
     {
         SnakeSaveData snake = new SnakeSaveData();
         snake.direction = GetDfsArrowDirection(settings.width, path);
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>(path.Count);
 
         for (int i = 0; i < path.Count; i++)
@@ -2270,7 +2272,7 @@ public static class LevelGeneratorCore
     {
         SnakeSaveData snake = new SnakeSaveData();
         snake.direction = GetDfsArrowDirection(settings.width, path, length);
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>(length);
 
         for (int i = 0; i < length; i++)
@@ -3016,7 +3018,7 @@ public static class LevelGeneratorCore
     private static SnakeSaveData BuildLaneChunkSnake(Settings settings, System.Random random, bool horizontal, int firstLane, int secondLane, int start, int end, bool headAtPositiveEdge, ChunkShape shape)
     {
         SnakeSaveData snake = new SnakeSaveData();
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>();
 
         if (horizontal)
@@ -3095,7 +3097,7 @@ public static class LevelGeneratorCore
     private static SnakeSaveData BuildPairedLaneSnake(Settings settings, System.Random random, bool horizontal, int firstLane, int secondLane, int laneLength, bool headAtPositiveEdge)
     {
         SnakeSaveData snake = new SnakeSaveData();
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>();
 
         if (horizontal)
@@ -3171,7 +3173,7 @@ public static class LevelGeneratorCore
     private static SnakeSaveData BuildSerpentineSnake(Settings settings, System.Random random, bool horizontal, int laneOffset, int laneLength, bool headAtPositiveEdge)
     {
         SnakeSaveData snake = new SnakeSaveData();
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>();
 
         int laneStep = GetEvenLaneStep(settings);
@@ -3285,7 +3287,7 @@ public static class LevelGeneratorCore
     private static SnakeSaveData BuildStripedSnake(Settings settings, System.Random random, bool horizontal, int lane, int length, bool reverseLane)
     {
         SnakeSaveData snake = new SnakeSaveData();
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>(length);
 
         if (horizontal)
@@ -4335,7 +4337,7 @@ public static class LevelGeneratorCore
     {
         SnakeSaveData snake = new SnakeSaveData();
         snake.direction = direction;
-        snake.arrowColor = PickColor(settings.colorPalette, random);
+        snake.arrowColor = PickColor(settings, random);
         snake.segmentPositions = new List<Vector2Int>(length);
 
         for (int i = 0; i < length; i++)
@@ -4367,9 +4369,13 @@ public static class LevelGeneratorCore
         return x == headX && (y - headY) * dy > 0;
     }
 
-    private static Color PickColor(Color[] palette, System.Random random)
+    private static Color PickColor(Settings settings, System.Random random)
     {
-        Color[] usablePalette = palette != null && palette.Length > 0 ? palette : DefaultPalette;
+        if (settings.useMonochromeColor)
+        {
+            return settings.monochromeColor;
+        }
+        Color[] usablePalette = settings.colorPalette != null && settings.colorPalette.Length > 0 ? settings.colorPalette : DefaultPalette;
         return usablePalette[random.Next(0, usablePalette.Length)];
     }
 

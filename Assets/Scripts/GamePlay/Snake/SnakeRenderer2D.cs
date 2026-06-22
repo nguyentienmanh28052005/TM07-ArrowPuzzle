@@ -26,6 +26,10 @@ public sealed class SnakeRenderer2D
     private bool _forceRedraw;
     private SpriteRenderer _arrowSpriteRenderer;
     private Material _originalLineMaterial;
+    private Material _originalArrowMaterial;
+    private bool _isFocusingColorTweenRunning;
+    private bool _pendingUnfocus;
+    private float _pendingUnfocusDuration;
     private bool _isLinePressedMaterialActive;
     private ArrowShadowVisual _arrowShadowVisual;
     private Coroutine _transparentRevealFlashRoutine;
@@ -120,16 +124,73 @@ public sealed class SnakeRenderer2D
     {
         if (_runtime.IsStoppedByStopBlock) return;
 
-        Color targetColor = isFocusing ? _owner.snakeMoveColor : _owner.snakeColor;
-        SetLinePressedMaterial(isFocusing);
+        Color targetColor = isFocusing 
+            ? _owner.snakeMoveColor 
+            : (_runtime.HasCollided ? _owner.snakeTakeHitColor : _owner.snakeColor);
 
-        if (_hasFocusVisualState && _isFocusVisualActive == isFocusing && _lastFocusTargetColor == targetColor)
-            return;
+        if (isFocusing)
+        {
+            _pendingUnfocus = false;
+            SetLinePressedMaterial(true);
 
-        _hasFocusVisualState = true;
-        _isFocusVisualActive = isFocusing;
-        _lastFocusTargetColor = targetColor;
-        RunColorTween(targetColor, duration);
+            if (_hasFocusVisualState && _isFocusVisualActive == isFocusing && _lastFocusTargetColor == targetColor)
+                return;
+
+            _isFocusingColorTweenRunning = true;
+
+            _hasFocusVisualState = true;
+            _isFocusVisualActive = isFocusing;
+            _lastFocusTargetColor = targetColor;
+
+            if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
+
+            if (duration <= 0f || _currentLineColor == targetColor)
+            {
+                _currentLineColor = targetColor;
+                ApplyColorToAll(_currentLineColor);
+                _isFocusingColorTweenRunning = false;
+                return;
+            }
+
+            _colorTweener = DOTween.To(() => _currentLineColor, x => _currentLineColor = x, targetColor, duration)
+                .OnUpdate(() => ApplyColorToAll(_currentLineColor))
+                .OnComplete(() =>
+                {
+                    _isFocusingColorTweenRunning = false;
+                    if (_pendingUnfocus)
+                    {
+                        _pendingUnfocus = false;
+                        _hasFocusVisualState = true;
+                        _isFocusVisualActive = false;
+                        Color restoreColor = _runtime.HasCollided ? _owner.snakeTakeHitColor : _owner.snakeColor;
+                        _lastFocusTargetColor = restoreColor;
+                        SetLinePressedMaterial(false);
+                        RunColorTween(restoreColor, _pendingUnfocusDuration);
+                    }
+                })
+                .SetLink(_owner.gameObject);
+        }
+        else
+        {
+            if (_isFocusingColorTweenRunning)
+            {
+                _pendingUnfocus = true;
+                _pendingUnfocusDuration = duration;
+            }
+            else
+            {
+                _pendingUnfocus = false;
+                SetLinePressedMaterial(false);
+
+                if (_hasFocusVisualState && _isFocusVisualActive == isFocusing && _lastFocusTargetColor == targetColor)
+                    return;
+
+                _hasFocusVisualState = true;
+                _isFocusVisualActive = isFocusing;
+                _lastFocusTargetColor = targetColor;
+                RunColorTween(targetColor, duration);
+            }
+        }
     }
 
     public void PlayDashReadyVisual(Color highlightColor, float scaleFactor, float duration)
@@ -163,17 +224,44 @@ public sealed class SnakeRenderer2D
 
     public void SetColorImmediate(Color color)
     {
+        _isFocusingColorTweenRunning = false;
+        _pendingUnfocus = false;
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
+        if (_flashTweener != null && _flashTweener.IsActive()) _flashTweener.Kill();
         _hasFocusVisualState = false;
         _currentLineColor = color;
         ApplyColorToAll(_currentLineColor);
     }
 
+    private Tween _flashTweener;
+
+    public void FlashRed(float duration)
+    {
+        _isFocusingColorTweenRunning = false;
+        _pendingUnfocus = false;
+        if (!_runtime.IsInitialized || _runtime.IsMoving || _runtime.IsStoppedByStopBlock) return;
+
+        if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
+        if (_flashTweener != null && _flashTweener.IsActive()) _flashTweener.Kill();
+
+        _currentLineColor = _owner.snakeTakeHitColor;
+        ApplyColorToAll(_currentLineColor);
+
+        Color restoreColor = _runtime.HasCollided ? _owner.snakeTakeHitColor : _owner.snakeColor;
+
+        _flashTweener = DOTween.To(() => _currentLineColor, x => _currentLineColor = x, restoreColor, duration)
+            .OnUpdate(() => ApplyColorToAll(_currentLineColor))
+            .SetLink(_owner.gameObject);
+    }
+
     public void BeginEraseVisual()
     {
+        _isFocusingColorTweenRunning = false;
+        _pendingUnfocus = false;
         if (!_runtime.IsInitialized || _runtime.TotalPoints <= 0) return;
 
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
+        if (_flashTweener != null && _flashTweener.IsActive()) _flashTweener.Kill();
         SetLinePressedMaterial(false);
 
         _runtime.IsBeingErased = true;
@@ -266,6 +354,18 @@ public sealed class SnakeRenderer2D
         foreach (LineRenderer lr in _lineRenderers)
         {
             if (lr != null) lr.sharedMaterial = targetMaterial;
+        }
+
+        CacheArrowRenderer();
+        if (_arrowSpriteRenderer != null)
+        {
+            Material targetArrowMaterial = shouldUsePressedMaterial ? _owner.LinePressedMaterial : _originalArrowMaterial;
+            _arrowSpriteRenderer.sharedMaterial = targetArrowMaterial;
+            Debug.Log($"[SnakeRenderer2D] SetLinePressedMaterial({isPressed}) -> Applied {targetArrowMaterial?.name} to {_arrowSpriteRenderer.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[SnakeRenderer2D] _arrowSpriteRenderer is NULL during SetLinePressedMaterial({isPressed})!");
         }
 
         _isLinePressedMaterialActive = shouldUsePressedMaterial;
@@ -704,10 +804,11 @@ public sealed class SnakeRenderer2D
             {
                 float distIn = dirIn.magnitude;
                 float distOut = dirOut.magnitude;
-                float r = Mathf.Min(_owner.CornerRadius, distIn * 0.4f, distOut * 0.4f);
+                float r = Mathf.Min(_owner.CornerRadius, distIn * 0.48f, distOut * 0.48f);
 
                 Vector3 p0 = curr - dirIn.normalized * r;
-                Vector3 p1 = curr;
+                Vector3 inwardDir = (dirOut.normalized - dirIn.normalized).normalized;
+                Vector3 p1 = curr + inwardDir * (r * 0f);
                 Vector3 p2 = curr + dirOut.normalized * r;
 
                 if (output.Count > 0 && Vector3.SqrMagnitude(output[output.Count - 1] - p0) < 0.001f)
@@ -755,6 +856,8 @@ public sealed class SnakeRenderer2D
 
     private void RunColorTween(Color targetColor, float duration)
     {
+        _isFocusingColorTweenRunning = false;
+        _pendingUnfocus = false;
         if (_colorTweener != null && _colorTweener.IsActive()) _colorTweener.Kill();
 
         if (duration <= 0f || _currentLineColor == targetColor)
@@ -788,6 +891,15 @@ public sealed class SnakeRenderer2D
         if (_arrowSpriteRenderer != null || _owner.ArrowVisual == null) return;
 
         _arrowSpriteRenderer = _owner.ArrowVisual.GetComponentInChildren<SpriteRenderer>(true);
+        if (_arrowSpriteRenderer != null)
+        {
+            _originalArrowMaterial = _arrowSpriteRenderer.sharedMaterial;
+            Debug.Log($"[SnakeRenderer2D] Cached arrow SpriteRenderer: {_arrowSpriteRenderer.name}, original material: {_originalArrowMaterial?.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[SnakeRenderer2D] Failed to find SpriteRenderer in ArrowVisual: {_owner.ArrowVisual.name}");
+        }
     }
 
     private IEnumerator TransparentRevealFlashRoutine(float flashAlpha, float duration, Color flashTint)

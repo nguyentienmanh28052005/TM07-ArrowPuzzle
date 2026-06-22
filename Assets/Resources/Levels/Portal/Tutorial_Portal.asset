@@ -1,0 +1,122 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f901e9bb0a817474f89e91abc549e6a4, type: 3}
+  m_Name: Tutorial_Portal
+  m_EditorClassIdentifier: 
+  levelIndex: 25
+  gameMode: 0
+  levelDifficulty: 0
+  returnToDefaultZoomAfterIntro: 0
+  timeLimit: 60
+  rewardCoins: 10
+  rewardDiamonds: 2
+  arrows:
+  - entityId: arrow.standard:0
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -3, y: 5}
+    - {x: -3, y: 4}
+    - {x: -3, y: 3}
+    - {x: -3, y: 2}
+    - {x: -3, y: 1}
+    - {x: -3, y: 0}
+    - {x: -3, y: -1}
+    payload:
+      rid: 8514278728983124983
+  - entityId: arrow.standard:1
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 1, y: 5}
+    - {x: 1, y: 4}
+    - {x: 1, y: 3}
+    - {x: 1, y: 2}
+    - {x: 1, y: 1}
+    - {x: 1, y: 0}
+    - {x: 1, y: -1}
+    - {x: 1, y: -2}
+    - {x: 1, y: -3}
+    - {x: 0, y: -3}
+    - {x: -1, y: -3}
+    - {x: -2, y: -3}
+    - {x: -3, y: -3}
+    payload:
+      rid: 8514278728983124984
+  - entityId: arrow.standard:2
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -1, y: -1}
+    - {x: -1, y: 0}
+    - {x: -1, y: 1}
+    - {x: -1, y: 2}
+    - {x: -1, y: 3}
+    - {x: -1, y: 4}
+    - {x: -1, y: 5}
+    payload:
+      rid: 8514278728983124985
+  cells:
+  - entityId: cell.portal:0
+    typeId: cell.portal
+    position: {x: -3, y: 7}
+    direction: 1
+    color: {r: 1, g: 0, b: 0, a: 1}
+    payload:
+      rid: 8514278728983124986
+  - entityId: cell.portal:1
+    typeId: cell.portal
+    position: {x: 1, y: 7}
+    direction: 3
+    color: {r: 1, g: 0, b: 0, a: 1}
+    payload:
+      rid: 8514278728983124987
+  links:
+  - linkId: link.portal_pair:0
+    typeId: link.portal_pair
+    fromEntityId: cell.portal:0
+    toEntityId: cell.portal:1
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 8514278728983124988
+  references:
+    version: 2
+    RefIds:
+    - rid: 8514278728983124983
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728983124984
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728983124985
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8514278728983124986
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 1
+    - rid: 8514278728983124987
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 3
+    - rid: 8514278728983124988
+      type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 1, g: 0, b: 0, a: 1}

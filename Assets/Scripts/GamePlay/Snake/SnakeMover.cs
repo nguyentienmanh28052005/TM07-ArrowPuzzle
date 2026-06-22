@@ -5,6 +5,32 @@ using Solo.MOST_IN_ONE;
 
 public sealed class SnakeMover
 {
+    private static int _consecutiveReleaseCount = 0;
+    private static float _lastReleaseTime = -999f;
+
+    public static void ResetConsecutiveReleases()
+    {
+        _consecutiveReleaseCount = 0;
+        _lastReleaseTime = -999f;
+    }
+
+    private static float UpdateConsecutiveReleaseSpeedMultiplier(float timeout)
+    {
+        float currentTime = Time.time;
+        if (currentTime - _lastReleaseTime > timeout)
+        {
+            _consecutiveReleaseCount = 0;
+        }
+
+        _consecutiveReleaseCount++;
+        _lastReleaseTime = currentTime;
+
+        if (_consecutiveReleaseCount == 1) return 1.0f;
+        if (_consecutiveReleaseCount == 2) return 1.1f;
+        if (_consecutiveReleaseCount == 3) return 1.3f;
+        return 1.5f; // 4 or more
+    }
+
     private readonly SnakeBlock _owner;
     private readonly SnakeRuntime _runtime;
     private readonly SnakeRenderer2D _renderer;
@@ -88,6 +114,7 @@ public sealed class SnakeMover
         _runtime.IsBeingConsumedByBlackHole = false;
         _runtime.EraseTailTrackIdx = _runtime.TotalPoints > 0 ? _runtime.TotalPoints - 1 : 0f;
         _runtime.HasDealtDamage = false;
+        _runtime.HasCollided = false;
         _runtime.ClearWarps();
         _runtime.CopyOriginalToCurrent();
 
@@ -108,6 +135,7 @@ public sealed class SnakeMover
         _runtime.HoldingStopBlock = null;
         _runtime.IsStoppedByStopBlock = false;
         _runtime.HasDealtDamage = false;
+        _runtime.HasCollided = false;
 
         _renderer.SetLinePressedMaterial(false, true);
         _renderer.SetColorImmediate(_owner.snakeColor);
@@ -194,6 +222,11 @@ public sealed class SnakeMover
         _runtime.ScanPath(_owner, _owner.direction, _owner.MaxPathScanCells, _owner.ExitTravelDistance);
         _runtime.ClearFromGrid(_owner);
         if (ComboManager.Instance != null) ComboManager.Instance.AddCombo(_owner);
+
+        float multiplier = UpdateConsecutiveReleaseSpeedMultiplier(_owner.ConsecutiveReleaseTimeout);
+        startSpeed *= multiplier;
+        maxSpeedValue *= multiplier;
+        accelerationValue *= multiplier;
 
         _currentMoveSpeed = startSpeed;
         int lastProcessedGrid = 0;
@@ -310,7 +343,12 @@ public sealed class SnakeMover
         _runtime.ClearFromGrid(_owner);
         if (ComboManager.Instance != null) ComboManager.Instance.AddCombo(_owner);
 
-        _currentMoveSpeed = _owner.ExitStartSpeed;
+        float multiplier = UpdateConsecutiveReleaseSpeedMultiplier(_owner.ConsecutiveReleaseTimeout);
+        float startSpeed = _owner.ExitStartSpeed * multiplier;
+        float maxSpeed = _owner.ExitMaxSpeed * multiplier;
+        float acceleration = _owner.ExitAcceleration * multiplier;
+
+        _currentMoveSpeed = startSpeed;
         int lastProcessedGrid = 0;
         _runtime.Outed = false;
 
@@ -319,7 +357,7 @@ public sealed class SnakeMover
         while (_runtime.AccumulatedShift < targetShift)
         {
             float safeDeltaTime = Mathf.Min(Time.deltaTime, 0.033f);
-            _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, _owner.ExitMaxSpeed, _owner.ExitAcceleration * safeDeltaTime);
+            _currentMoveSpeed = Mathf.MoveTowards(_currentMoveSpeed, maxSpeed, acceleration * safeDeltaTime);
             float forwardStep = _currentMoveSpeed * _runtime.NodesPerUnit * safeDeltaTime;
             _runtime.AccumulatedShift = Mathf.MoveTowards(_runtime.AccumulatedShift, targetShift, forwardStep);
 
@@ -407,6 +445,7 @@ public sealed class SnakeMover
         _renderer.RequestRedraw();
         _runtime.IsStoppedByStopBlock = true;
         _runtime.HoldingStopBlock = stopBlock;
+        _runtime.HasCollided = false;
         _renderer.ApplyStopBlockVisual();
     }
 
@@ -441,9 +480,16 @@ public sealed class SnakeMover
         }
 
         if (ComboManager.Instance != null) ComboManager.Instance.StopCombo();
-        if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
+        //if (AudioManager.Instance != null) AudioManager.Instance.PlaySfx(AudioManager.Instance.sfxArrowHit, 0.8f);
+        _runtime.HasCollided = true;
         _renderer.SetColorImmediate(_owner.snakeTakeHitColor);
         if (SettingManager.Instance != null) SettingManager.Instance.PlayHaptic(MOST_HapticFeedback.HapticTypes.MediumImpact);
+
+        // Notify the hit snake to flash red
+        if (_runtime.LastObstacleType == ObstacleHitType.Snake && _runtime.LastHitSnake != null)
+        {
+            _runtime.LastHitSnake.FlashRed();
+        }
 
         while (_runtime.AccumulatedShift > 0f)
         {

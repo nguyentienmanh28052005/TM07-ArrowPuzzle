@@ -116,7 +116,7 @@ public class EraseManager : MonoBehaviour
             
             IsExecutingErase = false;
             erasePanel.gameObject.SetActive(false);
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.EraseMode, false);
         });
     }
 
