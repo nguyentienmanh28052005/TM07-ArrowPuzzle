@@ -1,0 +1,28 @@
+{ "skeleton": { "images": "D:/XGAME/SVN_SandLoop/Anim/IP_Ingame/img/" },
+"bones": [
+	{ "name": "root" }
+],
+"slots": [
+	{ "name": "hard_1", "bone": "root", "attachment": "hard_1" },
+	{ "name": "hard_2", "bone": "root", "attachment": "hard_2" },
+	{ "name": "crazy_1", "bone": "root", "attachment": "crazy_1" },
+	{ "name": "crazy_2", "bone": "root", "attachment": "crazy_2" }
+],
+"skins": {
+	"default": {
+		"hard_1": {
+			"hard_1": { "x": 1046.5, "y": -1049, "width": 271, "height": 278 }
+		},
+		"hard_2": {
+			"hard_2": { "x": 1049, "y": -1097, "width": 266, "height": 182 }
+		},
+		"crazy_1": {
+			"crazy_1": { "x": 1047.5, "y": -1049.5, "width": 271, "height": 279 }
+		},
+		"crazy_2": {
+			"crazy_2": { "x": 1049.5, "y": -1097.5, "width": 267, "height": 183 }
+		}
+	}
+},
+"animations": { "animation": {} }
+}

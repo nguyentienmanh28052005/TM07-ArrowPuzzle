@@ -1,0 +1,119 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3383100882987411415
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2108935353983248194}
+  - component: {fileID: 8032534783830706158}
+  m_Layer: 0
+  m_Name: DataManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2108935353983248194
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3383100882987411415}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8032534783830706158
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3383100882987411415}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7633b6ee54951dd4a8821974b9620518, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  packageData_v1: {fileID: 11400000, guid: 5171d811688fd3e4eb78ef7352d6979c, type: 2}
+  packageData_BackUp: {fileID: 11400000, guid: 84b0ee8ab0e12304581c8df289307c30, type: 2}
+  avatarConfig: {fileID: 11400000, guid: 68e92daaf5db41e4d92fc54c5e645264, type: 2}
+  allGift:
+  - itemType: 0
+    itemIcon: {fileID: 21300000, guid: 9a9ba36fbfd1f034eae3f21cb0d9d589, type: 3}
+    itemAmount: 0
+    itemName: 
+  - itemType: 1
+    itemIcon: {fileID: 21300000, guid: e2f3e13c406a91b4eb6c67405b00253b, type: 3}
+    itemAmount: 0
+    itemName: 
+  - itemType: 2
+    itemIcon: {fileID: 21300000, guid: 21c9dd11ab0ea074ab166f69483cec71, type: 3}
+    itemAmount: 0
+    itemName: 
+  - itemType: 3
+    itemIcon: {fileID: 21300000, guid: d72ef48afd84ff94b88e8603e33b4687, type: 3}
+    itemAmount: 0
+    itemName: 
+  - itemType: 4
+    itemIcon: {fileID: 21300000, guid: 2fa15d4569aa5e24b93d005abd272798, type: 3}
+    itemAmount: 0
+    itemName: 
+  - itemType: 5
+    itemIcon: {fileID: 21300000, guid: db34180e1946cb244bd22b88e624eaa5, type: 3}
+    itemAmount: 0
+    itemName: 
+  - itemType: 6
+    itemIcon: {fileID: 21300000, guid: 30179a45c7d0bd245acc29e8109cdb74, type: 3}
+    itemAmount: 0
+    itemName: 
+  themeLevels:
+  - top: {fileID: 21300000, guid: dcf980a04b789ce43a6fe555ba7f5f95, type: 3}
+    main: {fileID: 227210469, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    btn: {fileID: 1629562362, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    splashBG: {fileID: -311519405, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    header: {fileID: 21300000, guid: ba516aaefae7c47438d4ed2d19d48110, type: 3}
+    outlineColor: {r: 0.015686275, g: 0.24313727, b: 0, a: 1}
+    outlineBG: {r: 0.08235294, g: 0.16470589, b: 0.56078434, a: 1}
+    clockBar: {fileID: 1243597254, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    popupRevive: {fileID: 358931763, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    splashRevive: {fileID: 1166649543, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    boxChat: {fileID: 21300000, guid: bfa7795fa0dc38643a64fa3e703cfce6, type: 3}
+    bgNotice: {fileID: 21300000, guid: 372adeb5793c330469e7b76a0e358589, type: 3}
+    nameLevelType: _normal_level
+  - top: {fileID: 21300000, guid: 98e11919669fa6f47bba83f798f9cb9c, type: 3}
+    main: {fileID: 400880079, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    btn: {fileID: -1975759333, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    splashBG: {fileID: 520117551, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    header: {fileID: 21300000, guid: c47848cbde9063d48a4563b8cd50793c, type: 3}
+    outlineColor: {r: 0.29411766, g: 0, b: 0.5921569, a: 1}
+    outlineBG: {r: 0.29411766, g: 0, b: 0.5921569, a: 1}
+    clockBar: {fileID: 1701865990, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    popupRevive: {fileID: -933497597, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    splashRevive: {fileID: 1796422708, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    boxChat: {fileID: 21300000, guid: 3290fdfda1f502343b16cba7ba8ed42e, type: 3}
+    bgNotice: {fileID: 21300000, guid: 9bc11c2d7a270504c9805c91c5d23e50, type: 3}
+    nameLevelType: _hard_level
+  - top: {fileID: 21300000, guid: f37ca838b23eb2943ba81464a382e028, type: 3}
+    main: {fileID: 446670840, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    btn: {fileID: -1723241133, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    splashBG: {fileID: 1793510596, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    header: {fileID: 21300000, guid: f63bb8c56a7f97c4da6d2f35499e0364, type: 3}
+    outlineColor: {r: 0.39607847, g: 0.07058824, b: 0.20392159, a: 1}
+    outlineBG: {r: 0.39607844, g: 0.07058824, b: 0.20392157, a: 1}
+    clockBar: {fileID: -2139945112, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    popupRevive: {fileID: -446065320, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    splashRevive: {fileID: -1692854311, guid: b041b404edcc6fd4cadc523b8dde1412, type: 3}
+    boxChat: {fileID: 21300000, guid: c3d634a0dcf1ba84f802382d7fe0af38, type: 3}
+    bgNotice: {fileID: 21300000, guid: dc23ff4ed3978bf419fa4644baefeae2, type: 3}
+    nameLevelType: _super_hard_level
+  defaultArt: {fileID: 21300000, guid: 8c53c034914f2964a9023d67fba0ac83, type: 3}

@@ -1,0 +1,1680 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2320949679221580186
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6948195164771818460}
+  - component: {fileID: 9199772296274068919}
+  m_Layer: 0
+  m_Name: ConfigManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6948195164771818460
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2320949679221580186}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9199772296274068919
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2320949679221580186}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de0b1a333be42874d85c3e9b0bbdef3a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  battlePassConfig:
+    db_Gift:
+    - require: 0
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 250
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 470
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 750
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 990
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 15
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 45
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 1390
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 1700
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 1960
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 2300
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1800
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3600
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+    - require: 2580
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 3080
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    - require: 3450
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 3850
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 20
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 60
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 4280
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 4580
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 5130
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 15
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 5590
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3600
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 10800
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+    - require: 5910
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 6400
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    - require: 6920
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 20
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 40
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 7520
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 25
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 75
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 7860
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 8410
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 8990
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 25
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+        - description: 
+          resType: 0
+          amount: 40
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 9600
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 7200
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 18000
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+    - require: 10250
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 10610
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 11290
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+        - description: 
+          resType: 0
+          amount: 100
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 12000
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 100
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 12740
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    - require: 13540
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    timeActive: 2592000
+    gift_bonus_bank:
+    - description: 
+      resType: 0
+      amount: 10
+      _icon: {fileID: 0}
+      _bg: {fileID: 0}
+      _idIcon: 2
+      _idBg: 2
+  df_battlePass:
+    db_Gift:
+    - require: 0
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 250
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 470
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 750
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 990
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 15
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 45
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 1390
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 1700
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 1960
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 2300
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1800
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3600
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+    - require: 2580
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 3080
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    - require: 3450
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 3850
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 20
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 60
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 4280
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 4580
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+    - require: 5130
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 15
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 5590
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3600
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 10800
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+    - require: 5910
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 6400
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    - require: 6920
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 20
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 40
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 7520
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 25
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 75
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 7860
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 8410
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 8990
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 25
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+        - description: 
+          resType: 0
+          amount: 40
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 9600
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 7200
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 18000
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 7
+          _idBg: 7
+    - require: 10250
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+    - require: 10610
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+    - require: 11290
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+        - description: 
+          resType: 0
+          amount: 100
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 12000
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 30
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 100
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+    - require: 12740
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    - require: 13540
+      freeGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 10
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 1
+          _idBg: 1
+      premiumGifts:
+        name: 
+        data:
+        - description: 
+          resType: 0
+          amount: 3
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 3
+          _idBg: 3
+        - description: 
+          resType: 0
+          amount: 2
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 4
+          _idBg: 4
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 5
+          _idBg: 5
+        - description: 
+          resType: 0
+          amount: 1
+          _icon: {fileID: 0}
+          _bg: {fileID: 0}
+          _idIcon: 2
+          _idBg: 2
+    timeActive: 2592000
+    gift_bonus_bank:
+    - description: 
+      resType: 0
+      amount: 10
+      _icon: {fileID: 0}
+      _bg: {fileID: 0}
+      _idIcon: 2
+      _idBg: 2
+  df_speicalEventConfig:
+    eventHalloweenConfig:
+      startTime: 1727740800000
+      endTime: 1730937600000
+      timeActive: 1209600
+      active: 1
+      ID: 0
+    eventNoelConfig:
+      startTime: 1731283200000
+      endTime: 1736899200000
+      timeActive: 1209600
+      active: 1
+      ID: 1
+  showPackageData:
+  - level: 06000000080000000b000000
+    packageType: 1

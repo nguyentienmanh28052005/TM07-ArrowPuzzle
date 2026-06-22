@@ -1,0 +1,76 @@
+{ "skeleton": { "images": "D:/XGAME/SVN_SandLoop/Anim/IP_Ingame/img/" },
+"bones": [
+	{ "name": "root" }
+],
+"slots": [
+	{ "name": "mission_3", "bone": "root", "attachment": "mission_3" },
+	{ "name": "hand_Rxeng", "bone": "root", "attachment": "hand_Rxeng" },
+	{ "name": "leg_R", "bone": "root", "attachment": "leg_R" },
+	{ "name": "leg_L", "bone": "root", "attachment": "leg_L" },
+	{ "name": "xo", "bone": "root", "attachment": "xo" },
+	{ "name": "cat", "bone": "root", "attachment": "cat" },
+	{ "name": "sd_hand_L", "bone": "root", "attachment": "sd_hand_L" },
+	{ "name": "eye_L", "bone": "root", "attachment": "eye_L" },
+	{ "name": "eye_closed_L", "bone": "root", "attachment": "eye_closed_L" },
+	{ "name": "eye_R", "bone": "root", "attachment": "eye_R" },
+	{ "name": "eye_closed_R", "bone": "root", "attachment": "eye_closed_R" },
+	{ "name": "mom_1", "bone": "root", "attachment": "mom_1" },
+	{ "name": "mission_2", "bone": "root", "attachment": "mission_2" },
+	{ "name": "hand_L1", "bone": "root", "attachment": "hand_L1" },
+	{ "name": "mom_2", "bone": "root", "attachment": "mom_2" },
+	{ "name": "all", "bone": "root", "attachment": "all" }
+],
+"skins": {
+	"default": {
+		"mission_3": {
+			"mission_3": { "x": 149.5, "y": -152, "width": 285, "height": 256 }
+		},
+		"hand_Rxeng": {
+			"hand_Rxeng": { "x": 257, "y": -223.5, "width": 126, "height": 151 }
+		},
+		"leg_R": {
+			"leg_R": { "x": 167.5, "y": -242, "width": 63, "height": 56 }
+		},
+		"leg_L": {
+			"leg_L": { "x": 93.5, "y": -247, "width": 51, "height": 66 }
+		},
+		"xo": {
+			"xo": { "x": 128.5, "y": -133, "width": 211, "height": 220 }
+		},
+		"cat": {
+			"cat": { "x": 128, "y": -74, "width": 164, "height": 72 }
+		},
+		"sd_hand_L": {
+			"sd_hand_L": { "x": 91.5, "y": -194.5, "width": 111, "height": 97 }
+		},
+		"eye_L": {
+			"eye_L": { "x": 123.5, "y": -172, "width": 27, "height": 38 }
+		},
+		"eye_closed_L": {
+			"eye_closed_L": { "x": 123, "y": -171.5, "width": 26, "height": 39 }
+		},
+		"eye_R": {
+			"eye_R": { "x": 185, "y": -167, "width": 28, "height": 38 }
+		},
+		"eye_closed_R": {
+			"eye_closed_R": { "x": 185, "y": -167, "width": 26, "height": 38 }
+		},
+		"mom_1": {
+			"mom_1": { "x": 156.5, "y": -199.5, "width": 43, "height": 35 }
+		},
+		"mission_2": {
+			"mission_2": { "x": 154, "y": -217.5, "width": 278, "height": 195 }
+		},
+		"hand_L1": {
+			"hand_L1": { "x": 73, "y": -191, "width": 70, "height": 84 }
+		},
+		"mom_2": {
+			"mom_2": { "x": 154.5, "y": -198.5, "width": 41, "height": 45 }
+		},
+		"all": {
+			"all": { "x": 163.5, "y": -169, "width": 313, "height": 292 }
+		}
+	}
+},
+"animations": { "animation": {} }
+}

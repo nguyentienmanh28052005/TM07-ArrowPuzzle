@@ -1,0 +1,1648 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 4
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 986a8e76c34e5004a95c35fe2a5e347f, type: 3}
+  m_Name: LevelConfigNew
+  m_EditorClassIdentifier: 
+  dataLevelShuffleBase64: H4sIAAAAAAAACu3XS1MqS4IH8Hu7b3ffPt2rjpjwja8zEROzOL7Fx2I28z3mM8w3QDFVVMRUS0FFLRU1FVREfJcKipiKIiIqIooPxBIRUUpBQOdc8k7c6c0sZjMxMbBJon7/yKx/ZFFUfcn+ksmyf+ZE3jx6T/9vqLdL8iNeeV358fM/Pz9++ccvuXSwo/d3vx1C9sPY7zjZiOr3lIA7+z2UHzX99EsMRwaXfwIdDQ8//ZZlDGM7fwDexsgfaPnd2B9/iTHnq6d/5HbqG/4E/ezCn37LUl657Gc4zG39/EuMfTCFfkZLQ6N/pvp9x38G09a6L79l8VS158uXf/7yT//l0Lpy8y8wVP/6F4a1KP7KCuZtf/1N/+b617+P//ffEtlENpFNZBPZRDaRTWQT2UQ2kU1kE9lENpFNZBPZRDaRTWQT2UQ2kU1kE9lENpFNZBPZRDaRTWQT2f9/2b+1876kfklm8czuUBLr7BsbTWIDDXXKJBa8Xk8mxU12uaZJYlUm+VwSq5t7X0xibQPHK8RY8Yw+iY2FWjaTWHjjw0mswry9GzeoXRyxJEGsqLElQWfL5UkSDESYM2LA0+VKgrKDt+skqGIOPUlQN6r2xo0+aWv2J9EPH/fPSbTg3viaRLfbht6Jja5VfSTRy+PnVcn0fscSSKZvqqSi5LiFHoJNyXTTiaUlme5fn2hPpmcmGqXEtmR33cn0WY2hL5l+8tODyXSN42M4mfTbdIwlsyr1/EQyq+uhppNZW92zlhj7vLeQzMac40wyC3G9LplVzLg3iC306beS2d2GPlMye8lFzMks5zqxEhOZtMfJrHyu1ZHMqgf858msQWy6ihu2hkZvk7HnGtwn48jelS8ZSxZXA8QGFT1cMp5rCYeS8U7EFk3GF7fTgpT4nGGLpCaFFTMPdSksPYobU1ht27CEGP6obkthnexFRwobOFzuSmHBmqyXmGz8lU5hVR1WRQqrq5pCKaztoUlFjD1mp1LYmH5zJoWFE4PzKaxCJliOGz1f41xNoU3+hfUU2nXaYUyhg4aXbWL16v29FLqnR3WQQk/VNRyl0BvPt/YU0s+57kzBnq3+yxQc0cRuUrCk7/SO2GDD3EMKnuPanlLwjuvpJQVf7Oy+EXuZHYuk4LqBus8U3C2+qU7Fk6G12tT49WK4ljekQvveuzgV+haOYSqsUsxQxKgWKEuFKOLrSYXM7XZ/KrRYRoaIuZdrRlNheORyPBWK21YmUyH90aWJG9awb7Op2Hh4uJiKHavqlVTsH2vWExN2eA2puLNqC6fi8Yeh3VS8elxlIWbVnx+mYo9q6SQVR6TSs1QsqeEuUsn16bdcp9LLpxOeVHrf0OhNpW+m7h6JhboNz6l0U93Aayrd//wRTqVnnI4YmXN9a74qDR9rKJCGvb3P9Wn4U2RuSotbGzfekoZHXPXtaXhpx92Zhs2z+m5i13RfXxp+a4oOpOHG0MlwGu671o4R0+y1TqRh44JfnYYdQyZtGvZL0EIauT4jgElj5bdXa2ms2rK6kcYalnu2iNlHwjtprK/1yJzGVn1MW9NYipUcE0OHD6dpLLOKz9NYy9jwVRrrpoS3ZL0XgYtNw3UPy7403H0sC6ThSf1rkNi6yhr63k86Ff3eTygWpOPPR1aYTvqdbtal4xHDYGM6XpoSSNKxudvZmk72r3axIx2GAx1d6VDsfJGnQ3prnyam1agU6RD3NqB06BR5lOkwEFyfihtT5+qfSWe6d2Jz6czk7OlSOrNOz60SO25qX09nvG9Pm+nM59XudjrTtje2R2xkoe4gnVkaurGlM2aJzp7OXL/Lnenk9+d+d6WzYsvxTTpLL8/cpbPaEfhADLc++tNZZ2z7JZ0N3I28pbPgsCZCTLZ6+ZHOqsZWqjNYHdVdm8HaBCFRBtk/76E4A78dqWEGbtQ3Uxm4T+WVEtNIt3oysFGo6M/AjseqoQzst5+PEBMalsYzcOeUdDIDj3dz0xl4tfZglpg1MLGYgT1njSsZOGK802VgicZgiBtU9A7gDLgg+jRlwN2gYz8DXl7MHxLjtqmTDCiafXZkQDltvsiA6iblNTHDW70nA9qv3PcZ0Lerf8yAVQt9z2S9tqEol4FHJPZwBl5618YysNndWsUj/fb9NTz8tmSq5+HGEdTEw32ttS3ENLGrNh423q128rDD2tPNw/6VcC+P/D+MHQ3woIzSDPOgStAyxoM674OKmO0Iq3mQ1Q1reTCmFC7wIJS6lokphMwaDy48yjZ4cNf+auTByw3rDjFucsrMg6JusZUH5bX3RzyoDmyexg3gs8FzHnAaBVc8EJh2unkA9C6yxGSiTh8PqIIvTzygu9gP8oBtWxUixmobojwQ6/d88gBs2hBmAsVbf13mL8Zpr2INmRzePW3O5Jzzc62ZXGCwvYMYkARkmZzsfVeeyancY3Qmp9uvUxCzLd2MZnLssE6ZycVg71QmB2PvmrgBdHc8lwkY68xSJrCswNVM4EaPemLh9p3NTCAWjG5nAtpbs5cJtEeXFmJYt2LLBE5ltz0TBDpDZ5kACG0uYrJH9U0mUNmb7zKBbsPrzQS2yS0/ORd3l+IlkwuD6rdMThw4f8/k6LOlj1/7GaXVWRye5kAW55QfiLK4QP2kOIv0CzbCLE52cdeexam2DdIsTqcd6IkbsPd/9mUBX+PZYBaoepsfyQLUFTVODO0+T2QBZt48nQUsg8rZLOBuFi2SObmwm8niRG69LouT7/cZsjj1UnSLmGHYbsri7HB2P4vzRVsPs7iqO/8xmVNmNTmygGoFXWQBHaq9zgK29utbYuzn6n0WiN33PGYBeBQOZAGF7ogjc2qVmvD3fp0tse/9qn2CbC7gwzXZpJ99uD6bk20Im7I51aRLks3pupg2YjbQ1ZnNsU+vXdlczGHtzeagcWqAmGJaPJzNLcjvUTa3W29UZXOXL4PqbLJ/5wJtNhBvO+ezAa1dXM4G2v7ONWK4MbieDZyv+8ZsELhU7WQDsNtgJiab9xxkA9XgxlE20DXTp9nAFo45ibE3p5fZIGaec2cDuNTOZgPFcOAhbtQy3HvKpvajY8Fs6sZTF8qmQgc3EWJNK7rPbKof9QpzqJn2SG0OtfV53JATt7P7meYc6skGW3OoGt0jlUNJlTuyHNKvc1Sewy1UAzqH2/VdDuVwlycro8S49W5lDieaDE3mcPIumyaHU4Ppubiho6fmpRx07/Cu5KCPzS19DmqdVmwSG5ZXb+egxfqL3Ry097JkyUFX51IbmdONuZMcLjxzcJbDifsnXTkc3dh0Q0z7eufJ4fClwZvDOU0D/hwuMPf5TObsGDx7zUFjzQvvOWglTH3koIOb56rcuN2azSAXvS8qRbmoeVgkzkUD8LaF2GxU356Ltj190lx0fhDtzkXPjL2PWC2aHcxFXe1tI7lo4tM/lov096aJuFEmG5rOpVxrtbO5VHD8eiGXqu9cY4j1VMt1udSUL7yRS22cHG3lUifrGhOxh4mW/VxK0OWz5lLtYPs4lxp9GnYQW3YIL3Kp/U3XVS51o2Zuc6lQT9c9OZeO+jdfLhp7sQZy0cr5FJeLDrA4/Gu/mfvo9359RsFX1Nw4VPMVDbwK6r+SfpfOxq9o27Qo+YrO5zrbvqLngWBH3Kio2NL1lWoJq3q/UkM3DQNfqXmzR0HMtLiBvlIuBa36SgVbPqa+UvXR05mvX/745acfvn8SY2L8vzT++lpMmaB36xvlihpN36igZ2j/G1VvrTr8Rm5LK+fH39AiWnJ8Q3vt0otv6OozeEXs9d5y+w01HE3cf0O9usbHb2haeRcgttlp4L6h0+qB8Df06PuIfkPVdocgj9x2N+Zr8qj+Sao+j5rpem7Mo7aAWULs7Gm8LY96ctR35lE1RndXHiWd1vcSU8r7BvKotfqoIo86fDlBedTduVZFLIpb1XlUi9Y/k0cN9Zvm86j5RrScR267r2AtD91fXq3noQ/TqjEPtc737BAbHgzv5aHF5qODPLQXnj7KQ1c3klNir+YHZx5qWMKXeah3eNidh6ahkCXrLUcvHvKofc/yUx51cyAL5lEh5vXt137IGvner33q83u/zyZhPrV1z9bmk362zYZ86mltsDmfqlEKWvMpaaeTIqasXpTlU2u+Dnk+dXjy0p9P3a3vD+WT2+6kajQfdXU1KPPRBPBM5iP907qG2JGjfy4f3W/GFvPRh/p0JR+1yuf0xIbr2zfz0eLLE85He+e7u/noCo9Z8snfykydLZ8L992c5HPiRt1ZPke/yl3EtJfv1/kcNh178jnn3Iw3nwsMQD8x0Pz4nM/Jwtuv+ZzqZuQ9n9OZaz6I2RYvqwo4VrECCrhYS7eogIPRt6YCctv1HLYUoO0DdXsBOmeapQXoedTbTay2fauvAHV9Dg0WoIn7qpECpLedjxE7WluaKED349LpAvTRwWkLUGv1wUIBeSzwTTAFQHXSqCsAuvW7jQJgmzBsEWNlA6YCEKv5NBcA+OSwFgCFY/6Y2MIm5SgAu+rn8wJw2WO+KgBcnfKWmOil/r4AyM/dvgKgxvpAATDM9HHkXG77oqEC9N5gjxag5letoBANXLbWFJJ+Jn9dIdqeMzUWovMBJClEz+LaNmK14auOQtR1s9pViCbMPb2FSL8YpgvJY4/iSFEInC0aVAgCEYmqEADPwxQx2QGeKQQqZni+EOhGhcuFwNbmWiXGfiyvF4IYKzMWAmh73S4EijXrHllvc3zqoBCddoiPCtFj1b29EFX7Np3EOk4GLwvR2LrAXYhWJpx3hehAtvhA7Lam86kQvftfXgpRs2P/7Xu/TVXk137qhs/v/Xo81UXovG6jtgg9P/c3FJHHOmdMXATE+BQWAXpmjioC2r52GTHcEOgpAk5ut78IBFxjQ0UAmOpGicnmbsaLgGpAN1kEdOJeTRGwhd5ni8hr8fXxYhEM782sFEHxItQXQVrxaCCmbdnBRRBHRnaLoPO2xlIEA5bLQ2KAWTkpgrLR7rMiqGoLXRRB3cfhNVnPzqo9RcB32OwtAlVr3sciQI1vPRNDHYrXIsBUVb8XAcvDeawIuI+XqopJP70UFAPxBFdfDGjZQVMx0NZMtsSN3vI3thfTZ6d3ncX0k8HQXUzXqAf6iEl7PgeKaWXd2XAxvfY8P1ZMHzqpCWJ3W8/qYjqqMWuL6ZY+5UIxPdQgYojNc+61Ytrk0m8U066dvq1iOjgb3YkbKxqwm4tZuXjWWsyqQ63Hxazh2n9KzL5nOi9mfQvoqpitUtTeFrNUyzVLDEVWfcUsc9sTKGYtlnCwmHUvH4WIhUc00WJW3NYiKGHpjwdhCatlcV0JeS0+HG4sgfZVoaQE+sZcrSWwqoPpIEZVdXWVQPTwKi+BzLGVLoEW/ZSCmFslRiUwLL1XlkBxjXGqBNL+wRli2lPBfAnEBudSCXROLa6WwEB353rc6Pq64GYJ3fO8v11CTzlVeyX0xlbDAbETjcdWQj/0bthLaEED7Syh27mYi9io6/SmhF7embsrofdn2x9K6Bs64CcWatp7KaGbQmNvJXT/dV2khJ7Zu/mIG2Nc0FWXMo6h3tpSxi+JiEoZYeRYXBq3ztsZWMqMWyBVyqwuP0pLGevITk8p2b/W0f5SOhqrGSqlW9jLkVJ66HBlnNj8avdkKW0aC02X0i7KNltKBwXTi3HDwofmlVLceezVleJx/ZahFK+qFJiYVVq9W4o9wov9Uhx5XDosxZJT6QmxQQPnKMVzUwcXpXine/K6FF/UNnnIeqHA3X0p3eQ0PJbS/VsDz6X0jOaTI7bVexYupc9EC7FS+ilIVfHpGtdzDZ9cnzvmej6tnFU28ek1WtTCpw+bbtuI3b3pO/l09Kqvm0+37EV7+fTQgn2AT/ZvaHaYD7GkbYwPne9+FR8G3CY1MWBBWj6ULdcu8KFq5HqZD3Wta2vEbLGeDT5k78JGPoxZj3b4EK5qzHzSb6zFysdzlO+Ij3cE26d8fOEdPif2ciS84uM6vcvNx90qhuXjSWmXj9i68O2Jj48frUE+9tqnQnz8uSGO8sn+Td1/8pnxbqOwjFmtHaorY6wBQWNZ3DxnzuYyJmJcbC1jJJrOjjJmsDcoixvWiCzyMmwMqugy7LhoUJRh/7ZnlJhwdkNZhjtpeqoMjzd9aMrw6tvpHDHr1dxSGfbstq+W4ch8QF+GJUN7m8QGJePbZXjuvW6vDO+4byxl+GJfZ4sb5JZ67WVQNBI5K4Py1hNXGVTHZm6IGe7gXRm0Wx+9ZdC3suMvg1Vjoy/EKAq8lUEkuHovg4x35aMMWo66q8tJP10IlDMRpU1Uzkik0+JyZlAogcTmHr3t5cyOfUtazlxsKHrKmZfJ6n5idd0Xg+VMd+3ySDkzGZCOlzPrZ9xEOdk/48F0OWSnJ2fLYUzetFgOoYhliCmCBl05XLgYMJTD3e3PrXJ4qT0zEeP6F/bLoaip47Acyt+ej8uh+srsiBuLd5UX5axzXnRdzgYGb2/LWSBZvycme+97LGdV7mignNXt27ly1rY0GybGDrfFytkYfBJUsDBmqqlgFXeovoJcn9bapgqIV64lFdCJ1toqYKBd3kkMCN67KqDMe9RbAVVHmoEKqNO1DBOzKX2oArKd26oKGKseUVdA+CjUElPYXfMVcGGDWa6Au5NdaxXwsuttPW7MGzg0VjCNgamdCqbvTGyuYDTG+wNixmnjUQXjkA+dVjD++qrzCkYYdF4S67xYdFcw49udbAWzqg0+VDDWfssTMU/jRLCCibw2hCoYyZUnUsEM7m58/tpvnhZWQjz4UVsJnc2OhkoYCM81V5J+7vbWSijbD1CVULW0J6uEuuFxedyYY1hPVzLe6M1QJfPp0Y1WMm3WXiWxkZXIZCWzhE40lYy5XTtXyVx/wiVib/ePK5VM49GOvpLp041uVjIaJdgmZuy82q1kHNWrlkrG7+u2VTJCe+ik8n/79SYxJsb/yVj94w/Tv0v7+fepf/iHH34Q/EvOn37+97//svi7H/4Di27FxKBBAAA=
+  levelInfos:
+  - name: Level 1 - EASY
+    level: 1
+    levelID: 1
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 2 - EASY
+    level: 2
+    levelID: 2
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 3 - EASY
+    level: 3
+    levelID: 3
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 4 - EASY
+    level: 4
+    levelID: 4
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 5 - EASY
+    level: 5
+    levelID: 5
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 6 - EASY
+    level: 6
+    levelID: 6
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 7 - EASY
+    level: 7
+    levelID: 7
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 8 - EASY
+    level: 8
+    levelID: 8
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 9 - HARD
+    level: 9
+    levelID: 9
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 10 - EASY
+    level: 10
+    levelID: 10
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 11 - EASY
+    level: 11
+    levelID: 1011
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 12 - EASY
+    level: 12
+    levelID: 11012
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 13 - EASY
+    level: 13
+    levelID: 1013
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 14 - EASY
+    level: 14
+    levelID: 1014
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 15 - HARD
+    level: 15
+    levelID: 1015
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 16 - EASY
+    level: 16
+    levelID: 1016
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 17 - EASY
+    level: 17
+    levelID: 1017
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 18 - EASY
+    level: 18
+    levelID: 1018
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 19 - EASY
+    level: 19
+    levelID: 1019
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 20 - CRAZY
+    level: 20
+    levelID: 1020
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 21 - EASY
+    level: 21
+    levelID: 1021
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 22 - EASY
+    level: 22
+    levelID: 1022
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 23 - EASY
+    level: 23
+    levelID: 1023
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 24 - HARD
+    level: 24
+    levelID: 1024
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 25 - EASY
+    level: 25
+    levelID: 1025
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 26 - EASY
+    level: 26
+    levelID: 1026
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 27 - EASY
+    level: 27
+    levelID: 1027
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 28 - HARD
+    level: 28
+    levelID: 1028
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 29 - CRAZY
+    level: 29
+    levelID: 1029
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 30 - EASY
+    level: 30
+    levelID: 1030
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 31 - EASY
+    level: 31
+    levelID: 1031
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 32 - EASY
+    level: 32
+    levelID: 1032
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 33 - HARD
+    level: 33
+    levelID: 1033
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 34 - EASY
+    level: 34
+    levelID: 1034
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 35 - EASY
+    level: 35
+    levelID: 1035
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 36 - CRAZY
+    level: 36
+    levelID: 1036
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 37 - EASY
+    level: 37
+    levelID: 1037
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 38 - HARD
+    level: 38
+    levelID: 1038
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 39 - EASY
+    level: 39
+    levelID: 1039
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 40 - EASY
+    level: 40
+    levelID: 1040
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 41 - EASY
+    level: 41
+    levelID: 1041
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 42 - EASY
+    level: 42
+    levelID: 1042
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 43 - EASY
+    level: 43
+    levelID: 1043
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 44 - HARD
+    level: 44
+    levelID: 1044
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 45 - CRAZY
+    level: 45
+    levelID: 1045
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 46 - EASY
+    level: 46
+    levelID: 1046
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 47 - EASY
+    level: 47
+    levelID: 1047
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 48 - EASY
+    level: 48
+    levelID: 1048
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 49 - CRAZY
+    level: 49
+    levelID: 1049
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 50 - EASY
+    level: 50
+    levelID: 11050
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 51 - EASY
+    level: 51
+    levelID: 1051
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 52 - EASY
+    level: 52
+    levelID: 1052
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 53 - HARD
+    level: 53
+    levelID: 1053
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 54 - CRAZY
+    level: 54
+    levelID: 1054
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 55 - EASY
+    level: 55
+    levelID: 1055
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 56 - EASY
+    level: 56
+    levelID: 1056
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 57 - EASY
+    level: 57
+    levelID: 1057
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 58 - EASY
+    level: 58
+    levelID: 1058
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 59 - HARD
+    level: 59
+    levelID: 1059
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 60 - EASY
+    level: 60
+    levelID: 1060
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 61 - EASY
+    level: 61
+    levelID: 1061
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 62 - EASY
+    level: 62
+    levelID: 1062
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 63 - HARD
+    level: 63
+    levelID: 1063
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 64 - CRAZY
+    level: 64
+    levelID: 1064
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 65 - EASY
+    level: 65
+    levelID: 1065
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 66 - EASY
+    level: 66
+    levelID: 1066
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 67 - EASY
+    level: 67
+    levelID: 1067
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 68 - HARD
+    level: 68
+    levelID: 1068
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 69 - CRAZY
+    level: 69
+    levelID: 1069
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 70 - EASY
+    level: 70
+    levelID: 70
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 71 - EASY
+    level: 71
+    levelID: 71
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 72 - EASY
+    level: 72
+    levelID: 72
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 73 - HARD
+    level: 73
+    levelID: 73
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 74 - EASY
+    level: 74
+    levelID: 74
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 75 - CRAZY
+    level: 75
+    levelID: 75
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 76 - EASY
+    level: 76
+    levelID: 76
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 77 - EASY
+    level: 77
+    levelID: 77
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 78 - EASY
+    level: 78
+    levelID: 78
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 79 - EASY
+    level: 79
+    levelID: 79
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 80 - EASY
+    level: 80
+    levelID: 1080
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 81 - EASY
+    level: 81
+    levelID: 1081
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 82 - CRAZY
+    level: 82
+    levelID: 1082
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 83 - EASY
+    level: 83
+    levelID: 1083
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 84 - CRAZY
+    level: 84
+    levelID: 1084
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 85 - EASY
+    level: 85
+    levelID: 1085
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 86 - EASY
+    level: 86
+    levelID: 1086
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 87 - EASY
+    level: 87
+    levelID: 1087
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 88 - EASY
+    level: 88
+    levelID: 1088
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 89 - HARD
+    level: 89
+    levelID: 1089
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 90 - EASY
+    level: 90
+    levelID: 1090
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 91 - EASY
+    level: 91
+    levelID: 1091
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 92 - EASY
+    level: 92
+    levelID: 1092
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 93 - HARD
+    level: 93
+    levelID: 1093
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 94 - EASY
+    level: 94
+    levelID: 1094
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 95 - CRAZY
+    level: 95
+    levelID: 1095
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 96 - EASY
+    level: 96
+    levelID: 1096
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 97 - EASY
+    level: 97
+    levelID: 1097
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 98 - EASY
+    level: 98
+    levelID: 1098
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 99 - CRAZY
+    level: 99
+    levelID: 1099
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 100 - EASY
+    level: 100
+    levelID: 1100
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 101 - EASY
+    level: 101
+    levelID: 1101
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 102 - EASY
+    level: 102
+    levelID: 1102
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 103 - EASY
+    level: 103
+    levelID: 1103
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 104 - HARD
+    level: 104
+    levelID: 1104
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 105 - EASY
+    level: 105
+    levelID: 1105
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 106 - CRAZY
+    level: 106
+    levelID: 1106
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 107 - EASY
+    level: 107
+    levelID: 1107
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 108 - EASY
+    level: 108
+    levelID: 1108
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 109 - EASY
+    level: 109
+    levelID: 1109
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 110 - HARD
+    level: 110
+    levelID: 1110
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 111 - EASY
+    level: 111
+    levelID: 1111
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 112 - EASY
+    level: 112
+    levelID: 1112
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 113 - EASY
+    level: 113
+    levelID: 1113
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 114 - HARD
+    level: 114
+    levelID: 1114
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 115 - EASY
+    level: 115
+    levelID: 1115
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 116 - CRAZY
+    level: 116
+    levelID: 1116
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 117 - EASY
+    level: 117
+    levelID: 1117
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 118 - EASY
+    level: 118
+    levelID: 1118
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 119 - CRAZY
+    level: 119
+    levelID: 1119
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 120 - EASY
+    level: 120
+    levelID: 1120
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 121 - EASY
+    level: 121
+    levelID: 1121
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 122 - EASY
+    level: 122
+    levelID: 1122
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 123 - HARD
+    level: 123
+    levelID: 1123
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 124 - EASY
+    level: 124
+    levelID: 1124
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 125 - CRAZY
+    level: 125
+    levelID: 1125
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 126 - EASY
+    level: 126
+    levelID: 126
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 127 - EASY
+    level: 127
+    levelID: 127
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 128 - EASY
+    level: 128
+    levelID: 128
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 129 - HARD
+    level: 129
+    levelID: 129
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 130 - CRAZY
+    level: 130
+    levelID: 130
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 131 - EASY
+    level: 131
+    levelID: 131
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 132 - EASY
+    level: 132
+    levelID: 132
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 133 - EASY
+    level: 133
+    levelID: 133
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 134 - HARD
+    level: 134
+    levelID: 134
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 135 - EASY
+    level: 135
+    levelID: 135
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 136 - HARD
+    level: 136
+    levelID: 136
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 137 - EASY
+    level: 137
+    levelID: 137
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 138 - EASY
+    level: 138
+    levelID: 138
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 139 - CRAZY
+    level: 139
+    levelID: 139
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 140 - EASY
+    level: 140
+    levelID: 140
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 141 - EASY
+    level: 141
+    levelID: 141
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 142 - EASY
+    level: 142
+    levelID: 142
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 143 - EASY
+    level: 143
+    levelID: 143
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 144 - HARD
+    level: 144
+    levelID: 144
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 145 - HARD
+    level: 145
+    levelID: 145
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 146 - EASY
+    level: 146
+    levelID: 146
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 147 - EASY
+    level: 147
+    levelID: 147
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 148 - EASY
+    level: 148
+    levelID: 148
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 149 - CRAZY
+    level: 149
+    levelID: 149
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 150 - HARD
+    level: 150
+    levelID: 150
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 151 - EASY
+    level: 151
+    levelID: 1151
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 152 - EASY
+    level: 152
+    levelID: 1152
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 153 - EASY
+    level: 153
+    levelID: 1153
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 154 - HARD
+    level: 154
+    levelID: 154
+    splineId: 0
+    backgroundID: 3
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 155 - EASY
+    level: 155
+    levelID: 155
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 156 - CRAZY
+    level: 156
+    levelID: 156
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 157 - EASY
+    level: 157
+    levelID: 157
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 158 - EASY
+    level: 158
+    levelID: 158
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 159 - CRAZY
+    level: 159
+    levelID: 159
+    splineId: 0
+    backgroundID: 3
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 160 - EASY
+    level: 160
+    levelID: 160
+    splineId: 0
+    backgroundID: 3
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 161 - EASY
+    level: 161
+    levelID: 161
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 162 - EASY
+    level: 162
+    levelID: 162
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 163 - HARD
+    level: 163
+    levelID: 163
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 164 - EASY
+    level: 164
+    levelID: 164
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 165 - EASY
+    level: 165
+    levelID: 165
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 166 - CRAZY
+    level: 166
+    levelID: 1166
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 167 - EASY
+    level: 167
+    levelID: 1167
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 168 - EASY
+    level: 168
+    levelID: 1168
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 169 - CRAZY
+    level: 169
+    levelID: 1169
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 170 - EASY
+    level: 170
+    levelID: 1170
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 171 - EASY
+    level: 171
+    levelID: 1171
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 172 - EASY
+    level: 172
+    levelID: 1172
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 173 - EASY
+    level: 173
+    levelID: 1173
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 174 - HARD
+    level: 174
+    levelID: 1174
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 175 - EASY
+    level: 175
+    levelID: 1175
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 176 - CRAZY
+    level: 176
+    levelID: 176
+    splineId: 0
+    backgroundID: 1
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 177 - EASY
+    level: 177
+    levelID: 177
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 178 - EASY
+    level: 178
+    levelID: 178
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 179 - EASY
+    level: 179
+    levelID: 179
+    splineId: 0
+    backgroundID: 1
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 180 - HARD
+    level: 180
+    levelID: 180
+    splineId: 0
+    backgroundID: 1
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 181 - EASY
+    level: 181
+    levelID: 1181
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 182 - EASY
+    level: 182
+    levelID: 1182
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 183 - EASY
+    level: 183
+    levelID: 1183
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 184 - EASY
+    level: 184
+    levelID: 1184
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 185 - EASY
+    level: 185
+    levelID: 1185
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 186 - CRAZY
+    level: 186
+    levelID: 1186
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 187 - EASY
+    level: 187
+    levelID: 1187
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 188 - EASY
+    level: 188
+    levelID: 1188
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 189 - CRAZY
+    level: 189
+    levelID: 1189
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 190 - EASY
+    level: 190
+    levelID: 1190
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 191 - EASY
+    level: 191
+    levelID: 191
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 192 - EASY
+    level: 192
+    levelID: 192
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 193 - HARD
+    level: 193
+    levelID: 193
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 194 - EASY
+    level: 194
+    levelID: 194
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 195 - CRAZY
+    level: 195
+    levelID: 195
+    splineId: 0
+    backgroundID: 2
+    levelType: 2
+    isMission: 0
+    base64Data: 
+  - name: Level 196 - EASY
+    level: 196
+    levelID: 196
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 197 - EASY
+    level: 197
+    levelID: 197
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 198 - EASY
+    level: 198
+    levelID: 198
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  - name: Level 199 - HARD
+    level: 199
+    levelID: 199
+    splineId: 0
+    backgroundID: 2
+    levelType: 1
+    isMission: 0
+    base64Data: 
+  - name: Level 200 - EASY
+    level: 200
+    levelID: 200
+    splineId: 0
+    backgroundID: 2
+    levelType: 0
+    isMission: 0
+    base64Data: 
+  levelABTests: []
+  levelRewards:
+  - type: 0
+    reward:
+    - description: 
+      resType: 0
+      amount: 20
+      _icon: {fileID: 0}
+      _bg: {fileID: 0}
+      _idIcon: 0
+      _idBg: 0
+    star: 1
+  - type: 1
+    reward:
+    - description: 
+      resType: 0
+      amount: 30
+      _icon: {fileID: 0}
+      _bg: {fileID: 0}
+      _idIcon: 0
+      _idBg: 0
+    star: 3
+  - type: 2
+    reward:
+    - description: 
+      resType: 0
+      amount: 40
+      _icon: {fileID: 0}
+      _bg: {fileID: 0}
+      _idIcon: 0
+      _idBg: 0
+    star: 5

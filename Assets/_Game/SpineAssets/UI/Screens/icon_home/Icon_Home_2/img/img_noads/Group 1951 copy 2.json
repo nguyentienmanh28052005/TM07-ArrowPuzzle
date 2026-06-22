@@ -1,0 +1,72 @@
+{ "skeleton": { "images": "D:/XGAME/SVN_SandLoop/Anim/Icon_Home_2/img/img_noads/" },
+"bones": [
+	{ "name": "root" }
+],
+"slots": [
+	{ "name": "sd", "bone": "root", "attachment": "sd" },
+	{ "name": "bong_2", "bone": "root", "attachment": "bong_2" },
+	{ "name": "bong_1", "bone": "root", "attachment": "bong_1" },
+	{ "name": "rb_1", "bone": "root", "attachment": "rb_1" },
+	{ "name": "rb_2", "bone": "root", "attachment": "rb_2" },
+	{ "name": "rb_3", "bone": "root", "attachment": "rb_3" },
+	{ "name": "rb_4", "bone": "root", "attachment": "rb_4" },
+	{ "name": "rb_5", "bone": "root", "attachment": "rb_5" },
+	{ "name": "rb_6", "bone": "root", "attachment": "rb_6" },
+	{ "name": "rb_7", "bone": "root", "attachment": "rb_7" },
+	{ "name": "rb_8", "bone": "root", "attachment": "rb_8" },
+	{ "name": "fx", "bone": "root", "attachment": "fx" },
+	{ "name": "fx_2", "bone": "root", "attachment": "fx_2" },
+	{ "name": "fx_3", "bone": "root", "attachment": "fx_3" },
+	{ "name": "all", "bone": "root", "attachment": "all" }
+],
+"skins": {
+	"default": {
+		"sd": {
+			"sd": { "x": 951.5, "y": -909, "width": 85, "height": 24 }
+		},
+		"bong_2": {
+			"bong_2": { "x": 997.5, "y": -865, "width": 21, "height": 62 }
+		},
+		"bong_1": {
+			"bong_1": { "x": 996, "y": -803, "width": 84, "height": 104 }
+		},
+		"rb_1": {
+			"rb_1": { "x": 948, "y": -861, "width": 144, "height": 110 }
+		},
+		"rb_2": {
+			"rb_2": { "x": 901, "y": -823.5, "width": 62, "height": 51 }
+		},
+		"rb_3": {
+			"rb_3": { "x": 875.5, "y": -859.5, "width": 73, "height": 29 }
+		},
+		"rb_4": {
+			"rb_4": { "x": 850.5, "y": -834.5, "width": 23, "height": 19 }
+		},
+		"rb_5": {
+			"rb_5": { "x": 890, "y": -886, "width": 28, "height": 24 }
+		},
+		"rb_6": {
+			"rb_6": { "x": 918, "y": -818, "width": 20, "height": 14 }
+		},
+		"rb_7": {
+			"rb_7": { "x": 1067.5, "y": -840.5, "width": 17, "height": 11 }
+		},
+		"rb_8": {
+			"rb_8": { "x": 918, "y": -870, "width": 14, "height": 12 }
+		},
+		"fx": {
+			"fx": { "x": 886, "y": -888, "width": 20, "height": 20 }
+		},
+		"fx_2": {
+			"fx_2": { "x": 979.5, "y": -799.5, "width": 23, "height": 23 }
+		},
+		"fx_3": {
+			"fx_3": { "x": 995.5, "y": -887.5, "width": 17, "height": 17 }
+		},
+		"all": {
+			"all": { "x": 957.5, "y": -833.5, "width": 237, "height": 165 }
+		}
+	}
+},
+"animations": { "animation": {} }
+}

@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 627358dc6335a174fa508f1fdd2d9002, type: 3}
+  m_Name: Sprite_Resource_SO
+  m_EditorClassIdentifier: 
+  matchTypeId:
+  - name: Gold
+    resType: 0
+    idIcon: 0
+    idBg: 0
+  - name: Ticket
+    resType: 1
+    idIcon: 4
+    idBg: 0
+  - name: Drill
+    resType: 3
+    idIcon: 1
+    idBg: 0
+  - name: Hammer
+    resType: 4
+    idIcon: 2
+    idBg: 0
+  - name: Clear
+    resType: 5
+    idIcon: 3
+    idBg: 0
+  - name: Heart
+    resType: 2
+    idIcon: 5
+    idBg: 0
+  - name: Unlimited Heart
+    resType: 6
+    idIcon: 6
+    idBg: 0
+  - name: Magnet
+    resType: 7
+    idIcon: 7
+    idBg: 0
+  - name: Magic Box
+    resType: 8
+    idIcon: 8
+    idBg: 0
+  - name: Unlimited Magnet
+    resType: 9
+    idIcon: 7
+    idBg: 0
+  - name: Unlimited Magic Box
+    resType: 10
+    idIcon: 8
+    idBg: 0
+  - name: Double Reward
+    resType: 11
+    idIcon: 9
+    idBg: 0
+  - name: Star
+    resType: 12
+    idIcon: 11
+    idBg: 0
+  icon:
+  - {fileID: 21300000, guid: 9a9ba36fbfd1f034eae3f21cb0d9d589, type: 3}
+  - {fileID: 21300000, guid: d72ef48afd84ff94b88e8603e33b4687, type: 3}
+  - {fileID: 21300000, guid: 2fa15d4569aa5e24b93d005abd272798, type: 3}
+  - {fileID: 21300000, guid: db34180e1946cb244bd22b88e624eaa5, type: 3}
+  - {fileID: 21300000, guid: e2f3e13c406a91b4eb6c67405b00253b, type: 3}
+  - {fileID: 21300000, guid: 21c9dd11ab0ea074ab166f69483cec71, type: 3}
+  - {fileID: 21300000, guid: 30179a45c7d0bd245acc29e8109cdb74, type: 3}
+  - {fileID: 21300000, guid: 992e262e7723d544abe901765e8ec8f1, type: 3}
+  - {fileID: 21300000, guid: 66cf320b3a980ce47b54e98e68c0bb6e, type: 3}
+  - {fileID: 21300000, guid: 4751a018813caa54190ba7b9a61407d6, type: 3}
+  - {fileID: 21300000, guid: 63f8cc6266561b54bad27c52967957dc, type: 3}
+  - {fileID: 21300000, guid: 23996316c0c0f4048be6886dee434d91, type: 3}
+  - {fileID: 21300000, guid: 114f031d59e662843b1954836f5ab04f, type: 3}
+  - {fileID: 21300000, guid: 233de03e5343a0e43af94f29e748d923, type: 3}
+  - {fileID: 21300000, guid: bca79b01faca7a6418ec38f589b7a7c5, type: 3}
+  bg:
+  - {fileID: 0}

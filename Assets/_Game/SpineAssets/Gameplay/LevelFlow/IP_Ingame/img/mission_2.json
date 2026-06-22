@@ -1,0 +1,20 @@
+{ "skeleton": { "images": "D:/XGAME/SVN_SandLoop/Anim/IP_Ingame/img/" },
+"bones": [
+	{ "name": "root" }
+],
+"slots": [
+	{ "name": "mission_5", "bone": "root", "attachment": "mission_5" },
+	{ "name": "mission_4", "bone": "root", "attachment": "mission_4" }
+],
+"skins": {
+	"default": {
+		"mission_5": {
+			"mission_5": { "x": 137, "y": -127, "width": 276, "height": 256 }
+		},
+		"mission_4": {
+			"mission_4": { "x": 140, "y": -186.5, "width": 272, "height": 183 }
+		}
+	}
+},
+"animations": { "animation": {} }
+}

@@ -1,0 +1,180 @@
+﻿#if UNITY_ANDROID
+using System.IO;
+using System.Text;
+using System.Xml;
+using UnityEditor.Android;
+
+public class ModifyUnityAndroidAppManifestSample : IPostGenerateGradleAndroidProject
+{
+    public readonly string ActivityName = "com.yourcompany.yourgame.YourActivityName";
+    public readonly string ThemeName = "@style/YourCustomTheme";
+
+    public void OnPostGenerateGradleAndroidProject(string basePath)
+    {
+        // If needed, add condition checks on whether you need to run the modification routine.
+        // For example, specific configuration/app options enabled
+
+        var androidManifest = new AndroidManifest(GetManifestPath(basePath));
+
+        //androidManifest.SetApplicationTheme(ThemeName);
+        //androidManifest.SetStartingActivityName(ActivityName);
+        androidManifest.SetHardwareAccelerated(AppConfig.isHardwareAccelerated);
+        // Add your XML manipulation routines
+
+        androidManifest.Save();
+    }
+
+    public int callbackOrder { get { return 1; } }
+
+    private string _manifestFilePath;
+
+    private string GetManifestPath(string basePath)
+    {
+        if (string.IsNullOrEmpty(_manifestFilePath))
+        {
+            var pathBuilder = new StringBuilder(basePath);
+            pathBuilder.Append(Path.DirectorySeparatorChar).Append("src");
+            pathBuilder.Append(Path.DirectorySeparatorChar).Append("main");
+            pathBuilder.Append(Path.DirectorySeparatorChar).Append("AndroidManifest.xml");
+            _manifestFilePath = pathBuilder.ToString();
+        }
+        return _manifestFilePath;
+    }
+
+    public static void modifyManifest(string path)
+    {
+        var androidManifest = new AndroidManifest(path);
+
+        androidManifest.SetHardwareAccelerated(AppConfig.isHardwareAccelerated);
+        androidManifest.SetAdmobOptimize(AppConfig.Flag_Admob_Optimize);
+
+        androidManifest.Save();
+    }
+}
+
+
+internal class AndroidXmlDocument : XmlDocument
+{
+    private string m_Path;
+    protected XmlNamespaceManager nsMgr;
+    public readonly string AndroidXmlNamespace = "http://schemas.android.com/apk/res/android";
+    public AndroidXmlDocument(string path)
+    {
+        m_Path = path;
+        using (var reader = new XmlTextReader(m_Path))
+        {
+            reader.Read();
+            Load(reader);
+        }
+        nsMgr = new XmlNamespaceManager(NameTable);
+        nsMgr.AddNamespace("android", AndroidXmlNamespace);
+    }
+
+    public string Save()
+    {
+        return SaveAs(m_Path);
+    }
+
+    public string SaveAs(string path)
+    {
+        using (var writer = new XmlTextWriter(path, new UTF8Encoding(false)))
+        {
+            writer.Formatting = Formatting.Indented;
+            Save(writer);
+        }
+        return path;
+    }
+}
+
+
+internal class AndroidManifest : AndroidXmlDocument
+{
+    private readonly XmlElement ApplicationElement;
+
+    public AndroidManifest(string path) : base(path)
+    {
+        ApplicationElement = SelectSingleNode("/manifest/application") as XmlElement;
+    }
+
+    private XmlAttribute CreateAndroidAttribute(string key, string value)
+    {
+        XmlAttribute attr = CreateAttribute("android", key, AndroidXmlNamespace);
+        attr.Value = value;
+        return attr;
+    }
+
+    private XmlNode CreateAndroidNode(string nodetype, string name, string value)
+    {
+        XmlNode node = CreateNode(nodetype, name, value);
+        return node;
+    }
+
+    internal XmlNode GetActivityWithLaunchIntent()
+    {
+        return SelectSingleNode("/manifest/application/activity[intent-filter/action/@android:name='android.intent.action.MAIN' and " +
+                "intent-filter/category/@android:name='android.intent.category.LAUNCHER']", nsMgr);
+    }
+
+    internal void SetApplicationTheme(string appTheme)
+    {
+        ApplicationElement.Attributes.Append(CreateAndroidAttribute("theme", appTheme));
+    }
+
+    internal void SetStartingActivityName(string activityName)
+    {
+        GetActivityWithLaunchIntent().Attributes.Append(CreateAndroidAttribute("name", activityName));
+    }
+
+    internal void SetHardwareAccelerated(bool isEnable)
+    {
+        string va = "false";
+        if (isEnable)
+        {
+            va = "true";
+        }
+        GetActivityWithLaunchIntent().Attributes.Append(CreateAndroidAttribute("hardwareAccelerated", va));
+    }
+
+    internal void SetAdmobOptimize(int flag)
+    {
+        if (flag == 1 || flag == 3)
+        {
+            var node = SelectSingleNode("/manifest/application/meta-data[@android:name='com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION']", nsMgr);
+            if (node == null)
+            {
+                var metanode = ApplicationElement.AppendChild(CreateAndroidNode("element", "meta-data", ""));
+                metanode.Attributes.Append(CreateAndroidAttribute("name", "com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"));
+                metanode.Attributes.Append(CreateAndroidAttribute("value", "true"));
+            }
+
+        }
+        else
+        {
+            var node = SelectSingleNode("/manifest/application/meta-data[@android:name='com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION']", nsMgr);
+            if (node != null)
+            {
+                ApplicationElement.RemoveChild(node);
+            }
+        }
+        if (flag == 2 || flag == 3)
+        {
+            var node = SelectSingleNode("/manifest/application/meta-data[@android:name='com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING']", nsMgr);
+            if (node == null)
+            {
+                var metanode = ApplicationElement.AppendChild(CreateAndroidNode("element", "meta-data", ""));
+                metanode.Attributes.Append(CreateAndroidAttribute("name", "com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"));
+                metanode.Attributes.Append(CreateAndroidAttribute("value", "true"));
+            }
+        }
+        else
+        {
+            var node = SelectSingleNode("/manifest/application/meta-data[@android:name='com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING']", nsMgr);
+            if (node != null)
+            {
+                ApplicationElement.RemoveChild(node);
+            }
+        }
+    }
+}
+
+#endif
