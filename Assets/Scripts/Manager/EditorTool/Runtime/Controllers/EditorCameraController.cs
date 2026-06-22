@@ -23,6 +23,11 @@ public class EditorCameraController : MonoBehaviour
     public bool useInertia = true;
     public float dampingFactor = 8f;
 
+    [Header("Level Framing")]
+    public bool frameLevelOnLoad = true;
+    public float levelFramePadding = 2f;
+    public float minimumEditorCameraSize = 8f;
+
     private Camera cam;
     private float targetZoom;
     private float zoomVelocity; 
@@ -35,6 +40,57 @@ public class EditorCameraController : MonoBehaviour
     {
         cam = GetComponent<Camera>();
         targetZoom = cam.orthographicSize;
+    }
+
+    public void FrameLevel(LevelDataV2 currentData)
+    {
+        if (!frameLevelOnLoad || currentData == null)
+        {
+            return;
+        }
+
+        if (cam == null)
+        {
+            cam = GetComponent<Camera>();
+        }
+        if (cam == null)
+        {
+            return;
+        }
+
+        if (!TryGetCurrentLevelBounds(currentData, out Vector2 min, out Vector2 max))
+        {
+            return;
+        }
+
+        Vector2 center = (min + max) * 0.5f;
+        Vector3 cameraPosition = transform.position;
+        transform.position = new Vector3(center.x, center.y, cameraPosition.z);
+
+        if (cam.orthographic)
+        {
+            float paddedWidth = Mathf.Max(1f, max.x - min.x + 1f + levelFramePadding * 2f);
+            float paddedHeight = Mathf.Max(1f, max.y - min.y + 1f + levelFramePadding * 2f);
+            float aspect = Mathf.Max(0.1f, cam.aspect);
+            cam.orthographicSize = Mathf.Max(minimumEditorCameraSize, paddedHeight * 0.5f, paddedWidth * 0.5f / aspect);
+            targetZoom = cam.orthographicSize;
+        }
+    }
+
+    private bool TryGetCurrentLevelBounds(LevelDataV2 currentData, out Vector2 min, out Vector2 max)
+    {
+        min = Vector2.zero;
+        max = Vector2.zero;
+        if (currentData == null || !LevelDataV2Queries.TryGetBounds(currentData, out Bounds bounds))
+        {
+            return false;
+        }
+
+        Vector3 boundsMin = bounds.min;
+        Vector3 boundsMax = bounds.max;
+        min = new Vector2(boundsMin.x, boundsMin.y);
+        max = new Vector2(boundsMax.x, boundsMax.y);
+        return true;
     }
 
     void LateUpdate() 

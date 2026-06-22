@@ -137,9 +137,41 @@ public sealed class LevelEditorSerializer
             return;
         }
 
-        for (int i = context.levelContainer.childCount - 1; i >= 0; i--)
+        bool wasActive = true;
+        if (context.levelContainer != null)
         {
-            Object.DestroyImmediate(context.levelContainer.GetChild(i).gameObject);
+            wasActive = context.levelContainer.gameObject.activeSelf;
+            context.levelContainer.gameObject.SetActive(false);
+
+            // Detach and destroy children efficiently
+            int childCount = context.levelContainer.childCount;
+            if (childCount > 0)
+            {
+                Transform[] children = new Transform[childCount];
+                for (int i = 0; i < childCount; i++)
+                {
+                    children[i] = context.levelContainer.GetChild(i);
+                }
+                foreach (Transform child in children)
+                {
+                    child.SetParent(null);
+                    if (LevelEditorWorkspace.Instance != null)
+                    {
+                        LevelEditorWorkspace.Instance.Recycle(child.gameObject);
+                    }
+                    else
+                    {
+                        if (Application.isPlaying)
+                        {
+                            Object.Destroy(child.gameObject);
+                        }
+                        else
+                        {
+                            Object.DestroyImmediate(child.gameObject);
+                        }
+                    }
+                }
+            }
         }
 
         context.finishedSnakesHistory.Clear();
@@ -155,6 +187,11 @@ public sealed class LevelEditorSerializer
         LoadDraftLinks(context);
         SpawnPortalVisuals(context);
         SpawnElectricWallVisuals(context);
+
+        if (context.levelContainer != null)
+        {
+            context.levelContainer.gameObject.SetActive(wasActive);
+        }
     }
 
     private static void LoadArrows(LevelEditorContext context)
@@ -164,7 +201,9 @@ public sealed class LevelEditorSerializer
         foreach (ArrowEntityData arrowData in LevelDataV2Queries.GetStandardArrows(context.currentData))
         {
             StandardArrowPayload payload = arrowData.payload as StandardArrowPayload;
-            GameObject snakeObject = Object.Instantiate(context.snakePrefab, context.levelContainer);
+            GameObject snakeObject = LevelEditorWorkspace.Instance != null
+                ? LevelEditorWorkspace.Instance.Spawn(context.snakePrefab, Vector3.zero, Quaternion.identity, context.levelContainer)
+                : Object.Instantiate(context.snakePrefab, context.levelContainer);
             EditorSnakeVisual snakeVisual = snakeObject.GetComponent<EditorSnakeVisual>();
             snakeVisual.Initialize(arrowData.direction, arrowData.segmentPositions, arrowData.color, payload != null && payload.hasArrowShadow);
             context.finishedSnakesHistory.Push(snakeObject);
@@ -191,7 +230,9 @@ public sealed class LevelEditorSerializer
             ? LevelEditorRuntimeHelpers.GetRotationForDir(cell.direction)
             : Quaternion.identity;
 
-        GameObject obj = Object.Instantiate(prefab, new Vector3(cell.position.x, cell.position.y, 0f), rotation, context.levelContainer);
+        GameObject obj = LevelEditorWorkspace.Instance != null
+            ? LevelEditorWorkspace.Instance.Spawn(prefab, new Vector3(cell.position.x, cell.position.y, 0f), rotation, context.levelContainer)
+            : Object.Instantiate(prefab, new Vector3(cell.position.x, cell.position.y, 0f), rotation, context.levelContainer);
 
         if (cell.typeId == CellTypeIds.Keycard && obj.TryGetComponent(out GridKeycard keycard))
         {
@@ -301,8 +342,12 @@ public sealed class LevelEditorSerializer
         for (int i = 0; i < context.currentDraftPortals.Count; i++)
         {
             PortalData portal = context.currentDraftPortals[i];
-            GameObject entranceObject = Object.Instantiate(context.portalPrefab, new Vector3(portal.entrance.x, portal.entrance.y, 0f), LevelEditorRuntimeHelpers.GetRotationForDir(portal.entranceDir), context.levelContainer);
-            GameObject exitObject = Object.Instantiate(context.portalPrefab, new Vector3(portal.exit.x, portal.exit.y, 0f), LevelEditorRuntimeHelpers.GetRotationForDir(portal.exitDir), context.levelContainer);
+            GameObject entranceObject = LevelEditorWorkspace.Instance != null
+                ? LevelEditorWorkspace.Instance.Spawn(context.portalPrefab, new Vector3(portal.entrance.x, portal.entrance.y, 0f), LevelEditorRuntimeHelpers.GetRotationForDir(portal.entranceDir), context.levelContainer)
+                : Object.Instantiate(context.portalPrefab, new Vector3(portal.entrance.x, portal.entrance.y, 0f), LevelEditorRuntimeHelpers.GetRotationForDir(portal.entranceDir), context.levelContainer);
+            GameObject exitObject = LevelEditorWorkspace.Instance != null
+                ? LevelEditorWorkspace.Instance.Spawn(context.portalPrefab, new Vector3(portal.exit.x, portal.exit.y, 0f), LevelEditorRuntimeHelpers.GetRotationForDir(portal.exitDir), context.levelContainer)
+                : Object.Instantiate(context.portalPrefab, new Vector3(portal.exit.x, portal.exit.y, 0f), LevelEditorRuntimeHelpers.GetRotationForDir(portal.exitDir), context.levelContainer);
 
             SpriteRenderer entranceRenderer = entranceObject.GetComponent<SpriteRenderer>();
             if (entranceRenderer != null) entranceRenderer.color = portal.portalColor;
@@ -326,7 +371,9 @@ public sealed class LevelEditorSerializer
         for (int i = 0; i < context.currentDraftElectricWalls.Count; i++)
         {
             ElectricWallSaveData wall = context.currentDraftElectricWalls[i];
-            GameObject wallObject = Object.Instantiate(context.electricWallPrefab, Vector3.zero, Quaternion.identity, context.levelContainer);
+            GameObject wallObject = LevelEditorWorkspace.Instance != null
+                ? LevelEditorWorkspace.Instance.Spawn(context.electricWallPrefab, Vector3.zero, Quaternion.identity, context.levelContainer)
+                : Object.Instantiate(context.electricWallPrefab, Vector3.zero, Quaternion.identity, context.levelContainer);
             GridElectricWall wallScript = wallObject.GetComponent<GridElectricWall>();
             if (wallScript != null) wallScript.Initialize(wall.start, wall.end, wall.color, false);
             context.spawnedElectricWallVisuals.Add(wallObject);

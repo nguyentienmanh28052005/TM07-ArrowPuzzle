@@ -1,0 +1,508 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f901e9bb0a817474f89e91abc549e6a4, type: 3}
+  m_Name: Level_1_Portal
+  m_EditorClassIdentifier: 
+  levelIndex: 1
+  gameMode: 0
+  levelDifficulty: 1
+  returnToDefaultZoomAfterIntro: 1
+  timeLimit: 60
+  rewardCoins: 100
+  rewardDiamonds: 5
+  arrows:
+  - entityId: arrow.standard:0
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 1, y: 12}
+    - {x: 0, y: 12}
+    - {x: -1, y: 12}
+    payload:
+      rid: 8459811151122006025
+  - entityId: arrow.standard:1
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -7, y: -4}
+    - {x: -8, y: -4}
+    - {x: -9, y: -4}
+    payload:
+      rid: 8459811151122006026
+  - entityId: arrow.standard:2
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 3, y: 0}
+    - {x: 2, y: 0}
+    - {x: 1, y: 0}
+    - {x: 0, y: 0}
+    - {x: -1, y: 0}
+    - {x: -2, y: 0}
+    - {x: -3, y: 0}
+    payload:
+      rid: 8459811151122006027
+  - entityId: arrow.standard:3
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -3, y: -2}
+    - {x: -2, y: -2}
+    - {x: -1, y: -2}
+    - {x: -1, y: -3}
+    - {x: -1, y: -4}
+    - {x: 0, y: -4}
+    - {x: 1, y: -4}
+    - {x: 1, y: -5}
+    - {x: 1, y: -6}
+    - {x: 1, y: -7}
+    - {x: 1, y: -8}
+    - {x: 1, y: -9}
+    - {x: 1, y: -10}
+    - {x: 1, y: -11}
+    - {x: 1, y: -12}
+    - {x: 2, y: -12}
+    - {x: 3, y: -12}
+    - {x: 3, y: -11}
+    - {x: 3, y: -10}
+    - {x: 3, y: -9}
+    - {x: 3, y: -8}
+    - {x: 3, y: -7}
+    - {x: 3, y: -6}
+    - {x: 3, y: -5}
+    - {x: 3, y: -4}
+    payload:
+      rid: 8459811151122006028
+  - entityId: arrow.standard:4
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 1, y: -2}
+    - {x: 2, y: -2}
+    - {x: 3, y: -2}
+    - {x: 4, y: -2}
+    - {x: 5, y: -2}
+    - {x: 5, y: -3}
+    - {x: 5, y: -4}
+    - {x: 5, y: -5}
+    - {x: 5, y: -6}
+    - {x: 5, y: -7}
+    - {x: 5, y: -8}
+    - {x: 5, y: -9}
+    - {x: 5, y: -10}
+    - {x: 5, y: -11}
+    - {x: 5, y: -12}
+    - {x: 6, y: -12}
+    - {x: 7, y: -12}
+    - {x: 7, y: -11}
+    - {x: 7, y: -10}
+    - {x: 7, y: -9}
+    - {x: 7, y: -8}
+    - {x: 7, y: -7}
+    - {x: 7, y: -6}
+    - {x: 7, y: -5}
+    - {x: 7, y: -4}
+    - {x: 7, y: -3}
+    - {x: 7, y: -2}
+    - {x: 7, y: -1}
+    - {x: 7, y: 0}
+    - {x: 7, y: 1}
+    - {x: 7, y: 2}
+    - {x: 7, y: 3}
+    - {x: 7, y: 4}
+    - {x: 7, y: 5}
+    - {x: 7, y: 6}
+    - {x: 7, y: 7}
+    - {x: 7, y: 8}
+    - {x: 7, y: 9}
+    - {x: 7, y: 10}
+    - {x: 7, y: 11}
+    - {x: 7, y: 12}
+    - {x: 8, y: 12}
+    - {x: 9, y: 12}
+    - {x: 9, y: 11}
+    - {x: 9, y: 10}
+    - {x: 9, y: 9}
+    - {x: 9, y: 8}
+    - {x: 9, y: 7}
+    - {x: 9, y: 6}
+    - {x: 9, y: 5}
+    - {x: 9, y: 4}
+    - {x: 9, y: 3}
+    - {x: 9, y: 2}
+    - {x: 9, y: 1}
+    - {x: 9, y: 0}
+    - {x: 9, y: -1}
+    - {x: 9, y: -2}
+    - {x: 9, y: -3}
+    - {x: 9, y: -4}
+    - {x: 9, y: -5}
+    - {x: 9, y: -6}
+    - {x: 9, y: -7}
+    - {x: 9, y: -8}
+    - {x: 9, y: -9}
+    - {x: 9, y: -10}
+    - {x: 9, y: -11}
+    - {x: 9, y: -12}
+    payload:
+      rid: 8459811151122006029
+  - entityId: arrow.standard:5
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -7, y: 4}
+    - {x: -7, y: 3}
+    - {x: -7, y: 2}
+    - {x: -8, y: 2}
+    - {x: -9, y: 2}
+    - {x: -9, y: 1}
+    - {x: -9, y: 0}
+    - {x: -8, y: 0}
+    - {x: -7, y: 0}
+    payload:
+      rid: 8459811151122006030
+  - entityId: arrow.standard:6
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -5, y: -10}
+    - {x: -5, y: -11}
+    - {x: -5, y: -12}
+    - {x: -4, y: -12}
+    - {x: -3, y: -12}
+    - {x: -2, y: -12}
+    - {x: -1, y: -12}
+    - {x: -1, y: -11}
+    - {x: -1, y: -10}
+    - {x: -2, y: -10}
+    - {x: -3, y: -10}
+    payload:
+      rid: 8459811151122006031
+  - entityId: arrow.standard:7
+    typeId: arrow.standard
+    direction: 1
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 3, y: 6}
+    - {x: 3, y: 7}
+    - {x: 3, y: 8}
+    - {x: 2, y: 8}
+    - {x: 1, y: 8}
+    payload:
+      rid: 8459811151122006032
+  - entityId: arrow.standard:8
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -7, y: -2}
+    - {x: -6, y: -2}
+    - {x: -5, y: -2}
+    - {x: -5, y: -1}
+    - {x: -5, y: 0}
+    - {x: -5, y: 1}
+    - {x: -5, y: 2}
+    - {x: -5, y: 3}
+    - {x: -5, y: 4}
+    - {x: -5, y: 5}
+    - {x: -5, y: 6}
+    - {x: -4, y: 6}
+    - {x: -3, y: 6}
+    - {x: -3, y: 5}
+    - {x: -3, y: 4}
+    - {x: -3, y: 3}
+    - {x: -3, y: 2}
+    - {x: -2, y: 2}
+    - {x: -1, y: 2}
+    - {x: 0, y: 2}
+    - {x: 1, y: 2}
+    - {x: 2, y: 2}
+    - {x: 3, y: 2}
+    - {x: 4, y: 2}
+    - {x: 5, y: 2}
+    payload:
+      rid: 8459811151122006033
+  - entityId: arrow.standard:9
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 3, y: 10}
+    - {x: 2, y: 10}
+    - {x: 1, y: 10}
+    - {x: 0, y: 10}
+    - {x: -1, y: 10}
+    - {x: -2, y: 10}
+    - {x: -3, y: 10}
+    - {x: -3, y: 11}
+    - {x: -3, y: 12}
+    - {x: -4, y: 12}
+    - {x: -5, y: 12}
+    - {x: -6, y: 12}
+    - {x: -7, y: 12}
+    - {x: -8, y: 12}
+    - {x: -9, y: 12}
+    payload:
+      rid: 8459811151122006034
+  - entityId: arrow.standard:10
+    typeId: arrow.standard
+    direction: 3
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -1, y: -6}
+    - {x: -2, y: -6}
+    - {x: -3, y: -6}
+    - {x: -3, y: -5}
+    - {x: -3, y: -4}
+    - {x: -4, y: -4}
+    - {x: -5, y: -4}
+    - {x: -5, y: -5}
+    - {x: -5, y: -6}
+    - {x: -6, y: -6}
+    - {x: -7, y: -6}
+    - {x: -8, y: -6}
+    - {x: -9, y: -6}
+    - {x: -9, y: -7}
+    - {x: -9, y: -8}
+    - {x: -8, y: -8}
+    - {x: -7, y: -8}
+    - {x: -7, y: -9}
+    - {x: -7, y: -10}
+    - {x: -8, y: -10}
+    - {x: -9, y: -10}
+    - {x: -9, y: -11}
+    - {x: -9, y: -12}
+    payload:
+      rid: 8459811151122006035
+  - entityId: arrow.standard:11
+    typeId: arrow.standard
+    direction: 0
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: 5, y: 12}
+    - {x: 5, y: 11}
+    - {x: 5, y: 10}
+    - {x: 5, y: 9}
+    - {x: 5, y: 8}
+    - {x: 5, y: 7}
+    - {x: 5, y: 6}
+    - {x: 5, y: 5}
+    - {x: 5, y: 4}
+    - {x: 4, y: 4}
+    - {x: 3, y: 4}
+    - {x: 2, y: 4}
+    - {x: 1, y: 4}
+    - {x: 0, y: 4}
+    - {x: -1, y: 4}
+    - {x: -1, y: 5}
+    - {x: -1, y: 6}
+    - {x: -1, y: 7}
+    - {x: -1, y: 8}
+    - {x: -2, y: 8}
+    - {x: -3, y: 8}
+    - {x: -4, y: 8}
+    - {x: -5, y: 8}
+    - {x: -5, y: 9}
+    - {x: -5, y: 10}
+    - {x: -6, y: 10}
+    - {x: -7, y: 10}
+    - {x: -8, y: 10}
+    - {x: -9, y: 10}
+    - {x: -9, y: 9}
+    - {x: -9, y: 8}
+    - {x: -8, y: 8}
+    - {x: -7, y: 8}
+    - {x: -7, y: 7}
+    - {x: -7, y: 6}
+    - {x: -8, y: 6}
+    - {x: -9, y: 6}
+    payload:
+      rid: 8459811151122006036
+  - entityId: arrow.standard:12
+    typeId: arrow.standard
+    direction: 2
+    color: {r: 1, g: 1, b: 1, a: 1}
+    segmentPositions:
+    - {x: -3, y: -8}
+    - {x: -2, y: -8}
+    - {x: -1, y: -8}
+    payload:
+      rid: 8459811151122006037
+  cells:
+  - entityId: cell.portal:0
+    typeId: cell.portal
+    position: {x: -9, y: -2}
+    direction: 3
+    color: {r: 1, g: 0, b: 0, a: 1}
+    payload:
+      rid: 8459811151122006038
+  - entityId: cell.portal:1
+    typeId: cell.portal
+    position: {x: -7, y: -12}
+    direction: 1
+    color: {r: 1, g: 0, b: 0, a: 1}
+    payload:
+      rid: 8459811151122006039
+  - entityId: cell.portal:2
+    typeId: cell.portal
+    position: {x: -5, y: -8}
+    direction: 3
+    color: {r: 1, g: 0, b: 0.57606554, a: 1}
+    payload:
+      rid: 8459811151122006040
+  - entityId: cell.portal:3
+    typeId: cell.portal
+    position: {x: -9, y: 4}
+    direction: 3
+    color: {r: 1, g: 0, b: 0.57606554, a: 1}
+    payload:
+      rid: 8459811151122006041
+  - entityId: cell.portal:4
+    typeId: cell.portal
+    position: {x: 3, y: 12}
+    direction: 0
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8459811151122006042
+  - entityId: cell.portal:5
+    typeId: cell.portal
+    position: {x: 5, y: 0}
+    direction: 2
+    color: {r: 0.20142698, g: 0, b: 1, a: 1}
+    payload:
+      rid: 8459811151122006043
+  links:
+  - linkId: link.portal_pair:0
+    typeId: link.portal_pair
+    fromEntityId: cell.portal:0
+    toEntityId: cell.portal:1
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 8459811151122006044
+  - linkId: link.portal_pair:1
+    typeId: link.portal_pair
+    fromEntityId: cell.portal:2
+    toEntityId: cell.portal:3
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 8459811151122006045
+  - linkId: link.portal_pair:2
+    typeId: link.portal_pair
+    fromEntityId: cell.portal:4
+    toEntityId: cell.portal:5
+    fromPosition: {x: 0, y: 0}
+    toPosition: {x: 0, y: 0}
+    usesPositions: 0
+    payload:
+      rid: 8459811151122006046
+  references:
+    version: 2
+    RefIds:
+    - rid: 8459811151122006025
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006026
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006027
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006028
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006029
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006030
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006031
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006032
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006033
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006034
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006035
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006036
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006037
+      type: {class: StandardArrowPayload, ns: , asm: Assembly-CSharp}
+      data:
+        hasArrowShadow: 0
+    - rid: 8459811151122006038
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 3
+    - rid: 8459811151122006039
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 1
+    - rid: 8459811151122006040
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 3
+    - rid: 8459811151122006041
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 3
+    - rid: 8459811151122006042
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 0
+    - rid: 8459811151122006043
+      type: {class: PortalEndpointPayload, ns: , asm: Assembly-CSharp}
+      data:
+        exitDirection: 2
+    - rid: 8459811151122006044
+      type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 1, g: 0, b: 0, a: 1}
+    - rid: 8459811151122006045
+      type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 1, g: 0, b: 0.57606554, a: 1}
+    - rid: 8459811151122006046
+      type: {class: PortalPairPayload, ns: , asm: Assembly-CSharp}
+      data:
+        color: {r: 0.20142698, g: 0, b: 1, a: 1}
