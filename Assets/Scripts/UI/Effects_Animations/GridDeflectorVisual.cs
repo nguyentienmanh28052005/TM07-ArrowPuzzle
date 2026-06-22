@@ -3,7 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 
 [RequireComponent(typeof(GridDeflector))]
-public class GridDeflectorVisual : MonoBehaviour
+public class GridDeflectorVisual : MonoBehaviour, IPreviewDisableable
 {
     [Header("Spawn Effect")]
     [SerializeField] private float spawnDuration = 1.5f;

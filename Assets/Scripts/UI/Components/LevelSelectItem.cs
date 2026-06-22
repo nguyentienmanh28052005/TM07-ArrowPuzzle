@@ -7,9 +7,9 @@ public class LevelSelectItem : MonoBehaviour
     public TextMeshProUGUI levelNameText;
     public Button selectButton;
     private LevelDataV2 linkedLevelData;
-    private LevelEditor editorReference;
+    private LevelEditorWorkspace editorReference;
 
-    public void Setup(LevelDataV2 data, LevelEditor editor)
+    public void Setup(LevelDataV2 data, LevelEditorWorkspace editor)
     {
         linkedLevelData = data;
         editorReference = editor;

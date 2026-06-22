@@ -6,15 +6,12 @@ public class UIColorButton : MonoBehaviour
 {
     public Color myColor = Color.white;
     
-    private LevelEditor editor;
-
+    
     /// <summary>
     /// Khởi tạo hiển thị màu cho nút và gắn kết sự kiện Click.
     /// </summary>
     void Start()
     {
-        editor = FindObjectOfType<LevelEditor>();
-
         GetComponent<Image>().color = myColor; 
         
         GetComponent<Button>().onClick.AddListener(OnColorButtonClicked);
@@ -25,9 +22,10 @@ public class UIColorButton : MonoBehaviour
     /// </summary>
     private void OnColorButtonClicked()
     {
-        if (editor != null)
+        if (LevelEditorWorkspace.Instance != null)
         {
-            editor.UI_SetColor(myColor);
+            LevelEditorWorkspace.Instance.UI_SetColor(myColor);
+            LevelEditorWorkspace.Instance.UI_SetTool((int)EditorToolType.Paint);
         }
     }
 }

@@ -25,7 +25,7 @@ public static class LevelPlaytestLauncher
                 return;
             }
 
-            LevelEditor runtimeEditor = FindSceneLevelEditor();
+            LevelEditorWorkspace runtimeEditor = FindSceneLevelEditor();
             if (runtimeEditor != null)
             {
                 runtimeEditor.UI_Playtest();
@@ -109,20 +109,20 @@ public static class LevelPlaytestLauncher
         }
 
         if (Selection.activeGameObject != null &&
-            Selection.activeGameObject.TryGetComponent(out LevelEditor selectedEditor) &&
+            Selection.activeGameObject.TryGetComponent(out LevelEditorWorkspace selectedEditor) &&
             selectedEditor.currentData != null)
         {
             return selectedEditor.currentData;
         }
 
-        LevelEditor sceneEditor = FindSceneLevelEditor();
+        LevelEditorWorkspace sceneEditor = FindSceneLevelEditor();
         return sceneEditor != null ? sceneEditor.currentData : null;
     }
 
-    private static LevelEditor FindSceneLevelEditor()
+    private static LevelEditorWorkspace FindSceneLevelEditor()
     {
-        LevelEditor[] editors = Resources.FindObjectsOfTypeAll<LevelEditor>();
-        foreach (LevelEditor editor in editors)
+        LevelEditorWorkspace[] editors = Resources.FindObjectsOfTypeAll<LevelEditorWorkspace>();
+        foreach (LevelEditorWorkspace editor in editors)
         {
             if (editor == null) continue;
             if (EditorUtility.IsPersistent(editor.gameObject)) continue;
