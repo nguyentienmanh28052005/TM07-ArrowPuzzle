@@ -8,10 +8,12 @@ public class SnakeInput : MonoBehaviour
     [Header("Effect Settings")]
     public float scaleFactor = 1.3f;
     public float duration = 0.2f;
+    public float colorChangeDuration = 0.2f;
     public float holdThreshold = 2f;
 
     [Header("Input Settings")]
     public float clickRadius = 0.8f;
+    public float clickRadiusCannotEscape = 0.8f;
     public bool useHaptics = true;
     [SerializeField] private bool boostMobileTouchArea = true;
     [SerializeField, Min(1f)] private float mobileTouchRadiusMultiplier = 1.6f;
@@ -20,11 +22,11 @@ public class SnakeInput : MonoBehaviour
 
     private bool isPressed = false;
     private bool isHolding = false;
+    private Vector2 _lastPointerWorldPosition;
     
     private SnakeBlock parentScript;
     private Coroutine holdCoroutine;
     private ArrowGuideline _guidelineCache;
-    private LevelEditor _levelEditor;
     private bool _isMemoryMode = false;
 
     public static List<SnakeInput> AllInputs = new List<SnakeInput>();
@@ -55,7 +57,7 @@ public class SnakeInput : MonoBehaviour
         {
             isPressed = false;
             isHolding = false;
-            if (_isMemoryMode) CameraController.IsGameplayBlocking = false;
+            if (_isMemoryMode) GameplayInputLock.SetLock(GameplayLockReason.MemoryModeHold, false);
             if (_guidelineCache != null) _guidelineCache.SetLineActive(false);
         }
     }
@@ -72,8 +74,6 @@ public class SnakeInput : MonoBehaviour
         {
             _guidelineCache = parentScript.GetComponent<ArrowGuideline>();
         }
-        
-        _levelEditor = FindObjectOfType<LevelEditor>();
 
         LevelDataV2 currentLevelData = PlaytestSession.GetActiveLevelData();
         if (currentLevelData != null)
@@ -83,7 +83,7 @@ public class SnakeInput : MonoBehaviour
     }
 
     // =========================================================
-    // L’I TO¡N H?C: –O KHO?NG C¡CH T? CHU?T –?N TO¿N B? TH¬N R?N
+    // L√ïI TO√ÅN H?C: √êO KHO?NG C√ÅCH T? CHU?T √ê?N TO√ÄN B? TH√ÇN R?N
     // =========================================================
     public float GetMinDistanceFromMouse(Vector2 mousePos)
     {
@@ -109,7 +109,7 @@ public class SnakeInput : MonoBehaviour
         if (sqrMag == 0) return Vector2.Distance(p, a);
 
         float t = Vector2.Dot(p - a, ab) / sqrMag;
-        t = Mathf.Clamp01(t); // Gi?i h?n hÏnh chi?u n?m g?n trong do?n th?ng AB
+        t = Mathf.Clamp01(t); // Gi?i h?n h√¨nh chi?u n?m g?n trong do?n th?ng AB
         Vector2 projection = a + t * ab;
         return Vector2.Distance(p, projection);
     }
@@ -117,8 +117,8 @@ public class SnakeInput : MonoBehaviour
 
     public bool TryHandleInputDown(Vector2 mousePos)
     {
-        if (!PlaytestSession.IsActive && _levelEditor != null && _levelEditor.gameObject.activeInHierarchy) return false;
-        if (CameraController.IsGameplayBlocking) return false;
+        if (!PlaytestSession.IsActive && LevelEditorWorkspace.Instance != null && LevelEditorWorkspace.Instance.gameObject.activeInHierarchy) return false;
+        if (GameplayInputLock.IsLocked) return false;
         if (BoosterTutorialManager.Instance != null && BoosterTutorialManager.Instance.IsBlockingArrowInput) return false;
         if (parentScript != null && parentScript.IsMoving) return false;
         if (parentScript != null && parentScript.IsStoppedByStopBlock && (EraseManager.Instance == null || !EraseManager.Instance.IsEraseModeActive)) return false;
@@ -126,7 +126,7 @@ public class SnakeInput : MonoBehaviour
 
         float activeClickRadius = GetActiveClickRadius();
         
-        // B?N V¡: –o kho?ng c·ch v?i to‡n th‚n r?n thay vÏ ch? Head
+        // B?N V√Å: √êo kho?ng c√°ch v?i to√†n th√¢n r?n thay v√¨ ch? Head
         float myDist = GetMinDistanceFromMouse(mousePos);
 
         if (myDist > activeClickRadius) return false;
@@ -134,7 +134,7 @@ public class SnakeInput : MonoBehaviour
 
         if (EraseManager.Instance != null && EraseManager.Instance.IsEraseModeActive)
         {
-            CameraController.IsGameplayBlocking = true;
+            GameplayInputLock.SetLock(GameplayLockReason.EraseMode, true);
             EraseManager.Instance.ExecuteErase(parentScript);
             return false; 
         }
@@ -149,12 +149,12 @@ public class SnakeInput : MonoBehaviour
 
         if (parentScript != null)
         {
-            parentScript.SetFocusColor(true, duration);
+            parentScript.SetFocusColor(true, colorChangeDuration);
         }
 
         if (_isMemoryMode)
         {
-            CameraController.IsGameplayBlocking = true;
+            GameplayInputLock.SetLock(GameplayLockReason.MemoryModeHold, true);
             if (holdCoroutine != null) StopCoroutine(holdCoroutine);
             holdCoroutine = StartCoroutine(WaitAndScale());
         }
@@ -170,7 +170,7 @@ public class SnakeInput : MonoBehaviour
         
         if (_isMemoryMode)
         {
-            CameraController.IsGameplayBlocking = false;
+            GameplayInputLock.SetLock(GameplayLockReason.MemoryModeHold, false);
         }
 
         if (holdCoroutine != null) StopCoroutine(holdCoroutine);
@@ -178,7 +178,7 @@ public class SnakeInput : MonoBehaviour
         if (parentScript != null)
         {
             parentScript.SetFocusEffect(false, 1f, duration);
-            parentScript.SetFocusColor(false, duration); 
+            parentScript.SetFocusColor(false, colorChangeDuration); 
         }
 
         if (_guidelineCache != null)
@@ -186,10 +186,10 @@ public class SnakeInput : MonoBehaviour
             _guidelineCache.SetLineActive(false);
         }
 
-        Vector2 mousePos = GetCurrentPointerWorldPosition();
+        Vector2 mousePos = isCanceledByCamera ? GetCurrentPointerWorldPosition() : _lastPointerWorldPosition;
         float activeClickRadius = GetActiveClickRadius();
         
-        // B?N V¡: –o l?i kho?ng c·ch l˙c nh? chu?t v?i to‡n th‚n
+        // B?N V√Å: √êo l?i kho?ng c√°ch l√∫c nh? chu?t v?i to√†n th√¢n
         if (!isCanceledByCamera && !CameraController.IsCameraGestureActive && GetMinDistanceFromMouse(mousePos) <= activeClickRadius)
         {
             if (parentScript != null)
@@ -224,11 +224,12 @@ public class SnakeInput : MonoBehaviour
 
     public void ManagedLateUpdate(Vector2 mousePos)
     {
+        _lastPointerWorldPosition = mousePos;
         if (isPressed)
         {
             if (_isMemoryMode)
             {
-                CameraController.IsGameplayBlocking = true;
+                GameplayInputLock.SetLock(GameplayLockReason.MemoryModeHold, true);
             }
 
             bool isInside = GetMinDistanceFromMouse(mousePos) <= GetActiveClickRadius();
@@ -236,12 +237,12 @@ public class SnakeInput : MonoBehaviour
             if (!isInside)
             {
                 if (_guidelineCache != null) _guidelineCache.SetLineActive(false);
-                if (parentScript != null) parentScript.SetFocusColor(false, duration);
+                if (parentScript != null) parentScript.SetFocusColor(false, colorChangeDuration);
             }
             else
             {
                 if (isHolding && _guidelineCache != null) _guidelineCache.SetLineActive(true);
-                if (parentScript != null) parentScript.SetFocusColor(true, duration);
+                if (parentScript != null) parentScript.SetFocusColor(true, colorChangeDuration);
             }
         }
     }
@@ -349,7 +350,9 @@ public class SnakeInput : MonoBehaviour
 
     private float GetActiveClickRadius()
     {
-        float radius = clickRadius;
+        bool canRelease = parentScript != null && parentScript.CanReleaseNow();
+        float radius = canRelease ? clickRadius : clickRadiusCannotEscape;
+        
         if (!boostMobileTouchArea || Input.touchCount <= 0) return radius;
 
         radius *= Mathf.Max(1f, mobileTouchRadiusMultiplier);
@@ -426,7 +429,7 @@ public class SnakeInput : MonoBehaviour
     private void OnDestroy()
     {
         transform.DOKill();
-        if (isPressed && _isMemoryMode) CameraController.IsGameplayBlocking = false;
+        if (isPressed && _isMemoryMode) GameplayInputLock.SetLock(GameplayLockReason.MemoryModeHold, false);
     }
 }
 
@@ -533,7 +536,7 @@ public class SnakeInputManager : MonoBehaviour
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
-            if (touch.phase == TouchPhase.Began || touch.phase == TouchPhase.Moved)
+            if (touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
             {
                 return UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(touch.fingerId);
             }
