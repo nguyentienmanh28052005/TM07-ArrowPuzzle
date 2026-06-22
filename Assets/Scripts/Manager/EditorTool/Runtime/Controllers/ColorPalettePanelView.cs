@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using DG.Tweening;
 
 public class ColorPalettePanelView : MonoBehaviour
 {
@@ -19,21 +20,79 @@ public class ColorPalettePanelView : MonoBehaviour
     [SerializeField] private Button btnAddColor;
     [SerializeField] private Image localPreviewImage;
 
+    [Header("Panel Slide Animation")]
+    [SerializeField] private RectTransform panelRect;
+    [SerializeField] private float slideDuration = 0.35f;
+    [SerializeField] private Ease slideEase = Ease.InOutQuart;
+    [SerializeField] private bool slideRight = true;
+
+    private Vector2 _originPosition;
+    private Vector2 _hiddenPosition;
+    private bool _isPanelVisible = true;
+    private bool _isTweening;
+
     private List<Button> spawnedButtons = new List<Button>();
     private Color selectedColor = Color.white;
+
+    private void Awake()
+    {
+        if (panelRect == null)
+            panelRect = GetComponent<RectTransform>();
+
+        if (panelRect != null)
+        {
+            _originPosition = panelRect.anchoredPosition;
+            float directionMultiplier = slideRight ? 1f : -1f;
+            _hiddenPosition = _originPosition + new Vector2(panelRect.rect.width * directionMultiplier, 0f);
+        }
+    }
+
+    public void TogglePanel()
+    {
+        if (_isTweening) return;
+
+        if (_isPanelVisible)
+            HidePanel();
+        else
+            ShowPanel();
+    }
+
+    public void ShowPanel()
+    {
+        if (panelRect == null) return;
+        _isTweening = true;
+        _isPanelVisible = true;
+        panelRect.DOAnchorPos(_originPosition, slideDuration)
+            .SetEase(slideEase)
+            .OnComplete(() => _isTweening = false);
+    }
+
+    public void HidePanel()
+    {
+        if (panelRect == null) return;
+        _isTweening = true;
+        _isPanelVisible = false;
+        panelRect.DOAnchorPos(_hiddenPosition, slideDuration)
+            .SetEase(slideEase)
+            .OnComplete(() => _isTweening = false);
+    }
 
     private void Start()
     {
         InitializePanel();
+        EditorInputManager.OnToggleColorPanelPressed += TogglePanel;
     }
+
 
     private void OnDestroy()
     {
+        EditorInputManager.OnToggleColorPanelPressed -= TogglePanel;
         if (LevelEditorWorkspace.Instance != null)
         {
             LevelEditorWorkspace.Instance.OnColorChanged -= OnWorkspaceColorChanged;
         }
     }
+
 
     public void InitializePanel()
     {

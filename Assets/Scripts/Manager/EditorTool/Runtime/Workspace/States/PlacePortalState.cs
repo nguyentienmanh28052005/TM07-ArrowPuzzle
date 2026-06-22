@@ -7,6 +7,12 @@ public class PlacePortalState : EditorStateBase
     public override void OnEnter()
     {
         editor.isPlacingPortalExit = false;
+
+        if (editor.HasPortalWithColor(editor.currentColor))
+        {
+            Color nextColor = editor.GetNextUnusedPortalColor();
+            editor.UI_SetColor(nextColor);
+        }
     }
 
     public override void OnExit()
@@ -41,6 +47,10 @@ public class PlacePortalState : EditorStateBase
             editor.isPlacingPortalExit = false;
             editor.RefreshPortalVisuals();
             editor.RebuildOccupantsCache();
+
+            // Tự động chuyển sang màu Portal tiếp theo chưa được sử dụng
+            Color nextColor = editor.GetNextUnusedPortalColor();
+            editor.UI_SetColor(nextColor);
         }
         editor.lastCalculatedGridPos = new Vector2Int(-9999, -9999);
     }

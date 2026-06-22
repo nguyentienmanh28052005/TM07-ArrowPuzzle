@@ -6,12 +6,15 @@ public sealed class EditorInputManager : MonoBehaviour
 {
     [Header("Target References")]
     [SerializeField] private LevelEditorWorkspace levelEditor;
-    [SerializeField] private LevelListPanelView levelListPanel;
+
+    public static event System.Action OnToggleLevelListPanelPressed;
+    public static event System.Action OnToggleColorPanelPressed;
 
     [Header("Hotkeys - Tools & Actions")]
     public KeyCode playtestKey = KeyCode.F5;
     public KeyCode checkDeadlockKey = KeyCode.F6;
     public KeyCode togglePanelKey = KeyCode.Tab;
+    public KeyCode toggleColorPanelKey = KeyCode.C;
     public KeyCode finishSnakeKey = KeyCode.Space;
     public KeyCode rotateDirKey = KeyCode.R;
     public KeyCode undoKey = KeyCode.Z;
@@ -23,11 +26,11 @@ public sealed class EditorInputManager : MonoBehaviour
     public KeyCode toolPaintKey = KeyCode.Alpha3;
     public KeyCode toolSelectKey = KeyCode.Alpha4;
     public KeyCode toolPortalKey = KeyCode.Alpha5;
-    public KeyCode toolKeycardKey = KeyCode.Alpha6;
-    public KeyCode toolGateKey = KeyCode.Alpha7;
-    public KeyCode toolDeflectorKey = KeyCode.Alpha8;
-    public KeyCode toolCountdownKey = KeyCode.Alpha9;
-    public KeyCode toolStopBlockKey = KeyCode.Alpha0;
+    public KeyCode toolKeycardGateKey = KeyCode.Alpha6;
+    public KeyCode toolDeflectorKey = KeyCode.Alpha7;
+    public KeyCode toolCountdownKey = KeyCode.Alpha8;
+    public KeyCode toolStopBlockKey = KeyCode.Alpha9;
+    public KeyCode toolElectricCircuitKey = KeyCode.Alpha0;
     public KeyCode toolArrowShadowKey = KeyCode.B;
     public KeyCode toolTurnStateKey = KeyCode.T;
     public KeyCode toolBlackHoleKey = KeyCode.H;
@@ -56,10 +59,16 @@ public sealed class EditorInputManager : MonoBehaviour
         }
 
         // 2. Phím tắt mở/đóng Panel danh sách (Không cần LevelEditor)
-        if (levelListPanel != null && Input.GetKeyDown(togglePanelKey))
+        if (Input.GetKeyDown(togglePanelKey))
         {
-            levelListPanel.TogglePanel();
+            OnToggleLevelListPanelPressed?.Invoke();
         }
+
+        if (Input.GetKeyDown(toggleColorPanelKey))
+        {
+            OnToggleColorPanelPressed?.Invoke();
+        }
+
 
         // 3. Phím tắt trong Level Editor
         if (levelEditor != null)
@@ -80,11 +89,11 @@ public sealed class EditorInputManager : MonoBehaviour
         if (Input.GetKeyDown(toolPaintKey)) levelEditor.UI_SetTool(2);
         if (Input.GetKeyDown(toolSelectKey)) levelEditor.UI_SetTool(3);
         if (Input.GetKeyDown(toolPortalKey)) levelEditor.UI_SetTool(4);
-        if (Input.GetKeyDown(toolKeycardKey)) levelEditor.UI_SetTool(5);
-        if (Input.GetKeyDown(toolGateKey)) levelEditor.UI_SetTool(6);
-        if (Input.GetKeyDown(toolDeflectorKey)) levelEditor.UI_SetTool(7);
-        if (Input.GetKeyDown(toolCountdownKey)) levelEditor.UI_SetTool(8);
+        if (Input.GetKeyDown(toolKeycardGateKey)) levelEditor.UI_SetTool((int)EditorToolType.KeycardGate);
+        if (Input.GetKeyDown(toolDeflectorKey)) levelEditor.UI_SetTool((int)EditorToolType.Deflector);
+        if (Input.GetKeyDown(toolCountdownKey)) levelEditor.UI_SetTool((int)EditorToolType.CountdownBlock);
         if (Input.GetKeyDown(toolStopBlockKey)) levelEditor.UI_SetTool((int)EditorToolType.StopBlock);
+        if (Input.GetKeyDown(toolElectricCircuitKey)) levelEditor.UI_SetTool((int)EditorToolType.ElectricCircuit);
         if (Input.GetKeyDown(toolArrowShadowKey)) levelEditor.UI_SetTool((int)EditorToolType.ArrowShadow);
         if (Input.GetKeyDown(toolTurnStateKey)) levelEditor.UI_SetTool((int)EditorToolType.TurnStateBlock);
         if (Input.GetKeyDown(toolBlackHoleKey)) levelEditor.UI_SetTool((int)EditorToolType.BlackHole);
@@ -97,7 +106,17 @@ public sealed class EditorInputManager : MonoBehaviour
         if (Input.GetKeyDown(dirRightKey1) || Input.GetKeyDown(dirRightKey2)) levelEditor.UI_SetDirection(3);
 
         // General operations
-        if (Input.GetKeyDown(finishSnakeKey)) levelEditor.UI_FinishSnake();
+        if (Input.GetKeyDown(finishSnakeKey))
+        {
+            if (levelEditor.currentState != null)
+            {
+                levelEditor.currentState.HandleSpaceKeyPressed();
+            }
+            else
+            {
+                levelEditor.UI_FinishSnake();
+            }
+        }
         if (Input.GetKeyDown(rotateDirKey)) levelEditor.RotateDirectionPublic();
         if (Input.GetKeyDown(undoKey)) levelEditor.TriggerUndo();
         if (Input.GetKeyDown(redoKey)) levelEditor.TriggerRedo();

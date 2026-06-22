@@ -29,11 +29,35 @@ public class SelectState : EditorStateBase
             if (child == null) continue;
             if (Mathf.RoundToInt(child.position.x) == gridPos.x && Mathf.RoundToInt(child.position.y) == gridPos.y)
             {
-                if (child.GetComponent<GridKeycard>() != null) { editor.UI_SetTool((int)EditorToolType.Keycard); return; }
-                if (child.GetComponent<GridLaserGate>() != null) { editor.UI_SetTool((int)EditorToolType.Gate); return; }
+                var keycard = child.GetComponent<GridKeycard>();
+                if (keycard != null) 
+                { 
+                    editor.UI_SetColor(keycard.keyColor);
+                    editor.UI_SetTool((int)EditorToolType.KeycardGate); 
+                    var keycardState = editor.GetCachedState(EditorToolType.KeycardGate) as PlaceKeycardGateState;
+                    if (keycardState != null) keycardState.CurrentSubMode = PlaceKeycardGateState.SubMode.Keycard;
+                    return; 
+                }
+                var gate = child.GetComponent<GridLaserGate>();
+                if (gate != null) 
+                { 
+                    editor.UI_SetColor(gate.gateColor);
+                    editor.UI_SetTool((int)EditorToolType.KeycardGate); 
+                    var keycardState = editor.GetCachedState(EditorToolType.KeycardGate) as PlaceKeycardGateState;
+                    if (keycardState != null) keycardState.CurrentSubMode = PlaceKeycardGateState.SubMode.Gate;
+                    return; 
+                }
                 if (child.GetComponentInChildren<GridDeflector>() != null) { editor.UI_SetTool((int)EditorToolType.Deflector); return; }
                 if (child.GetComponent<GridCountdownBlock>() != null) { editor.UI_SetTool((int)EditorToolType.CountdownBlock); return; }
-                if (child.GetComponent<GridElectricButton>() != null) { editor.UI_SetTool((int)EditorToolType.ElectricButton); return; }
+                var electricButton = child.GetComponent<GridElectricButton>();
+                if (electricButton != null) 
+                { 
+                    editor.UI_SetColor(electricButton.buttonColor);
+                    editor.UI_SetTool((int)EditorToolType.ElectricCircuit); 
+                    var electricState = editor.GetCachedState(EditorToolType.ElectricCircuit) as PlaceElectricCircuitState;
+                    if (electricState != null) electricState.CurrentSubMode = PlaceElectricCircuitState.SubMode.Button;
+                    return; 
+                }
                 if (child.GetComponent<GridStopBlock>() != null) { editor.UI_SetTool((int)EditorToolType.StopBlock); return; }
                 if (child.GetComponent<GridTurnStateBlock>() != null) { editor.UI_SetTool((int)EditorToolType.TurnStateBlock); return; }
                 if (child.GetComponent<GridBlackHole>() != null) { editor.UI_SetTool((int)EditorToolType.BlackHole); return; }
@@ -44,7 +68,10 @@ public class SelectState : EditorStateBase
             GridElectricWall ew = child.GetComponent<GridElectricWall>();
             if (ew != null && ew.ContainsCell(gridPos))
             {
-                editor.UI_SetTool((int)EditorToolType.ElectricWall);
+                editor.UI_SetColor(ew.wallColor);
+                editor.UI_SetTool((int)EditorToolType.ElectricCircuit);
+                var electricState = editor.GetCachedState(EditorToolType.ElectricCircuit) as PlaceElectricCircuitState;
+                if (electricState != null) electricState.CurrentSubMode = PlaceElectricCircuitState.SubMode.Wall;
                 return;
             }
         }
@@ -54,6 +81,7 @@ public class SelectState : EditorStateBase
         {
             if (editor.currentDraftPortals[i].entrance == gridPos || editor.currentDraftPortals[i].exit == gridPos)
             {
+                editor.UI_SetColor(editor.currentDraftPortals[i].portalColor);
                 editor.UI_SetTool((int)EditorToolType.Portal);
                 return;
             }
@@ -64,7 +92,10 @@ public class SelectState : EditorStateBase
         {
             if (LevelEditorRuntimeHelpers.IsCellOnElectricWall(gridPos, editor.currentDraftElectricWalls[i]))
             {
-                editor.UI_SetTool((int)EditorToolType.ElectricWall);
+                editor.UI_SetColor(editor.currentDraftElectricWalls[i].color);
+                editor.UI_SetTool((int)EditorToolType.ElectricCircuit);
+                var electricState = editor.GetCachedState(EditorToolType.ElectricCircuit) as PlaceElectricCircuitState;
+                if (electricState != null) electricState.CurrentSubMode = PlaceElectricCircuitState.SubMode.Wall;
                 return;
             }
         }

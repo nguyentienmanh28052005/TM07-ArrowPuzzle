@@ -7,10 +7,36 @@ using UnityEngine.UI;
 using System.Linq;
 using UnityEngine.SceneManagement;
 
-public enum EditorToolType { Draw, Erase, Paint, Select, Portal, Keycard, Gate, Deflector, CountdownBlock, ElectricButton, ElectricWall, StopBlock, ArrowShadow, TurnStateBlock, BlackHole, RevealWaveButton }
+// public enum EditorToolType { Draw, Erase, Paint, Select, Portal, KeycardGate, Deflector, CountdownBlock, ElectricCircuit, StopBlock, ArrowShadow, TurnStateBlock, BlackHole, RevealWaveButton }
 
 public partial class LevelEditorWorkspace : MonoBehaviour
 {
+    private readonly Dictionary<EditorToolType, EditorStateBase> stateCache = new Dictionary<EditorToolType, EditorStateBase>();
+
+    public EditorStateBase GetCachedState(EditorToolType toolType)
+    {
+        if (stateCache.TryGetValue(toolType, out EditorStateBase state)) return state;
+        return null;
+    }
+
+    private void InitializeStateCache()
+    {
+        stateCache[EditorToolType.Draw] = new DrawSnakeState(this);
+        stateCache[EditorToolType.Erase] = new EraseState(this);
+        stateCache[EditorToolType.Paint] = new PaintState(this);
+        stateCache[EditorToolType.Select] = new SelectState(this);
+        stateCache[EditorToolType.Portal] = new PlacePortalState(this);
+        stateCache[EditorToolType.KeycardGate] = new PlaceKeycardGateState(this);
+        stateCache[EditorToolType.Deflector] = new PlaceDeflectorState(this);
+        stateCache[EditorToolType.CountdownBlock] = new PlaceCountdownState(this);
+        stateCache[EditorToolType.StopBlock] = new PlaceStopBlockState(this);
+        stateCache[EditorToolType.TurnStateBlock] = new PlaceTurnStateBlockState(this);
+        stateCache[EditorToolType.BlackHole] = new PlaceBlackHoleState(this);
+        stateCache[EditorToolType.RevealWaveButton] = new PlaceRevealWaveButtonState(this);
+        stateCache[EditorToolType.ElectricCircuit] = new PlaceElectricCircuitState(this);
+        stateCache[EditorToolType.ArrowShadow] = new PlaceArrowShadowState(this);
+    }
+
     public static LevelEditorWorkspace Instance { get; private set; }
 
     public LevelEditorObjectPool Pool { get; private set; }
@@ -69,6 +95,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
     private static LevelDataV2 tempEditingData;
 
     [Header("Preview & Tools")]
+    public ColorPaletteAsset editorPalette;
     public SpriteRenderer previewCursor;
     public EditorToolType currentTool = EditorToolType.Draw;
     [SerializeField] private TextMeshProUGUI textCurrentTool;
@@ -77,7 +104,6 @@ public partial class LevelEditorWorkspace : MonoBehaviour
     public Image colorPreviewImage;
 
     [Header("Validation Settings")]
-    public int minDistanceBetweenSnakes = 2;
     [SerializeField] private bool checkDeadlockContinuously = true;
     [SerializeField, Min(0.05f)] private float deadlockCheckInterval = 0.5f;
     [SerializeField] private int deadlockScanLimit = 512;
@@ -134,7 +160,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
     private GameObject activePreviewObject;
     private EditorToolType lastObservedPreviewTool = (EditorToolType)(-1);
 
-    private EditorStateBase currentState;
+    internal EditorStateBase currentState;
     private string lastSavedDigest = string.Empty;
     private readonly Dictionary<Vector2Int, GameObject> gridOccupantsCache = new Dictionary<Vector2Int, GameObject>();
 
@@ -145,6 +171,11 @@ public partial class LevelEditorWorkspace : MonoBehaviour
 
     private void Start()
     {
+        if (editorPalette == null)
+        {
+            editorPalette = Resources.Load<ColorPaletteAsset>("Palettes/DefaultPalette");
+        }
+        InitializeStateCache();
         mainCam = GetCameraInMyScene();
         EnsureSelectionOverlayContainer();
         if (colorPreviewImage != null)
@@ -156,7 +187,14 @@ public partial class LevelEditorWorkspace : MonoBehaviour
             levelSelectorView.Initialize(this);
         }
         LoadLevelToEdit();
-        currentState = new DrawSnakeState(this);
+        if (stateCache.TryGetValue(EditorToolType.Draw, out EditorStateBase drawState))
+        {
+            currentState = drawState;
+        }
+        else
+        {
+            currentState = new DrawSnakeState(this);
+        }
         currentState.OnEnter();
     }
 
@@ -491,31 +529,32 @@ public partial class LevelEditorWorkspace : MonoBehaviour
         currentTool = newTool; 
         UpdateToolText(); 
 
-        switch (currentTool)
+        if (stateCache.TryGetValue(currentTool, out EditorStateBase cachedState))
         {
-            case EditorToolType.Draw: currentState = new DrawSnakeState(this); break;
-            case EditorToolType.Erase: currentState = new EraseState(this); break;
-            case EditorToolType.Paint: currentState = new PaintState(this); break;
-            case EditorToolType.Select: currentState = new SelectState(this); break;
-            case EditorToolType.Portal: currentState = new PlacePortalState(this); break;
-            case EditorToolType.Keycard: currentState = new PlaceKeycardState(this); break;
-            case EditorToolType.Gate: currentState = new PlaceGateState(this); break;
-            case EditorToolType.Deflector: currentState = new PlaceDeflectorState(this); break;
-            case EditorToolType.CountdownBlock: currentState = new PlaceCountdownState(this); break;
-            case EditorToolType.StopBlock: currentState = new PlaceStopBlockState(this); break;
-            case EditorToolType.TurnStateBlock: currentState = new PlaceTurnStateBlockState(this); break;
-            case EditorToolType.BlackHole: currentState = new PlaceBlackHoleState(this); break;
-            case EditorToolType.RevealWaveButton: currentState = new PlaceRevealWaveButtonState(this); break;
-            case EditorToolType.ElectricButton: currentState = new PlaceElectricButtonState(this); break;
-            case EditorToolType.ElectricWall: currentState = new PlaceElectricWallState(this); break;
-            case EditorToolType.ArrowShadow: currentState = new PlaceArrowShadowState(this); break;
+            currentState = cachedState;
+        }
+        else
+        {
+            currentState = null;
         }
 
         currentState?.OnEnter();
 
         if (currentTool != EditorToolType.Select) ClearSelectionHighlight();
         if (currentTool != EditorToolType.Portal) isPlacingPortalExit = false;
-        if (currentTool != EditorToolType.ElectricWall) isPlacingElectricWallEnd = false;
+        
+        if (currentTool != EditorToolType.ElectricCircuit)
+        {
+            isPlacingElectricWallEnd = false;
+        }
+        else
+        {
+            var electricState = GetCachedState(EditorToolType.ElectricCircuit) as PlaceElectricCircuitState;
+            if (electricState == null || electricState.CurrentSubMode != PlaceElectricCircuitState.SubMode.Wall)
+            {
+                isPlacingElectricWallEnd = false;
+            }
+        }
     }
 
     private void RemoveFromFinishedHistory(GameObject obj)
@@ -575,9 +614,18 @@ public partial class LevelEditorWorkspace : MonoBehaviour
             selectedSnakeToModify.SetColorImmediatePublic(currentColor);
             if (currentSelectionGlowScript != null) currentSelectionGlowScript.SetColorImmediatePublic(currentColor);
         }
+        else if (currentTool == EditorToolType.KeycardGate || currentTool == EditorToolType.ElectricCircuit || currentTool == EditorToolType.Portal)
+        {
+            currentState?.HandleColorSelected(currentColor);
+        }
+        else
+        {
+            UI_SetTool((int)EditorToolType.Paint);
+        }
         OnManipulationComplete();
         OnColorChanged?.Invoke(currentColor);
     }
+
 
 
     public void UI_FinishSnake()
@@ -649,7 +697,179 @@ public partial class LevelEditorWorkspace : MonoBehaviour
 
     internal void UpdateToolText()
     {
-        if (textCurrentTool != null) textCurrentTool.text = $"{currentTool} - {currentDir}";
+        if (textCurrentTool != null)
+        {
+            string statusText = currentState != null ? currentState.GetToolStatusText() : string.Empty;
+            if (!string.IsNullOrEmpty(statusText))
+            {
+                textCurrentTool.text = $"{currentTool} {statusText} - {currentDir}";
+            }
+            else
+            {
+                textCurrentTool.text = $"{currentTool} - {currentDir}";
+            }
+        }
+    }
+
+    public bool HasKeycardWithColor(Color color)
+    {
+        if (levelContainer == null) return false;
+        foreach (Transform child in levelContainer)
+        {
+            if (child == null) continue;
+            GridKeycard keycard = child.GetComponent<GridKeycard>();
+            if (keycard != null && LevelEditorRuntimeHelpers.ColorsMatch(keycard.keyColor, color))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Color GetNextUnusedKeycardColor()
+    {
+        if (editorPalette == null || editorPalette.colors == null || editorPalette.colors.Count == 0)
+        {
+            return currentColor;
+        }
+
+        List<Color> usedColors = new List<Color>();
+        if (levelContainer != null)
+        {
+            foreach (Transform child in levelContainer)
+            {
+                if (child == null) continue;
+                GridKeycard keycard = child.GetComponent<GridKeycard>();
+                if (keycard != null)
+                {
+                    usedColors.Add(keycard.keyColor);
+                }
+            }
+        }
+
+        foreach (Color color in editorPalette.colors)
+        {
+            bool matched = false;
+            foreach (Color used in usedColors)
+            {
+                if (LevelEditorRuntimeHelpers.ColorsMatch(color, used))
+                {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                return color;
+            }
+        }
+
+        return editorPalette.colors[0];
+    }
+
+    public bool HasElectricButtonWithColor(Color color)
+    {
+        if (levelContainer == null) return false;
+        foreach (Transform child in levelContainer)
+        {
+            if (child == null) continue;
+            GridElectricButton button = child.GetComponent<GridElectricButton>();
+            if (button != null && LevelEditorRuntimeHelpers.ColorsMatch(button.buttonColor, color))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Color GetNextUnusedElectricButtonColor()
+    {
+        if (editorPalette == null || editorPalette.colors == null || editorPalette.colors.Count == 0)
+        {
+            return currentColor;
+        }
+
+        List<Color> usedColors = new List<Color>();
+        if (levelContainer != null)
+        {
+            foreach (Transform child in levelContainer)
+            {
+                if (child == null) continue;
+                GridElectricButton button = child.GetComponent<GridElectricButton>();
+                if (button != null)
+                {
+                    usedColors.Add(button.buttonColor);
+                }
+            }
+        }
+
+        foreach (Color color in editorPalette.colors)
+        {
+            bool matched = false;
+            foreach (Color used in usedColors)
+            {
+                if (LevelEditorRuntimeHelpers.ColorsMatch(color, used))
+                {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                return color;
+            }
+        }
+
+        return editorPalette.colors[0];
+    }
+
+    public bool HasPortalWithColor(Color color)
+    {
+        if (currentDraftPortals == null) return false;
+        foreach (PortalData portal in currentDraftPortals)
+        {
+            if (LevelEditorRuntimeHelpers.ColorsMatch(portal.portalColor, color))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Color GetNextUnusedPortalColor()
+    {
+        if (editorPalette == null || editorPalette.colors == null || editorPalette.colors.Count == 0)
+        {
+            return currentColor;
+        }
+
+        List<Color> usedColors = new List<Color>();
+        if (currentDraftPortals != null)
+        {
+            foreach (PortalData portal in currentDraftPortals)
+            {
+                usedColors.Add(portal.portalColor);
+            }
+        }
+
+        foreach (Color color in editorPalette.colors)
+        {
+            bool matched = false;
+            foreach (Color used in usedColors)
+            {
+                if (LevelEditorRuntimeHelpers.ColorsMatch(color, used))
+                {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                return color;
+            }
+        }
+
+        return editorPalette.colors[0];
     }
 
     internal EditorSnakeVisual GetSnakeAtGridPos(Vector2Int pos)
@@ -718,23 +938,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
         return false;
     }
 
-    internal bool IsTooCloseToOtherSnakes(Vector2Int pos)
-    {
-        if (minDistanceBetweenSnakes <= 1) return false;
-        
-        int limit = minDistanceBetweenSnakes;
-        for (int xOffset = -(limit - 1); xOffset <= (limit - 1); xOffset++)
-        {
-            for (int yOffset = -(limit - 1); yOffset <= (limit - 1); yOffset++)
-            {
-                if (Mathf.Abs(xOffset) + Mathf.Abs(yOffset) >= limit) continue;
-                Vector2Int checkPos = new Vector2Int(pos.x + xOffset, pos.y + yOffset);
-                EditorSnakeVisual snake = GetSnakeAtGridPos(checkPos);
-                if (snake != null) return true;
-            }
-        }
-        return false;
-    }
+
 
     internal List<Vector2Int> GetInterpolatedPath(Vector2Int start, Vector2Int end)
     {
@@ -759,7 +963,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
                 nextStep.y += (int)Mathf.Sign(dy);
             }
 
-            if (IsPositionOccupied(nextStep) || IsTooCloseToOtherSnakes(nextStep))
+            if (IsPositionOccupied(nextStep))
             {
                 break;
             }
@@ -1001,7 +1205,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
             return;
         }
 
-        if (currentTool == EditorToolType.ElectricWall && isPlacingElectricWallEnd)
+        if (currentTool == EditorToolType.ElectricCircuit && isPlacingElectricWallEnd)
         {
             isPlacingElectricWallEnd = false;
             lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -1029,7 +1233,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
             changed = true;
         }
 
-        if (currentTool == EditorToolType.ElectricWall && isPlacingElectricWallEnd)
+        if (currentTool == EditorToolType.ElectricCircuit && isPlacingElectricWallEnd)
         {
             isPlacingElectricWallEnd = false;
             lastCalculatedGridPos = new Vector2Int(-9999, -9999);
@@ -1103,11 +1307,20 @@ public partial class LevelEditorWorkspace : MonoBehaviour
     {
         switch (tool)
         {
-            case EditorToolType.Keycard: return keycardPrefab;
-            case EditorToolType.Gate: return gatePrefab;
+            case EditorToolType.KeycardGate: 
+                {
+                    var state = GetCachedState(EditorToolType.KeycardGate) as PlaceKeycardGateState;
+                    bool isKeycard = state == null || state.CurrentSubMode == PlaceKeycardGateState.SubMode.Keycard;
+                    return isKeycard ? keycardPrefab : gatePrefab;
+                }
             case EditorToolType.Deflector: return deflectorPrefab;
             case EditorToolType.CountdownBlock: return countdownBlockPrefab;
-            case EditorToolType.ElectricButton: return electricButtonPrefab;
+            case EditorToolType.ElectricCircuit: 
+                {
+                    var state = GetCachedState(EditorToolType.ElectricCircuit) as PlaceElectricCircuitState;
+                    bool isButton = state == null || state.CurrentSubMode == PlaceElectricCircuitState.SubMode.Button;
+                    return isButton ? electricButtonPrefab : electricWallPrefab;
+                }
             case EditorToolType.StopBlock: return stopBlockPrefab;
             case EditorToolType.TurnStateBlock: return turnStateBlockPrefab;
             case EditorToolType.BlackHole: return blackHolePrefab;
@@ -1190,6 +1403,9 @@ public partial class LevelEditorWorkspace : MonoBehaviour
         }
     }
 
+    private int lastObservedKeycardGateSubMode = -1;
+    private int lastObservedElectricCircuitSubMode = -1;
+
     private void UpdatePreviewCursor()
     {
         Vector2Int gridPos = GetMouseGridPosition();
@@ -1198,7 +1414,29 @@ public partial class LevelEditorWorkspace : MonoBehaviour
             previewCursor.transform.position = new Vector3(gridPos.x, gridPos.y, -1f); 
         }
         
-        if (lastObservedPreviewTool != currentTool)
+        bool submodeChanged = false;
+        if (currentTool == EditorToolType.KeycardGate)
+        {
+            var state = GetCachedState(EditorToolType.KeycardGate) as PlaceKeycardGateState;
+            int currentSub = state != null ? (int)state.CurrentSubMode : 0;
+            if (currentSub != lastObservedKeycardGateSubMode)
+            {
+                lastObservedKeycardGateSubMode = currentSub;
+                submodeChanged = true;
+            }
+        }
+        if (currentTool == EditorToolType.ElectricCircuit)
+        {
+            var state = GetCachedState(EditorToolType.ElectricCircuit) as PlaceElectricCircuitState;
+            int currentSub = state != null ? (int)state.CurrentSubMode : 0;
+            if (currentSub != lastObservedElectricCircuitSubMode)
+            {
+                lastObservedElectricCircuitSubMode = currentSub;
+                submodeChanged = true;
+            }
+        }
+
+        if (lastObservedPreviewTool != currentTool || submodeChanged)
         {
             lastObservedPreviewTool = currentTool;
             CreateActivePreviewObject();
@@ -1213,7 +1451,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
         {
             if (currentTool == EditorToolType.Draw)
             {
-                bool invalid = IsPositionOccupied(gridPos) || IsTooCloseToOtherSnakes(gridPos);
+                bool invalid = IsPositionOccupied(gridPos);
                 previewCursor.color = invalid ? new Color(1, 0, 0, 0.5f) : new Color(currentColor.r, currentColor.g, currentColor.b, 0.5f);
             }
             else if (currentTool == EditorToolType.Erase) previewCursor.color = new Color(1, 0, 0, 0.5f);
@@ -1222,7 +1460,7 @@ public partial class LevelEditorWorkspace : MonoBehaviour
             else if (currentTool == EditorToolType.TurnStateBlock) previewCursor.color = ShouldUseRedTurnState() ? new Color(1f, 0.1f, 0.1f, 0.8f) : new Color(0.1f, 1f, 0.35f, 0.8f);
             else if (currentTool == EditorToolType.BlackHole) previewCursor.color = new Color(0.05f, 0.05f, 0.08f, 0.75f);
             else if (currentTool == EditorToolType.RevealWaveButton) previewCursor.color = new Color(0.35f, 0.9f, 1f, 0.8f);
-            else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.Keycard || currentTool == EditorToolType.Gate || currentTool == EditorToolType.Deflector || currentTool == EditorToolType.CountdownBlock || currentTool == EditorToolType.ElectricButton || currentTool == EditorToolType.ElectricWall || currentTool == EditorToolType.StopBlock) 
+            else if (currentTool == EditorToolType.Portal || currentTool == EditorToolType.KeycardGate || currentTool == EditorToolType.Deflector || currentTool == EditorToolType.CountdownBlock || currentTool == EditorToolType.ElectricCircuit || currentTool == EditorToolType.StopBlock) 
                 previewCursor.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.8f);
         }
     }

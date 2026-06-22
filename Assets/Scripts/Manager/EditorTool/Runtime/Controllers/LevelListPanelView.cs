@@ -130,7 +130,15 @@ public sealed class LevelListPanelView : MonoBehaviour
             _originPosition = panelRect.anchoredPosition;
             _hiddenPosition = _originPosition - new Vector2(panelRect.rect.width, 0f);
         }
+
+        EditorInputManager.OnToggleLevelListPanelPressed += TogglePanel;
     }
+
+    private void OnDestroy()
+    {
+        EditorInputManager.OnToggleLevelListPanelPressed -= TogglePanel;
+    }
+
 
 
 

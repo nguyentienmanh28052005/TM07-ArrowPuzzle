@@ -16,4 +16,11 @@ public abstract class EditorStateBase
     public virtual void UpdatePreview(Vector2Int gridPos) {}
     public virtual void Cancel() {}
     public virtual void Finish() {}
+
+    public virtual string GetToolStatusText() => string.Empty;
+    public virtual void HandleSpaceKeyPressed()
+    {
+        Finish();
+    }
+    public virtual void HandleColorSelected(Color color) {}
 }

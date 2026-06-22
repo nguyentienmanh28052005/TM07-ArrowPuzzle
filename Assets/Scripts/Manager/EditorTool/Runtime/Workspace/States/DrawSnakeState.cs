@@ -7,7 +7,7 @@ public class DrawSnakeState : EditorStateBase
 
     public override void HandleMouseDown(Vector2Int gridPos)
     {
-        if (editor.IsPositionOccupied(gridPos) || editor.IsTooCloseToOtherSnakes(gridPos)) return;
+        if (editor.IsPositionOccupied(gridPos)) return;
         if (editor.currentSnakeObj == null)
         {
             editor.HistoryService?.RecordState(editor.CaptureSnapshot());
@@ -68,7 +68,7 @@ public class DrawSnakeState : EditorStateBase
         {
             if (distToHead == 1)
             {
-                if (!editor.IsPositionOccupied(gridPos) && !editor.IsTooCloseToOtherSnakes(gridPos))
+                if (!editor.IsPositionOccupied(gridPos))
                 {
                     editor.CreateHeadSegment(gridPos);
                     editor.UpdateAutoDirection();
@@ -95,7 +95,7 @@ public class DrawSnakeState : EditorStateBase
         {
             if (distToTail == 1)
             {
-                if (!editor.IsPositionOccupied(gridPos) && !editor.IsTooCloseToOtherSnakes(gridPos))
+                if (!editor.IsPositionOccupied(gridPos))
                 {
                     editor.CreateBodySegment(gridPos);
                     editor.UpdateAutoDirection();
@@ -122,7 +122,7 @@ public class DrawSnakeState : EditorStateBase
         {
             if (distToHead == 1)
             {
-                if (!editor.IsPositionOccupied(gridPos) && !editor.IsTooCloseToOtherSnakes(gridPos))
+                if (!editor.IsPositionOccupied(gridPos))
                 {
                     editor.CreateHeadSegment(gridPos);
                     editor.UpdateAutoDirection();
